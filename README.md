@@ -1,3 +1,11 @@
+
+# Shotgrid integration for Ayon
+
+This addon will provide a `leecher` that updates Ayon Server with the changes from a Shotgrid instance.
+
+Please refer to the Ayon Addon Template README to understand an Ayon's Addon structure: https://github.com/ynput/ayon-addon-template/blob/main/README.md
+
+
 # Addon template
 This is a boilerplate git repository for creating new ayon addons.
 
