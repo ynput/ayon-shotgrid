@@ -27,10 +27,11 @@ import argparse
 import logging
 import collections
 
-ADDON_NAME = ""
+ADDON_NAME = "shotgrid"
 
 # Files or directories that won't be copied to server part of addon
 SERVER_ADDON_SUBPATHS = {
+    "frontend",
     "private",
     "public",
     "services",
@@ -137,23 +138,15 @@ def copy_server_content(addon_output_dir, current_dir, log):
 
     log.info("Copying server content")
 
-    filepaths_to_copy = []
-    for filename in SERVER_ADDON_SUBPATHS:
-        src_path = os.path.join(current_dir, filename)
-        dst_path = os.path.join(addon_output_dir, filename)
-        if os.path.isfile(src_path):
-            if not _value_match_regexes(filename, IGNORE_FILE_PATTERNS):
-                filepaths_to_copy.append((src_path, dst_path))
-            continue
+    shutil.copytree(
+        os.path.join(current_dir, "server"),
+        addon_output_dir
+    )
 
-        for path, sub_path in find_files_in_subdir(src_path):
-            filepaths_to_copy.append(
-                (path, os.path.join(dst_path, sub_path))
-            )
-
-    # Copy files
-    for src_path, dst_path in filepaths_to_copy:
-        safe_copy_file(src_path, dst_path)
+    shutil.copy2(
+        os.path.join(current_dir, "version.py"),
+        addon_output_dir
+    )
 
 
 def zip_client_side(addon_package_dir, current_dir, zip_file_name, log):
@@ -214,8 +207,9 @@ def main(output_dir=None):
 
     zip_file_name = f"{ADDON_NAME}_{addon_version}"
     addon_output_dir = os.path.join(output_dir, ADDON_NAME, addon_version)
-    if not os.path.exists(addon_output_dir):
-        os.makedirs(addon_output_dir)
+
+    if os.path.exists(addon_output_dir):
+        os.rmdir(addon_output_dir)
 
     copy_server_content(addon_output_dir, current_dir, log)
 

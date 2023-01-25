@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Example addon</title>
+    <style>
+
+      html, body {
+        padding: 20px;
+        background: #2c313a;
+        color: #ccc;
+        font-family: sans-serif;
+      }
+
+      fieldset {
+        border-color: #252323;
+        margin-bottom: 20px;
+      }
+
+    </style>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+
+  </head>
+
+
+
+  <body>
+    <h1>Example addon</h1>
+
+    <p>
+      This is an example addon <span id='addon-name'></span> written in vanilla javascript
+      invoked in project <span id='project-name'></span>.
+    </p>
+
+
+    <fieldset>
+      <legend>Authorization</legend>
+      <p>
+        Since the current user's access token is available to the addon, 
+        it's aware, who's using it. You are <span id='user-name'></span>
+      </p>
+    </fieldset>
+
+
+    <fieldset>
+    <legend>Custom endpoint</legend>
+    
+    <p>
+      There's a custom addon REST endpoint which returns a random folder of a type specified
+      in the addon configuration. Click the following button to try it.
+    </p>
+
+    <button id="call-button">Click me</button>
+
+
+    <p id="call-result"></p>
+    </fieldset>
+
+
+    <fieldset>
+    <legend>Context</legend>
+
+    <p>
+      Select something in the sidebar (which is not a part of the addon). 
+      And the addon will receive an updated context.
+      <ul id='selection'>
+      </ul>
+    </p>
+    </fieldset>
+
+
+
+  <script>
+
+    var addonName = null
+    var addonVersion = null
+    var projectName = null
+    var accessToken = null
+
+
+    const init = () => {
+
+      /*
+
+        When the addon page is loaded, it receive a message with context and
+        additional data (accessToken, addon version...). When the context is changed, 
+        a message is re-broadcasted, so the page can react to changes in selection etc.
+
+      */        
+      
+
+      window.onmessage = (e) => {
+        const context = e.data.context
+        addonName = e.data.addonName
+        addonVersion = e.data.addonVersion
+        accessToken = e.data.accessToken
+        projectName = context.projectName
+
+        document.querySelector('#project-name').innerHTML = projectName
+        document.querySelector('#addon-name').innerHTML = `${addonName} ${addonVersion}`
+
+        let selectionList = ""
+        for (const folderId of context.focused.folders){
+          selectionList += `<li>${folderId}</li>\n`
+        }
+        document.querySelector('#selection').innerHTML = selectionList
+
+        // get the current user info
+
+        const headers = {"Authorization": `Bearer ${accessToken}`}
+        axios
+          .get("/api/users/me", {headers})
+          .then((response) => {
+            console.log(response.data)
+            document.querySelector("#user-name").innerHTML = response.data.name
+          })
+    
+
+      } // end of window.onmessage
+
+
+      /*
+        Since has the access token, it can call any rest endpoints including
+        the ones specific to the addon.
+
+        In this case, we call the addon endpoint get-random-folder.
+      */
+
+
+      document.querySelector("#call-button").addEventListener("click", () => {
+        const url = `/api/addons/${addonName}/${addonVersion}/get-random-folder/${projectName}`
+        const headers = {"Authorization": `Bearer ${accessToken}`}
+        axios
+          .get(url, {headers})
+          .then((response) => {
+            const msg = `Random ${response.data.folderType} of the day is ${response.data.name}` 
+            document.querySelector("#call-result").innerHTML = msg
+          })
+
+      }) // end of call-button.onclick
+
+    } // end of init
+
+
+
+    document.addEventListener('DOMContentLoaded', () => {
+      init()
+    })
+  </script>
+
+  </body>
+</html>
+
