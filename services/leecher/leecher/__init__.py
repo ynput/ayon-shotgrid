@@ -1,6 +1,7 @@
-from .listener import main
+from .listener import ShotgridListener
 
 
 __all__ = (
-    "main",
+    "ShotgridListener",
 )
+

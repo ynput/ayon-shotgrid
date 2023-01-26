@@ -15,14 +15,9 @@ class ShotgridServiceSettings(BaseSettingsModel):
     of shotgrid users. It is recommended to use special user for that purposes
     so you can see which changes happened from service.
     """
-
-    username: str = Field(
-        "",
-        title="Shotgrid Script Name",
-    )
-    api_key: str = Field(
-        "",
-        title="Shotgrid API Key"
+    polling_frequency: str = Field(
+        10,
+        title="How often (in seconds) to query the Shotgrid Database."
     )
 
 
@@ -32,6 +27,14 @@ class ShotgridSettings(BaseSettingsModel):
     shotgrid_server: str = Field(
         "",
         title="Shotgrid server url",
+    )
+    shotgrid_script_name: str = Field(
+        "",
+        title="Shotgrid Script Name",
+    )
+    shotgrid_api_key: str = Field(
+        "",
+        title="Shotgrid API Key"
     )
 
     service_event_handlers: ShotgridServiceHandlers = Field(

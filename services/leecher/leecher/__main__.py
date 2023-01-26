@@ -1,6 +1,9 @@
-from .listener import main
+import sys
+
+from .listener import ShotgridListener
 
 
 if __name__ == "__main__":
-    main()
+    shotgird_listener = ShotgridListener()
+    sys.exit(shotgird_listener.start_listening())
 

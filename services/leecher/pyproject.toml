@@ -6,7 +6,7 @@ authors = ["Oscar Domingo <oscar.domingo@ynput.com>"]
 
 [tool.poetry.dependencies]
 appdirs = "^1.4"
-python = "^3.7"
+python = ">=3.9,<4.0"
 pydantic = "^1.10.2"
 nxtools = "^1.6"
 ayon-python-api = "^0.1.8"
