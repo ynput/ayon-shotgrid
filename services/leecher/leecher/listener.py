@@ -163,20 +163,22 @@ class ShotgridListener:
 
         if user_name:
             description = f"Leeched {payload['event_type']} by {user_name}"
+
         # fix non serializable datetime
         payload["created_at"] = payload["created_at"].isoformat()
 
         logging.info(description)
 
-        ayon_server_connection = ayon_api.get_server_api_connection() # while we fix ayon-python-api
+        # while we fix ayon-python-api
+        ayon_server_connection = ayon_api.get_server_api_connection()
         # ayon_api.dispatch_event
         ayon_server_connection.dispatch_event(
             "shotgrid.leech",
             sender=socket.gethostname(),
             event_hash=payload["id"],
-            project_name=payload.get("project", {}).get("name", "Undefined"),  # probably should check if this is a project level, otherwise we dont really care
-            username=payload.get("user", {}).get("name", "Undefined"),  # like wise
-            dependencies=payload["id"] - 1, # There's no really way to tell if this event depends on something from the db... so we wait on teh previosu event
+            project_name=payload.get("project", {}).get("name", "Undefined"),
+            username=payload.get("user", {}).get("name", "Undefined"),
+            dependencies=payload["id"] - 1,
             description=description,
             summary=None,
             payload=payload,
