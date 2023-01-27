@@ -23,7 +23,7 @@ import shotgun_api3
 IGNORE_TOPICS = {}
 
 
-class ShotgridListener:
+class ShotgridProcessor:
     def __init__(self):
         """ Ensure both Ayon and Shotgrid connections are available.
 
@@ -94,47 +94,100 @@ class ShotgridListener:
 
         while True:
             logging.info("Querying for new `shotgrid.leech` events...")
-
+            import pprint
             try:
-                payload = {
-                    "sourceTopic": "shotgrid.leech",
-                    "targetTopic": "shotgrid.proc",
-                    "sender": socket.gethostname(),
-                    "description": "Event processing",
-                    "sequential": True,
-                }
                 # while we fix ayon-python-api
-                ayon_server_connection = ayon_api.get_server_api_connection()
-                # ayon_api.dispatch_event
-                response = ayon_server_connection.enroll_event(
-                    "enroll",
-                    json=payload
+                event = ayon_api.enroll_event_job(
+                    "shotgrid.leech",
+                    "shotgrid.proc",
+                    socket.gethostname(),
+                    description="Shotgrid Event processing",
                 )
-                if response.status_code == 204:
-                    return None
-                elif response.status_code >= 400:
-                    logging.error(response)
-                    return None
+                pprint.pprint(event)
 
-                    return response.json()
-                
-                events = self.shotgrid_session.find(
-                    "EventLogEntry",
-                    filters,
-                    fields,
-                    order,
-                    limit=50,
-                )
-                if events:
-                    logging.info(f"Query returned {len(events)} events.")
+                if not event:
+                    continue
 
-                    for event in events:
-                        if not event:
-                            continue
+                event = ayon_api.get_event(event["id"])
+                print(event)
+                if event["dependsOn"]:
+                    previous_event = ayon_api.get_event(event["dependsOn"])
+                    print("HENLO?")
+                    print(previous_event)
+                    # Possible event statuses...
+                    # "pending",
+                    # "in_progress",
+                    # "finished",
+                    # "failed",
+                    # "aborted",
+                    # "restarted",
+                    if not previous_event:
+                        print("fi")
+                        ayon_api.update_event(event["id"], status="aborted")
+                        continue
 
-                        last_event_id = self.func(event)
+                    if previous_event["status"] in ["in_progress", "restarted"]:
+                        # we gotta wait.
+                        print("fa")
+                        continue
+                    elif previous_event["status"] == ["pending", "failed"]:
+                        # we retry the previous event
+                        print("fu")
+                        event = previous_event
+                    elif previous_event["status"] == "aborted":
+                        print("fe")
+                        # dependency has aborted, so we abort this one too
+                        ayon_api.update_event(event["id"], status="aborted")
 
-                    logging.debug(f"Last event ID is... {last_event_id}")
+                # If we reach here, means the previous event has finished,
+                # so we process
+                print("PHEEW")
+                pprint.pprint(event)
+
+                if not event["payload"]:
+                    # If payload is empty we can't do much...
+                    # While `ayon-python-api` is fixed
+                    ayon_server_connection = ayon_api.get_server_api_connection()
+                    print("BAH")
+                    d = {"status": "aborted"}
+                    print(d)
+                    print(f"events/{event['id']}")
+                    response = ayon_server_connection.raw_patch(
+                        f"events/{event['id']}",
+                        json={"status": "aborted"},
+                    )
+                    print(response)
+                    print("boh")
+                    #response.raise_for_status()
+                    #ayon_api.update_event(event["id"], status="aborted")
+
+
+                # 'payload': {'attribute_name': 'code',
+                # 'created_at': '2023-01-26T16:30:44+00:00',
+                # 'entity': {'id': 23, 'name': 'bunny_010', 'type': 'Sequence'},
+                # 'event_type': 'Shotgun_Sequence_Change',
+                # 'id': 481509,
+                # 'meta': {'attribute_name': 'code',
+                #          'entity_id': 23,
+                #          'entity_type': 'Sequence',
+                #          'field_data_type': 'text',
+                #          'new_value': 'bunny_010',
+                #          'old_value': 'bunny_010_2',
+                #          'type': 'attribute_change'},
+                # 'project': {'id': 70,
+                #             'name': 'Demo: Animation',
+                #             'type': 'Project'},
+                # 'session_uuid': '2f49b3d6-9d93-11ed-823f-0242ac110004',
+                # 'type': 'EventLogEntry',
+                # 'user': {'id': 88, 'name': 'Ayon Ynput', 'type': 'HumanUser'}}
+                # events = self.shotgrid_session.find(
+                #     "EventLogEntry",
+                #     filters,
+                #     fields,
+                #     order,
+                #     limit=50,
+                # )
+
 
             except Exception as err:
                 logging.error(err)

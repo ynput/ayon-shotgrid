@@ -181,6 +181,7 @@ class ShotgridListener:
             dependencies=payload["id"] - 1,
             description=description,
             summary=None,
+            status="pending",
             payload=payload,
         )
         logging.info("Dispatched event", payload['event_type'])

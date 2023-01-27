@@ -1,6 +1,6 @@
 import sys
 
-from .listener import ShotgridProcessor
+from .processor import ShotgridProcessor
 
 
 if __name__ == "__main__":
