@@ -110,11 +110,13 @@ class ShotgridListener:
             order=[{"column": "id", "direction": "desc"}]
         )["id"]
 
-        logging.info(f"Last Event ID is {last_event_id}")
+        # The last event ID should be found by querying
+        # the ayon database, to do this in a performant way
+        # It has to use the GraphQL api.
 
         while True:
-            logging.info("Querying for new events...")
-            logging.debug(f"The last processed event was {last_event_id}")
+            logging.info(f"Last Event ID is {last_event_id}")
+            logging.info("Querying for new events since the last one...")
             filters = None
             filters = [["id", "greater_than", last_event_id]]
 
@@ -134,8 +136,8 @@ class ShotgridListener:
                             continue
 
                         last_event_id = self.func(event)
-
-                    logging.debug(f"Last event ID is... {last_event_id}")
+                else:
+                    logging.info(f"No new events found.")
 
             except Exception as err:
                 logging.error(err)
@@ -169,16 +171,12 @@ class ShotgridListener:
 
         logging.info(description)
 
-        # while we fix ayon-python-api
-        ayon_server_connection = ayon_api.get_server_api_connection()
-        # ayon_api.dispatch_event
-        ayon_server_connection.dispatch_event(
+        ayon_api.dispatch_event.dispatch_event(
             "shotgrid.leech",
             sender=socket.gethostname(),
             event_hash=payload["id"],
             project_name=payload.get("project", {}).get("name", "Undefined"),
             username=payload.get("user", {}).get("name", "Undefined"),
-            dependencies=payload["id"] - 1,
             description=description,
             summary=None,
             status="pending",
