@@ -20,7 +20,21 @@ import shotgun_api3
 # Probably could allow this to be configured via the Addon settings
 # And do a query where we alread filter these out.
 # Clearly not working, since these are ftrack specific ones.
-IGNORE_TOPICS = {}
+ENTITIES_TO_TRACK = [
+    "Project",
+    "Sequence",
+    "Shot",
+    "Task",
+    "Asset",
+    "Version",
+]
+
+EVENT_TYPES = [
+    "Shotgun_{0}_New",  # a new entity was created.
+    "Shotgun_{0}_Change",  # an entity was modified.
+    "Shotgun_{0}_Retirement",  # an entity was deleted.
+    "Shotgun_{0}_Revival",  # an entity was revived.
+]
 
 
 class ShotgridListener:
@@ -83,6 +97,20 @@ class ShotgridListener:
         logging.warning("Termination finished.")
         sys.exit(0)
 
+    def _get_valid_events(self):
+        """Helper method to create the Shotgird Query filter.
+
+        Iterate over the allowed entities types and event types and return
+        a list of all premutations.
+        """
+        valid_events = []
+
+        for entity_type in ENTITIES_TO_TRACK:
+            for event_name in EVENT_TYPES:
+                valid_events.append(event_name.format(entity_type))
+
+        return valid_events
+
     def start_listening(self):
         """ Main loop querying the Shotgrid database for new events
 
@@ -110,10 +138,18 @@ class ShotgridListener:
         ):
             last_event_id = int(last_event_id["hash"])
 
+        shotgrid_events_filter = {
+            "filter_operator": "any",
+            "filters": [
+                ["event_type", "is", event_type]
+                for event_type in self._get_valid_events()
+            ]
+        }
+
         if not last_event_id:
             last_event_id = self.shotgrid_session.find_one(
                 "EventLogEntry",
-                filters=[],
+                filters=[shotgrid_events_filter],
                 fields=["id"],
                 order=[{"column": "id", "direction": "desc"}]
             )["id"]
@@ -122,7 +158,10 @@ class ShotgridListener:
             logging.info(f"Last Event ID is {last_event_id}")
             logging.info("Querying for new events since the last one...")
             filters = None
-            filters = [["id", "greater_than", last_event_id]]
+            filters = [
+                ["id", "greater_than", last_event_id],
+                shotgrid_events_filter
+            ]
 
             try:
                 events = self.shotgrid_session.find(
@@ -161,8 +200,6 @@ class ShotgridListener:
             int: The Shotgrid Event ID.
         """
         logging.info("Processing Shotgrid Event")
-        if payload["event_type"] in IGNORE_TOPICS:
-            return
 
         description = f"Leeched {payload['event_type']}"
         user_name = payload.get("user", {}).get("name", "Undefined")
