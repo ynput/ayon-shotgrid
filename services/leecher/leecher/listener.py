@@ -103,16 +103,20 @@ class ShotgridListener:
         ]
         order = [{"column": "id", "direction": "asc"}]
 
-        last_event_id = self.shotgrid_session.find_one(
-            "EventLogEntry",
-            filters=[],
-            fields=["id"],
-            order=[{"column": "id", "direction": "desc"}]
-        )["id"]
+        last_event_id = None
+        for last_event_id in ayon_api.get_events(
+            topics=["shotgrid.leech"],
+            fields=["hash"]
+        ):
+            last_event_id = int(last_event_id["hash"])
 
-        # The last event ID should be found by querying
-        # the ayon database, to do this in a performant way
-        # It has to use the GraphQL api.
+        if not last_event_id:
+            last_event_id = self.shotgrid_session.find_one(
+                "EventLogEntry",
+                filters=[],
+                fields=["id"],
+                order=[{"column": "id", "direction": "desc"}]
+            )["id"]
 
         while True:
             logging.info(f"Last Event ID is {last_event_id}")
@@ -137,7 +141,7 @@ class ShotgridListener:
 
                         last_event_id = self.func(event)
                 else:
-                    logging.info(f"No new events found.")
+                    logging.info("No new events found.")
 
             except Exception as err:
                 logging.error(err)
@@ -161,7 +165,7 @@ class ShotgridListener:
             return
 
         description = f"Leeched {payload['event_type']}"
-        user_name = payload.get("user", {}).get("name")
+        user_name = payload.get("user", {}).get("name", "Undefined")
 
         if user_name:
             description = f"Leeched {payload['event_type']} by {user_name}"
@@ -170,16 +174,21 @@ class ShotgridListener:
         payload["created_at"] = payload["created_at"].isoformat()
 
         logging.info(description)
+        project_name = payload.get("project", {})
 
-        ayon_api.dispatch_event.dispatch_event(
+        if project_name:
+            project_name = project_name.get("name")
+
+        logging.info(f"Event is from Project {project_name}")
+
+        ayon_api.dispatch_event(
             "shotgrid.leech",
             sender=socket.gethostname(),
             event_hash=payload["id"],
-            project_name=payload.get("project", {}).get("name", "Undefined"),
-            username=payload.get("user", {}).get("name", "Undefined"),
+            project_name=None,
+            username=user_name,
             description=description,
             summary=None,
-            status="pending",
             payload=payload,
         )
         logging.info("Dispatched event", payload['event_type'])
