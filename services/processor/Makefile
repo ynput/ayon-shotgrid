@@ -1,7 +1,7 @@
 image := ynput/ayon-shotgrid-processor:0.0.1
 
 build:
-	podman build -t $(image) --no-cache . 
+	podman build -t $(image) . 
 
 clean:
 	if podman images | grep $(image); then \

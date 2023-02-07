@@ -70,7 +70,7 @@ class ShotgridProcessor:
             raise e
 
         self.handlers_map = self._get_handlers()
-        print(self.handlers_map)
+        logging.debug(f"Found the these handlers: {self.handlers_map}")
         signal.signal(signal.SIGINT, self._signal_teardown_handler)
         signal.signal(signal.SIGTERM, self._signal_teardown_handler)
 
@@ -122,7 +122,6 @@ class ShotgridProcessor:
 
         while True:
             logging.info("Querying for new `shotgrid.leech` events...")
-            import pprint
             try:
                 event = ayon_api.enroll_event_job(
                     "shotgrid.leech",
@@ -132,23 +131,34 @@ class ShotgridProcessor:
                 )
 
                 if not event:
+                    logger.info("No event of origin `shotgrid.leech` is pending.")
                     time.sleep(1.5)
                     continue
 
-                event = ayon_api.get_event(event["id"])
-
-                if not event["payload"]:
+                source_event = ayon_api.get_event(event["dependsOn"])
+                print(source_event)
+                if not source_event["payload"]:
                     time.sleep(1.5)
-                    # Mark event as aborted?
+                    ayon_api.update_event(event["id"], status="finished")
+                    ayon_api.update_event(source_event["id"], status="finished")
                     continue
 
-                for handler in self.handlers_map.get(event["payload"]["event_type"]):
+                print("hey")
+                print(source_event["payload"]["event_type"])
+                print(source_event["payload"]["event_type"] in self.handlers_map)
+
+                for handler in self.handlers_map.get(source_event["payload"]["event_type"], []):
                     # If theres any handler "subscirbed" to this event type..
                     try:
-                        handler.process_event(event["payload"])
+                        handler.process_event(source_event["payload"])
                     except Exception as e:
                         logging.error(f"Unable to process handler {handler.__name__}")
                         raise e
+
+                logging.info("Event has been processed... setting to finished!")
+                ayon_api.update_event(event["id"], status="finished")
+                ayon_api.update_event(source_event["id"], status="finished")
+
             except Exception as err:
                 logging.error(err)
 
