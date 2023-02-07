@@ -19,12 +19,6 @@ from nxtools import logging
 import shotgun_api3
 
 
-# Probably could allow this to be configured via the Addon settings
-# And do a query where we alread filter these out.
-# Clearly not working, since these are ftrack specific ones.
-IGNORE_TOPICS = {}
-
-
 class ShotgridProcessor:
     def __init__(self):
         """ Ensure both Ayon and Shotgrid connections are available.
@@ -77,7 +71,6 @@ class ShotgridProcessor:
 
         self.handlers_map = self._get_handlers()
         print(self.handlers_map)
-
         signal.signal(signal.SIGINT, self._signal_teardown_handler)
         signal.signal(signal.SIGTERM, self._signal_teardown_handler)
 
@@ -91,7 +84,10 @@ class ShotgridProcessor:
         """ Import the handlers found in the `handlers` directory.
 
         """
-        handlers_dir = os.path.abspath(__file__)
+        handlers_dir = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "handlers"
+        )
         handlers_dict = {}
 
         for root, handlers_directories, handler_files in os.walk(handlers_dir):
@@ -100,13 +96,17 @@ class ShotgridProcessor:
                     module_name = str(handler.replace(".py", ""))
                     module_obj = types.ModuleType(module_name)
 
-                    module_loader = importlib.mamachinery.SourceFileLoader(
+                    module_loader = importlib.machinery.SourceFileLoader(
                         module_name,
                         os.path.join(root, handler)
                     )
                     module_loader.exec_module(module_obj)
+                    register_event_types = module_obj.REGISTER_EVENT_TYPE
 
-                    handlers_dict[module_name] = module_obj
+                    for event_type in register_event_types:
+                        handlers_dict.setdefault(
+                            event_type, []
+                        ).append(module_obj)
 
         return handlers_dict
 
@@ -130,18 +130,25 @@ class ShotgridProcessor:
                     socket.gethostname(),
                     description="Shotgrid Event processing",
                 )
-                pprint.pprint(event)
 
                 if not event:
                     time.sleep(1.5)
                     continue
 
                 event = ayon_api.get_event(event["id"])
-                pprint.pprint(event)
 
+                if not event["payload"]:
+                    time.sleep(1.5)
+                    # Mark event as aborted?
+                    continue
 
-
-
+                for handler in self.handlers_map.get(event["payload"]["event_type"]):
+                    # If theres any handler "subscirbed" to this event type..
+                    try:
+                        handler.process_event(event["payload"])
+                    except Exception as e:
+                        logging.error(f"Unable to process handler {handler.__name__}")
+                        raise e
             except Exception as err:
                 logging.error(err)
 
@@ -149,45 +156,3 @@ class ShotgridProcessor:
                 f"Waiting {self.shotgrid_polling_frequency} seconds..."
             )
             time.sleep(self.shotgrid_polling_frequency)
-
-    def send_shotgrid_event_to_ayon(self, payload: dict[str, Any]) -> int:
-        """ Send the Shotgrid event as an Ayon event.
-
-        Args:
-            payload (dict): The Event data.
-
-        Returns:
-            int: The Shotgrid Event ID.
-        """
-        logging.info("Processing Shotgrid Event")
-        if payload["event_type"] in IGNORE_TOPICS:
-            return
-
-        description = f"Leeched {payload['event_type']}"
-        user_name = payload.get("user", {}).get("name")
-
-        if user_name:
-            description = f"Leeched {payload['event_type']} by {user_name}"
-
-        # fix non serializable datetime
-        payload["created_at"] = payload["created_at"].isoformat()
-
-        logging.info(description)
-
-        # while we fix ayon-python-api
-        ayon_server_connection = ayon_api.get_server_api_connection()
-        # ayon_api.dispatch_event
-        ayon_server_connection.dispatch_event(
-            "shotgrid.leech",
-            sender=socket.gethostname(),
-            event_hash=payload["id"],
-            project_name=payload.get("project", {}).get("name", "Undefined"),
-            username=payload.get("user", {}).get("name", "Undefined"),
-            dependencies=payload["id"] - 1,
-            description=description,
-            summary=None,
-            payload=payload,
-        )
-        logging.info("Dispatched event", payload['event_type'])
-
-        return payload["id"]
