@@ -11,7 +11,6 @@ pydantic = "^1.10.2"
 nxtools = "^1.6"
 ayon-python-api = "^0.1.8"
 shotgun-api3 = { git = "https://github.com/shotgunsoftware/python-api.git", tag = "v3.3.5" }
-ayclient = { git = "https://github.com/martastain/ayclient.git", branch = "master" }
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"
