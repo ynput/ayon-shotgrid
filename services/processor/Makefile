@@ -1,17 +1,17 @@
 image := ynput/ayon-shotgrid-processor:0.0.1
 
 build:
-	podman build -t $(image) . 
+	docker build -t $(image) . 
 
 clean:
-	if podman images | grep $(image); then \
-		podman rmi $(image); \
+	if docker images | grep $(image); then \
+		docker rmi $(image); \
 	fi
 
 clean-build: clean build
 
 dev:
-	podman run --rm -u ayonuser -ti \
+	docker run --rm -u ayonuser -ti \
 		-v $(CURDIR):/service:Z \
 		--env AYON_TOKEN="e830b1c303e04fa8a0e9d84015cab030" \
 		--env AYON_SERVER_URL="http://0.0.0.0:5000" \
@@ -26,4 +26,4 @@ dev:
 
 
 shell:
-	podman run --rm -u ayonuser -ti -v $(CURDIR):/service:Z $(image) /bin/sh
+	docker run --rm -u ayonuser -ti -v $(CURDIR):/service:Z $(image) /bin/sh
