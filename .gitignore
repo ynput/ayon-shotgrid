@@ -5,6 +5,7 @@ __pycache__/
 *$py.class
 
 package/*
+.env
 
 # Mac Stuff
 ###########
