@@ -42,12 +42,6 @@ SG_AYON_MAP = {
     "Task": "task",
 }
 
-SG_AYON_ENTITY_ATTRIBUTES_MAP = {
-    
-}
-
-# TODO: Mapping of all the entiteis attributes that we care
-
 
 def process_event(payload):
     """Entry point of the processor"""
@@ -103,19 +97,6 @@ def process_event(payload):
           "createdAt": 1675859871.861787,
           "updatedAt": 1675859871.861787
         }
-    """
-    """
-        AYON-SHOTGRID MAPPING
-        from ayon_server.entities.folder import FolderEntity
-        from ayon_server.entities.project import ProjectEntity
-        from ayon_server.entities.representation import RepresentationEntity
-        from ayon_server.entities.subset import SubsetEntity
-        from ayon_server.entities.task import TaskEntity
-        from ayon_server.entities.user import UserEntity
-        from ayon_server.entities.version import VersionEntity
-        from ayon_server.entities.workfile import WorkfileEntity
-        
-        
     """
     if "project" not in payload:
         logging.error("The Payload doesn't contain any project, can't proceed!")

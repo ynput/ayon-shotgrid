@@ -150,7 +150,10 @@ class ShotgridProcessor:
                 for handler in self.handlers_map.get(source_event["payload"]["event_type"], []):
                     # If theres any handler "subscirbed" to this event type..
                     try:
-                        handler.process_event(source_event["payload"])
+                        handler.process_event(
+                            self.shotgrid_session,
+                            source_event["payload"]
+                        )
                     except Exception as e:
                         logging.error(f"Unable to process handler {handler.__name__}")
                         raise e
