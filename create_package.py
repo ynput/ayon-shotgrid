@@ -26,12 +26,12 @@ import shutil
 import argparse
 import logging
 import collections
-import zipfile
 
-ADDON_NAME = ""
+ADDON_NAME = "shotgrid"
 
 # Files or directories that won't be copied to server part of addon
 SERVER_ADDON_SUBPATHS = {
+    "frontend",
     "private",
     "public",
     "services",
@@ -138,31 +138,25 @@ def copy_server_content(addon_output_dir, current_dir, log):
 
     log.info("Copying server content")
 
-    filepaths_to_copy = []
-    for filename in SERVER_ADDON_SUBPATHS:
-        src_path = os.path.join(current_dir, filename)
-        dst_path = os.path.join(addon_output_dir, filename)
-        if os.path.isfile(src_path):
-            if not _value_match_regexes(filename, IGNORE_FILE_PATTERNS):
-                filepaths_to_copy.append((src_path, dst_path))
-            continue
+    shutil.copytree(
+        os.path.join(current_dir, "server"),
+        addon_output_dir
+    )
 
-        for path, sub_path in find_files_in_subdir(src_path):
-            filepaths_to_copy.append(
-                (path, os.path.join(dst_path, sub_path))
-            )
-
-    # Copy files
-    for src_path, dst_path in filepaths_to_copy:
-        safe_copy_file(src_path, dst_path)
+    shutil.copy2(
+        os.path.join(current_dir, "version.py"),
+        addon_output_dir
+    )
 
 
-def zip_client_side(addon_package_dir, current_dir, log):
-    """Copy and zip `client` content into 'addon_package_dir'.
+def zip_client_side(addon_package_dir, current_dir, zip_file_name, log):
+    """Copy and zip `client` content into `addon_package_dir'.
 
     Args:
         addon_package_dir (str): Output package directory path.
         current_dir (str): Directoy path of addon source.
+        zip_file_name (str): Output zip file name in format
+            '{ADDON_NAME}_{ADDON_VERSION}'.
         log (logging.Logger): Logger object.
     """
 
@@ -173,36 +167,18 @@ def zip_client_side(addon_package_dir, current_dir, log):
 
     log.info("Preparing client code zip")
     private_dir = os.path.join(addon_package_dir, "private")
-
     temp_dir_to_zip = os.path.join(private_dir, "temp")
+    # shutil.copytree expects glob-style patterns, not regex
+    zip_dir_path = os.path.join(temp_dir_to_zip, zip_file_name)
     for path, sub_path in find_files_in_subdir(client_dir):
-        safe_copy_file(path, os.path.join(temp_dir_to_zip, sub_path))
+        safe_copy_file(path, os.path.join(zip_dir_path, sub_path))
 
     toml_path = os.path.join(client_dir, "pyproject.toml")
     if os.path.exists(toml_path):
         shutil.copy(toml_path, private_dir)
 
-    zip_filename = "client.zip"
-    temp_dir_to_zip_s = temp_dir_to_zip.replace("\\", "/")
-    zip_filepath = os.path.join(os.path.join(private_dir, zip_filename))
-    with zipfile.ZipFile(zip_filepath, "w", zipfile.ZIP_DEFLATED) as zipf:
-        for root, dirnames, filenames in os.walk(temp_dir_to_zip):
-            root_s = root.replace("\\", "/")
-            zip_root = root_s.replace(temp_dir_to_zip_s, "").strip("/")
-            for name in sorted(dirnames):
-                path = os.path.normpath(os.path.join(root, name))
-                zip_path = name
-                if zip_root:
-                    zip_path = "/".join((zip_root, name))
-                zipf.write(path, zip_path)
-
-            for name in filenames:
-                path = os.path.normpath(os.path.join(root, name))
-                zip_path = name
-                if zip_root:
-                    zip_path = "/".join((zip_root, name))
-                if os.path.isfile(path):
-                    zipf.write(path, zip_path)
+    zip_file_path = os.path.join(os.path.join(private_dir, zip_file_name))
+    shutil.make_archive(zip_file_path, "zip", temp_dir_to_zip)
     shutil.rmtree(temp_dir_to_zip)
 
 
@@ -229,13 +205,15 @@ def main(output_dir=None):
 
     log.info(f"Preparing package for {ADDON_NAME}-{addon_version}")
 
+    zip_file_name = f"{ADDON_NAME}_{addon_version}"
     addon_output_dir = os.path.join(output_dir, ADDON_NAME, addon_version)
-    if not os.path.exists(addon_output_dir):
-        os.makedirs(addon_output_dir)
+
+    if os.path.exists(addon_output_dir):
+        os.rmdir(addon_output_dir)
 
     copy_server_content(addon_output_dir, current_dir, log)
 
-    zip_client_side(addon_output_dir, current_dir, log)
+    zip_client_side(addon_output_dir, current_dir, zip_file_name, log)
 
 
 if __name__ == "__main__":
