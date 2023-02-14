@@ -1,6 +1,6 @@
 """
 Ensure that the project has all the required things in both Ayon and Shotgrid,
-mostly Custom Attributes.
+custom attributes, tasks types and statuses.
 """
 
 REGISTER_EVENT_TYPE = ["Shotgun_Project_New"]
@@ -11,7 +11,7 @@ def process_event(shotgrid_session, payload):
         logging.error("The Even payload is empty!")
         raise InputError
 
-    logging.info(f"Creating New project {} ()")
+    logging.info(f"Preparing project {} ()")
 
 """
                 "project": {
@@ -43,6 +43,13 @@ def process_event(shotgrid_session, payload):
             logging.error("Unable to create new project in Ayon.")
             logging.error(e)
 
+    _create_ayon_attribs(shotgrid_session, ayon_project)
+
+    _create_shotgrid_tasks(shotgrid_session, ayon_project)
+
+
+def _create_shotgrid_tasks(shotgrid_session: shotgun_api3.Shotgun, ayon_project: dict):
+    """Ensure the Ayon project has all the required Tasks from Shotgird."""
     sg_tasks = []
 
     for task in shotgrid_session.find(
@@ -55,17 +62,77 @@ def process_event(shotgrid_session, payload):
 
     # Create all the Tasks in the project
 
+
+def _create_shotgrid_statuses(shotgrid_session: shotgun_api3.Shotgun, ayon_project: dict):
+    """Ensure the Ayon project has all the required Statuses from Shotgrid."""
     sg_statuses = {}
 
     # These are the entities that have statuses in SG
     for entity in ["Episode", "Sequence", "Shot", "Asset", "Task"]:
-        for status_schema in shotgrid_session.schema_field_read(entity, "sg_status_list"):
+        for status_schema in shotgrid_projectsession.schema_field_read(entity, "sg_status_list"):
             statuses = status_schema["sg_status_list"]["properties"]["display_values"]["value"]
             for short_name, display_name in statuses.items():
                 sg_statuses.setdefault(short_name, display_name)
 
     # Create all statuse in Ayon
 
+
+
+def _create_ayon_attributes(shotgrid_session: shotgun_api3.Shotgun, ayon_project: dict):
+    """Create Ayon Project Attributes in Shotgrid"""
+    
+    for attr_key, attr_value in ayon_dict.items():
+        properties = {"description": f"Ayon {attr_key}"}
+
+        field_type = type(attr_value).__name__
+
+        if field_type == "list" and attr_value:
+            properties = {
+                "default_value": {
+                    "editable": True,
+                    "value": attr_value[0]
+                },
+                "display_values": {
+                    "editable": False,
+                    "value": attr_value,
+                },
+                "hidden_values": {
+                    "editable": False,
+                    "value": []
+                },
+                "summary_default": {
+                    "editable": True,
+                    "value": "status_list"
+                },
+                "valid_values": {
+                    "editable": True,
+                    "value": attr_value,
+                }
+            }
+
+            # This assumes it's a list of dictionaries
+            if isinstance(attr_value[0], dict):
+                properties.update(
+                    "display_values": {
+                        "editable": False,
+                        "value": {
+                            k, v
+                            for k, v in attr_value.items()
+                        }
+                    },
+                    "valid_values": {
+                        "editable": True,
+                        "value": list(attr_value),
+                    }
+                )
+
+        sg.schema_field_create(
+            "Project",
+            field_type,
+            f"ayon_{attr_key}",
+            properties
+        )
+        
 
 
 def get_shotgrid_hierarchy(shotgrid_session: shotgun_api3.Shotgun) -> dict:
