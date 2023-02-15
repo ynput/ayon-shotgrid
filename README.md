@@ -1,38 +1,43 @@
-# Addon template
-This is a boilerplate git repository for creating new ayon addons.
+# Shotgrid integration for Ayon
 
+This project provides three elements for the Ayon pipeline:
+ * server/ - The Ayon Backend Addon. - https://github.com/ynput/ayon-addon-template/blob/main/README.md
+ * client/ - The Ayon (currently OpenPype) desktop integration.
+ * services/ - Standalone dockerized daemons that act based on events (aka `leecher` and `processors`).
 
-## Folder structure
-Default base of addon is `__init__.py` file in root of repository which define addon for server. Most of addons have settings that's why `settings.py` is by default structure. Settings can be changed to folder/module when more than one file is needed. Root by default contains `create_package.py` which is a helper script that prepares package structure for server. The script may be modified or expanded by needs of addon (e.g. when frontend needs to be build first).
+The `shotgrid_common` directory contains re-usable code for both `server` and `client`.
 
-### Client content
-Addons that have code for desktop client application should create subfolder `client` where a client content is located. It is expected the directory has only one file or folder in it which is named the way how should be imported on a client side (e.g. `openpype_core`).
+## Server
+Once loaded into the backend, two new attiributes should be available for the {scope} entities, and the plugin itself can be configured from the Project Settings page: `{ayon_url}/projectManager/projectSettings`, where you can specify your Shotgrid instance URL.
 
-### Server frontend
-Addons may have their frontend. By default, server looks into `~/frontend/dist` for `index.html` and addon have to have specified scopes where the frontend should be showed (check documentation of `frontend_scopes` on server addon implementation for more information).
+### Hooks
+ * Prepare Project - Will ensure the Ayon project contains the necessary elements.
+ * Sync from Shotgrid - Will compare the project against the Shotgrid instance, and will ensure both are equal. This **only** creates elements, it does not delete.
 
-### Private server files
-Root of addon may contain subfolder `private` where can be added files that are accessible via ayon server. Url schema is `{server url}/addons/{addon name}/{addon_version}/private/*`. By default it is place where client zip file is created (during package creation). The endpoint requires authorized user.
+### Settings
+Here you'll be able to provide a "Script Name" and an API key so Ayon can interact with Shotgrid.
 
-### Public server files
-Public files works the same as private files but does not require authorized user. Subfolder name is `public`. Url schema is `{server url}/addons/{addon name}/{addon_version}/public/*`. Endpoint is helpful for images/icons or other static content.
+## Client
+Currently a copy-paste of OpenPype's `openpype/modules/shotgrid` module, sans the "server" part, which is now handled by the `services`.
 
+## Services
+Currently only the `leecher` is implemented, which upon launching, will periodically query the Shotgrid database in search of new Events to process.
 
-### Example strucutre
-```
-├─ frontend
-│  └─ dist
-│    └─ index.html
-│
-├─ public
-│  └─ my_icon.png
-│
-├─ client
-│ └─ openpype_core
-│   ├─ pipeline
-│   ├─ lib
-│   └─ ...
-│
-├─ __init__.py
-└── settings.py
-```
+## Usage
+To create a "server-ready" package of the `server` folder, on a terminal, run `python create_package.py` and a new directory will appear in the `dist` directory (it will be created if it doesnt exist) and you can upload to the server.
+
+You then have to run somewhere the `leecher` service, with the use of podman/docker, which will be the one sending **events** to Ayon server.
+ ```
+ cd {ayon-shotgrid-addon}/services/leecher
+ docker-compose up -d
+ ```
+
+By default, the above described Hooks will be triggered by leecher events, but we also have the option to trigger manual syncronization, you can do so by navigating to the project you want to sync:
+ `{ayon_url}/projects/{project_name}/addon/shotgrid` where you'll be able to trigger a Sync of the Shotgrid -> Ayon project, with the option to override any differences.
+
+# TODO
+ - [] Create addon frontend
+ - [] Set up "processors" events.
+ - [] Implement "Update from Shotgrid" method in `server/`.
+ - [] Marshall openpype implementation to work with `ayon`.
+ - [] Ensure `leecher` is using the correct addon settings for connection.
