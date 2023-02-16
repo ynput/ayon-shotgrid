@@ -1,7 +1,10 @@
+import socket
 from typing import Any, Type
 
 from ayon_server.addons import BaseServerAddon
+from ayon_server.api.dependencies import dep_current_user, dep_project_name
 from ayon_server.lib.postgres import Postgres
+from ayon_server.events import dispatch_event
 
 from nxtools import logging
 
@@ -20,6 +23,49 @@ class ShotgridAddon(BaseServerAddon):
     settings_model: Type[ShotgridSettings] = ShotgridSettings
 
     frontend_scopes: dict[str, Any] = {"project": {"sidebar": "hierarchy"}}
+
+    def initialize(self):
+        logging.info("Initializing Shotgrid Addon.")
+        loggin.info("Added Create Attributes Endpoint.")
+        self.add_endpoint(
+            "sync-from-shotgrid/{project_name}",
+            self.get_random_folder,
+            method="GET",
+        )
+
+    async def _dispatch_create_attributes_event(
+        self,
+        user: UserEntity = Depends(dep_current_user),
+        project_name: str = Depends(dep_project_name),
+    ):
+        payload = {}
+        ayon_api.dispatch_event(
+            "shotgrid.leech",
+            sender=socket.gethostname(),
+            event_hash=payload["id"],
+            project_name=None,
+            username=user_name,
+            description=description,
+            summary=None,
+            payload=payload,
+        )
+        logging.info("Dispatched event", payload['event_type'])
+
+        dispatch_event(
+            "shotgrid.leech",
+            *,
+            sender: str | None = None,
+            hash: str | None = None,
+            project: str | None = None,
+            user: str | None = None,
+            depends_on: str | None = None,
+            description: str | None = None,
+            summary: dict | None = None,
+            payload: dict | None = None,
+            finished: bool = True,
+            store: bool = True,
+        ) 
+
 
     async def get_default_settings(self):
         logging.info(f"Loading default Settings for {self.name} addon.")
@@ -54,7 +100,7 @@ class ShotgridAddon(BaseServerAddon):
             "SELECT name from public.attributes"
         )
         logging.info("Querying database for existing attributes...")
-        logging.info(shotgrid_attributes)
+        logging.debug(shotgrid_attributes)
 
         if shotgrid_attributes:
             logging.info("Shotgrid Attributes already exist in database!")
