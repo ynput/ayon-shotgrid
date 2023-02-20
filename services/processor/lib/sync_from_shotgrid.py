@@ -9,54 +9,42 @@ from ayon_api import (
     EntityHub,
     slugify_name
 )
+
+from .lib.constants import SHOTGRID_PROJECT_ATTRIBUTES
+from .lib.utils import get_shotgrid_project_by_name
+
 from ftrack_common import (
-    CUST_ATTR_KEY_SERVER_ID,
-    CUST_ATTR_KEY_SERVER_PATH,
-    CUST_ATTR_KEY_SYNC_FAIL,
-    FTRACK_ID_ATTRIB,
-    FTRACK_PATH_ATTRIB,
-    REMOVED_ID_VALUE,
-    create_chunks,
-    get_custom_attributes_by_entity_id,
+    CUST_ATTR_KEY_SERVER_ID, # "ayon_id"
+    CUST_ATTR_KEY_SERVER_PATH, # "ayon_path"
+    CUST_ATTR_KEY_SYNC_FAIL, # "ayon_sync_failed"
+    FTRACK_ID_ATTRIB, # "ftrackId"
+    FTRACK_PATH_ATTRIB, #"ftrackPath" 
+    REMOVED_ID_VALUE, # "removed"
+    create_chunks, # Separate iterable into multiple chunks by size.
+    get_custom_attributes_by_entity_id, # Query custom attribute values and store their value by entity and attr.
 )
 
-def _get_ftrack_project(session, project_name):
-    ft_project = session.query((
-        "select id, name, full_name from Project where full_name is \"{}\""
-    ).format(project_name)).first()
-    if ft_project is None:
-        raise ValueError(
-            f"Project \"{project_name}\" was not found in ftrack"
-        )
-    return ft_project
+
+# Get all Ayon-dependant attributes form shotgrid
+def _get_missing_custom_attrs(session):
+    missing_attrs = []
+    for ayon_attr, attr_dict in SHOTGRID_PROJECT_ATTRIBUTES.items():
+        try:
+            attribute_exists = shotgrid_session.schema_field_read(
+                "Project",
+                field_name=f"{sg_field_code}"
+            )
+        except Exception:
+            # shotgun_api3.shotgun.Fault: API schema_field_read()
+            logging.debug(
+                f"Ayon Attribute {sg_field_code} does not exists."
+            )
+            missing_attrs.append(ayon_attr)
+
+    return missing_attrs
 
 
-def _get_custom_attr_configs(session, query_keys=None):
-    custom_attributes = []
-    hier_custom_attributes = []
-    if not query_keys:
-        query_keys = [
-            "id",
-            "key",
-            "entity_type",
-            "object_type_id",
-            "is_hierarchical",
-            "default"
-        ]
-
-    cust_attrs_query = (
-        "select {}"
-        " from CustomAttributeConfiguration"
-        " where group.name in (\"openpype\")"
-    ).format(", ".join(query_keys))
-    all_avalon_attr = session.query(cust_attrs_query).all()
-    for cust_attr in all_avalon_attr:
-        if cust_attr["is_hierarchical"]:
-            hier_custom_attributes.append(cust_attr)
-        else:
-            custom_attributes.append(cust_attr)
-
-    return custom_attributes, hier_custom_attributes
+def get_or_create_project(project_name):
 
 
 class IdsMapping(object):
@@ -123,47 +111,19 @@ class SyncFromFtrack:
 
         self.log.info(f"Synchronization of project \"{project_name}\" started")
 
-        # Get ftrack custom attributes to sync
-        attr_confs, hier_attr_confs = _get_custom_attr_configs(ft_session)
         # Check if there is custom attribute to store server id
-        server_id_conf = None
-        server_path_conf = None
-        sync_failed_conf = None
-        for attr_conf in hier_attr_confs:
-            if attr_conf["key"] == CUST_ATTR_KEY_SERVER_ID:
-                server_id_conf = attr_conf
-            elif attr_conf["key"] == CUST_ATTR_KEY_SERVER_PATH:
-                server_path_conf = attr_conf
-            elif attr_conf["key"] == CUST_ATTR_KEY_SYNC_FAIL:
-                sync_failed_conf = attr_conf
-
-        missing_attrs = []
-        if not server_id_conf:
-            missing_attrs.append(CUST_ATTR_KEY_SERVER_ID)
-
-        if not server_path_conf:
-            missing_attrs.append(CUST_ATTR_KEY_SERVER_PATH)
-
-        if not sync_failed_conf:
-            missing_attrs.append(CUST_ATTR_KEY_SYNC_FAIL)
+        missing_attrs = _get_missing_custom_attrs()
 
         if missing_attrs:
-            attr_end = ""
-            was_were = "was"
-            if len(missing_attrs) > 1:
-                attr_end = "s"
-                was_were = "were"
-            joined_attrs = ", ".join([f'"{attr}"'for attr in missing_attrs])
             msg = (
-                f"Hierarchical attribute{attr_end} {joined_attrs}"
-                f" {was_were} not found in Ftrack"
+                f"Shotgrid is missing attributes: {missing_attrs}"
+                "Please run the 'Create attributes' event from the Addon Page"
             )
-
             self.log.warning(msg)
             raise ValueError(msg)
 
         # Query ftrack project
-        ft_project = _get_ftrack_project(ft_session, project_name)
+        ft_project = get_shotgrid_project_by_name(ft_session, project_name)
         # Make sure project exists on server
         self.make_sure_project_exists(ft_project, preset_name)
         t_project_existence_1 = time.perf_counter()
@@ -288,13 +248,17 @@ class SyncFromFtrack:
             f" in {t_end-t_start}"
         ))
 
-    def make_sure_project_exists(self, ft_project, preset_name=None):
-        project_name = ft_project["full_name"]
+    def make_sure_project_exists(self, sg_project, preset_name=None):
+        project_name = sg_project["name"]
         # Make sure project exists on server
         project = get_project(project_name)
         if not project:
             self.log.info(f"Creating project \"{project_name}\" on server")
-            project_code = ft_project["name"]
+            if not ft_project["code"]:
+                project_code = project_name.replace(" ", "").lower()[:3]
+            else:
+                project_code = ft_project["code"]
+
             create_project(
                 project_name,
                 project_code,
@@ -303,7 +267,23 @@ class SyncFromFtrack:
 
     def update_project_types(self, object_types, task_types):
         project_entity = self._entity_hub.project_entity
-        ignored_folder_types = {"task", "milestone"}
+
+        # Some of these methods need to be created in Ayon API
+        new_tasks = []
+        for task in get_shotgrid_tasks():
+            if task not in get_project_tasks():
+                new_tasks.append(task)
+
+        new_statuses = []
+        for status in get_shotgrid_statuses():
+            if status not in get_project_statuses():
+                new_statuses.append(status)
+
+        new_entities = []
+        for entity in get_shotgrid_project_entities():
+            if entity not in get_project_folders():
+                new_entities.append(entity)
+
         src_folder_types = {
             folder_type["name"]: folder_type
             for folder_type in project_entity.folder_types

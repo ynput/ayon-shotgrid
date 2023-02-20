@@ -1,5 +1,7 @@
 import shotgun_api3
 
+from .constants import SHOTGRID_PROJECT_ATTRIBUTES
+
 
 def get_shotgrid_hierarchy(shotgrid_session: shotgun_api3.Shotgun) -> dict:
     entity_fields = {
@@ -25,6 +27,9 @@ def _populate_nested_children(sg_dict, entity_fields=None):
                     children["path"], entity_fields=entity_fields)
                 _populate_nested_children(sg_dict["children"][children_index])
 
+
+def get_shotgrid_custom_attributes_config():
+    pass
 
 def get_shotgrid_project_by_name(sg: shotgun_api3.Shotgun, project_name,) -> dict:
     sg_project = sg.find_one(

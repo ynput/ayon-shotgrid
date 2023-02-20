@@ -1,7 +1,39 @@
 SHOTGRID_PROJECT_ATTRIBUTES = {
-    "ayon_project_name": "string",
-    "ayon_auto_sync": "boolean",
-    "ayon_server_url": "string",
+    "ayon_project_name": {
+        "name": "Ayon Project Name",
+        "type": "text",
+        "sg_field": "sg_ayon_project_name",
+    },
+    "ayon_project_code": {
+        "name": "Ayon Project Code",
+        "type": "text",
+        "sg_field": "sg_ayon_project_code"
+    },
+    "ayon_auto_sync": {
+        "name": "Ayon Auto Sync",
+        "type": "checkbox",
+        "sg_field": "sg_ayon_auto_sync",
+    },
+    "ayon_server_url": {
+        "name": "Ayon Server URL",
+        "type": "text",
+        "sg_field": "sg_ayon_server_url",
+    },
+    "ayon_linux_root_path": {
+        "name": "Ayon Linux Root Path",
+        "type": "text",
+        "sg_field": "sg_ayon_linux_root_path",
+    },
+    "ayon_macos_root_path": {
+        "name": "Ayon MacOS Root Path",
+        "type": "text",
+        "sg_field": "sg_ayon_macos_root_path",
+    },
+    "ayon_windows_url": {
+        "name": "Ayon Windows Root Path",
+        "type": "text",
+        "sg_field": "sg_ayon_windows_url",
+    },
 }
 
 AYON_SHOTGRID_ENTITY_MAP = {
