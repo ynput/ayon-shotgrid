@@ -1,9 +1,9 @@
 import shotgun_api3
 
-from .constants import SHOTGRID_PROJECT_ATTRIBUTES
+from .constants import AYON_SHOTGRID_ENTITY_MAP, SHOTGRID_PROJECT_ATTRIBUTES
 
 
-def get_shotgrid_hierarchy(shotgrid_session: shotgun_api3.Shotgun) -> dict:
+def get_shotgrid_hierarchy(shotgrid_session: shotgun_api3.Shotgun, project_id: int) -> dict:
     entity_fields = {
         "Project": ["name", "code", "tags", "sg_status"],
         "Episode": ["code", "type", "project.name", "sg_status_list", "tags"],
@@ -28,6 +28,23 @@ def _populate_nested_children(sg_dict, entity_fields=None):
                 _populate_nested_children(sg_dict["children"][children_index])
 
 
+def get_shotgrid_project_entities(sg, project_id):
+    sg_project = sg.find_one("Project", filters=[["id", "is", project_id]])
+
+    if not sg_project:
+        return
+
+    sg_project_schema = sg.schema_entity_read(project_entity=sp)
+
+    project_entities = []
+
+    for entity in AYON_SHOTGRID_ENTITY_MAP:
+        if sg_project_schema.get(entity, {}).get("visible", {}).get("value", False):
+            project_entities.append(entity)
+
+    return project_entities
+
+
 def get_shotgrid_custom_attributes_config():
     pass
 
@@ -44,7 +61,7 @@ def get_shotgrid_project_by_name(sg: shotgun_api3.Shotgun, project_name,) -> dic
     return sg_project
 
 
-def get_shotgrid_project_by_id(sg: shotgun_api3.Shotgun, project_id,) -> dict:
+def get_shotgrid_project_by_id(sg: shotgun_api3.Shotgun, project_id) -> dict:
     sg_project = sg.find_one(
         "Project",
         [["id", "is", project_id]],
