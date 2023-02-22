@@ -3,6 +3,53 @@ import shotgun_api3
 from .constants import AYON_SHOTGRID_ENTITY_MAP, SHOTGRID_PROJECT_ATTRIBUTES
 
 
+
+def get_shotgrid_hierarchy(sg, project):
+    
+    entity_fields = {
+        "Project": ["name", "code", "tags", "sg_status"],
+        "Episode": ["code", "type", "project.name", "sg_status_list", "tags"],
+        "Sequence": ["name", "code", "sg_status_list", "tags"],
+        "Shot": ["code", "sg_status_list", "tags"],
+        "Asset": ["code", "sg_status_list", "tags"],
+        "Version": ["code", "sg_status_list", "tags"],
+        "Task": ["content", "step", "sg_status_list", "tags"]
+    }
+
+    project_dict = {
+        "Project": sg.find_one(
+            "Project",
+            filters=[["id", "is", project["id"]]],
+            fields=entity_fields.get("Project")
+        )
+    }
+
+    for entity in get_shotgrid_project_entities(sg, project):
+        children = sg.find(
+            entity,
+            filters=[["project", "is", project]],
+            fields=entity_fields.get(entity)
+        )
+        project_dict.setdefault(entity, children)
+
+    # Here we should have
+    # {
+    #     "Project": {},
+    #     "Episode": [<list of episodes>], if any
+    #     "Sequence": [<list of sequences>], if any
+    #     "Shot": [<list of shots>], if any
+    #     ...
+    # }
+    
+    hierarchical_project = project_dict["Project"]
+
+    if project_dict.get("Episode"):
+        # There are episodes
+        
+        
+
+
+
 def get_shotgrid_hierarchy(shotgrid_session: shotgun_api3.Shotgun, project_id: int) -> dict:
     entity_fields = {
         "Project": ["name", "code", "tags", "sg_status"],
@@ -28,8 +75,8 @@ def _populate_nested_children(sg_dict, entity_fields=None):
                 _populate_nested_children(sg_dict["children"][children_index])
 
 
-def get_shotgrid_project_entities(sg, project_id):
-    sg_project = sg.find_one("Project", filters=[["id", "is", project_id]])
+def get_shotgrid_project_entities(sg, shotgun_project):
+    sg_project = sg.find_one("Project", filters=[["id", "is", shotgun_project["id"]]])
 
     if not sg_project:
         return

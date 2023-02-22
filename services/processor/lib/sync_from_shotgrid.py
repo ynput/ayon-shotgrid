@@ -11,7 +11,7 @@ from ayon_api import (
 )
 
 from .lib.constants import SHOTGRID_PROJECT_ATTRIBUTES
-from .lib.utils import get_shotgrid_project_by_name, get_shotgrid_tasks
+from .lib.utils import get_shotgrid_project_by_name, get_shotgrid_tasks, get_shotgrid_project_entities
 
 from ftrack_common import (
     CUST_ATTR_KEY_SERVER_ID, # "ayon_id"
@@ -42,9 +42,6 @@ def _get_missing_custom_attrs(session):
             missing_attrs.append(ayon_attr)
 
     return missing_attrs
-
-
-def get_or_create_project(project_name):
 
 
 class IdsMapping(object):
@@ -144,21 +141,18 @@ class SyncFromShotgrid:
             f" took {t_server_query_2 - t_project_existence_1}"
         ))
 
-        self.log.info("Querying necessary data from ftrack")
+        self.log.info("Querying necessary data from Shotgrid")
         # Get Folder types and Task types from ftrack
 
         # Folder types
-        sg_entities = get_shotgrid_project_entities(sg_session, sg_project["id"])
-
-        sg_entities_by_id = {}
-
-        for entity_type in sg_entities:
-            for entity in sg.find(entity_type, filters=[["project", "is", sg_project]]):
-                sg_entities_by_id[entity["id"]] = entity
+        sg_entities_by_id = {
+            entity["id"]: entity
+            for entity in get_shotgrid_project_entities(sg_session, sg_project["id"])
+        }
 
         sg_tasks_by_id = {
-            task["id"] = task
-            for task in get_shotgrid_tasks()
+            task["id"]: task
+            for task in get_shotgrid_tasks(sg_session, sg_project)
         }
 
         # Update types on project entity from ftrack
@@ -261,55 +255,29 @@ class SyncFromShotgrid:
     def update_project_types(self, object_types, task_types):
         project_entity = self._entity_hub.project_entity
 
-        # Some of these methods need to be created in Ayon API
-        new_tasks = []
-        for task in get_shotgrid_tasks():
-            if task not in get_project_tasks():
-                new_tasks.append(task)
+        sg_tasks = [
+            {"name": task["content"], "shortName": task["content"].lower()[:4]}
+            for task in get_shotgrid_tasks()
+        ]
+        new_tasks = sg_tasks + project_entity.task_types
+        new_tasks = list({
+            task['name']: task
+            for task in new_tasks
+        }.values())
 
-        # new_statuses = []
-        # for status in get_shotgrid_statuses():
-        #     if status not in get_project_statuses():
-        #         new_statuses.append(status)
+        sg_entities = [
+            {"name": next(iter(entity.keys()))}
+            for entity in get_shotgrid_project_entities()
+        ]
 
-        new_entities = []
-        for entity in get_shotgrid_project_entities():
-            if entity not in get_project_folders():
-                new_entities.append(entity)
+        new_entities = sg_entities + project_entity.folder_types
+        new_entities = list({
+            entity['name']: entity
+            for entity in new_entities
+        }.values())
 
-        src_folder_types = {
-            folder_type["name"]: folder_type
-            for folder_type in project_entity.folder_types
-            if folder_type["name"].lower() not in ignored_folder_types
-        }
-        src_task_types = {
-            task_type["name"]: task_type
-            for task_type in project_entity.task_types
-        }
-
-        new_folder_types = []
-        for object_type in sorted(object_types, key=lambda o: o["sort"]):
-            name = object_type["name"]
-            src_folder_type = src_folder_types.get(name)
-            if src_folder_type is not None:
-                new_folder_types.append(src_folder_type)
-            else:
-                new_folder_types.append({"name": name})
-
-        new_task_types = []
-        for task_type in task_types:
-            name = task_type["name"]
-            src_task_type = src_task_types.get(name)
-            if src_task_type is not None:
-                new_task_types.append(src_task_type)
-            else:
-                new_task_types.append({
-                    "name": name,
-                    "short_name": re.sub(r"\W+", "", name.lower())
-                })
-
-        project_entity.folder_types = new_folder_types
-        project_entity.task_types = new_task_types
+        project_entity.folder_types = new_entities
+        project_entity.task_types = new_tasks
 
     def match_immutable_entities(
         self,
