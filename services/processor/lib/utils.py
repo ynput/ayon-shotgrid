@@ -3,35 +3,46 @@ import shotgun_api3
 from .constants import AYON_SHOTGRID_ENTITY_MAP, SHOTGRID_PROJECT_ATTRIBUTES
 
 
-def project_hierarchy_encore(sg, project):
+def get_shotgrid_project_hierarchy(sg, project):
     entity_fields = {
         "Project": ["name", "code", "tags", "sg_status"],
         "Episode": ["code", "type", "project.name", "sg_status_list", "tags"],
         "Sequence": ["name", "code", "sg_status_list", "tags", "episode"],
-        "Shot": ["code", "sg_status_list", "tags", "sg_sequence"],
+        "Shot": ["name", "code", "sg_status_list", "tags", "sg_sequence"],
         "Asset": ["code", "sg_status_list", "tags", ],
         "Version": ["code", "sg_status_list", "tags"],
         "Task": ["content", "step", "sg_status_list", "tags"]
     }
 
-    project =  {
-        "Project": sg.find_one(
-            "Project",
-            filters=[["id", "is", project["id"]]],
-            fields=entity_fields.get("Project")
-        )
+    sg_project = sg.find_one(
+        "Project",
+        filters=[["id", "is", project["id"]]],
+        fields=entity_fields.get("Project")
+    )
+
+    project = {
+        "Project": sg_project
     }
+
+    entities_by_id = {}
+    entities_by_parent_id = {}
+
     project["Project"]["children"] = []
 
-    project_episodes = sg.find("Episode", filters=[["project", "is", project]])
+    project_episodes = sg.find(
+        "Episode",
+        filters=[["project", "is", sg_project]],
+        fields=entity_fields.get("Episode"))
 
     if project_episodes:
         for episode in project_episodes:
+            episode["parent_id"] = sg_project["id"]
+
             episode.setdefault("children", [])
             sequences_in_episode = sg.find(
                 "Sequence",
                 filters=[["episode", "is", episode]],
-                entity_fields.get("Sequence")
+                fields=entity_fields.get("Sequence")
             )
 
             if sequences_in_episode:
@@ -40,27 +51,47 @@ def project_hierarchy_encore(sg, project):
                     shots_in_sequence = sg.find(
                         "Shot",
                         filters=[["sg_sequence", "is", sequence]],
-                        entity_fields.get("Shot")
+                        fields=entity_fields.get("Shot")
                     )
 
                     if shots_in_sequence:
                         for shot in shots_in_sequence:
-                            shot.setdefault("children", sg.find(
+                            shot.setdefault("children", [])
+                            assets_in_shot = sg.find(
                                 "Asset",
-                                filters=[["sg_shot", "is", shot]],
-                                entity_fields.get("Asset")
-                            ))
+                                filters=[["shots", "name_contains", shot["code"]]],
+                                fields=entity_fields.get("Asset")
+                            )
+                            if assets_in_shot:
+                                for asset in assets_in_shot:
+                                    entities_by_id[asset["id"]] = asset
+                                    entities_by_parent_id.setdefault(shot["id"], [])
+                                    entities_by_parent_id[shot["id"]].append(asset)
 
+                                shot["children"] = assets_in_shot
+
+                            entities_by_id[shot["id"]] = shot
+                            entities_by_parent_id.setdefault(sequence["id"], [])
+                            entities_by_parent_id[sequence["id"]].append(shot)
                             sequence["children"].append(shot)
+
+                    entities_by_id[sequence["id"]] = sequence
+                    entities_by_parent_id.setdefault(episode["id"], [])
+                    entities_by_parent_id[episode["id"]].append(sequence)
                     episode["children"].append(sequence)
+
+            entities_by_id[episode["id"]] = episode
+            entities_by_parent_id.setdefault(sg_project["id"], [])
+            entities_by_parent_id[sg_project["id"]].append(episode)
             project["Project"]["children"].append(episode)
 
     project_sequences = sg.find(
         "Sequence",
         filters=[
-            ["project", "is", project],
+            ["project", "is", sg_project],
             ["episode", "is", None]
-        ]
+        ],
+        fields=entity_fields.get("Sequence")
     )
 
     if project_sequences:
@@ -69,88 +100,90 @@ def project_hierarchy_encore(sg, project):
             shots_in_sequence = sg.find(
                 "Shot",
                 filters=[["sg_sequence", "is", sequence]],
-                entity_fields.get("Shot")
+                fields=entity_fields.get("Shot")
             )
 
             if shots_in_sequence:
                 for shot in shots_in_sequence:
-                    shot.setdefault("children", sg.find(
+                    shot.setdefault("children", [])
+                    assets_in_shot = sg.find(
                         "Asset",
-                        filters=[["sg_shot", "is", shot]],
-                        entity_fields.get("Asset")
-                    ))
+                        filters=[["shots", "name_contains", shot["code"]]],
+                        fields=entity_fields.get("Asset")
+                    )
+                    if assets_in_shot:
+                        for asset in assets_in_shot:
+                            entities_by_id[asset["id"]] = asset
+                            entities_by_parent_id.setdefault(shot["id"], [])
+                            entities_by_parent_id[shot["id"]].append(asset)
 
+                        shot["children"] = assets_in_shot
+
+                    entities_by_id[shot["id"]] = shot
+                    entities_by_parent_id.setdefault(sequence["id"], [])
+                    entities_by_parent_id[sequence["id"]].append(shot)
                     sequence["children"].append(shot)
-            project["children"].append(sequence)
+
+            entities_by_id[sequence["id"]] = sequence
+            entities_by_parent_id.setdefault(sg_project["id"], [])
+            entities_by_parent_id[sg_project["id"]].append(sequence)
+            project["Project"]["children"].append(sequence)
+
+    project_shot_filters = [["project", "is", sg_project]]
+
+    if project_episodes:
+        project_shot_filters.append(["episode", "is", None])
+
+    if project_sequences:
+        project_shot_filters.append(["sg_sequence", "is", None])
 
     project_shots = sg.find(
         "Shot",
-        filters=[
-            ["project", "is", project],
-            ["episode", "is", None],
-            ["sg_sequence", "is", None]
-        ]
+        filters=project_shot_filters,
+        fields=entity_fields.get("Shot")
     )
 
     if project_shots:
         for shot in shots_in_sequence:
-            shot.setdefault("children", sg.find(
+            shot.setdefault("children", [])
+            assets_in_shot = sg.find(
                 "Asset",
-                filters=[["sg_shot", "is", shot]],
-                entity_fields.get("Asset")
-            ))
+                filters=[["shots", "name_contains", shot["code"]]],
+                fields=entity_fields.get("Asset")
+            )
 
-            project["children"].append(shot)
+            if assets_in_shot:
+                for asset in assets_in_shot:
+                    entities_by_id[asset["id"]] = asset
+                    entities_by_parent_id.setdefault(shot["id"], [])
+                    entities_by_parent_id[shot["id"]].append(asset)
 
+                shot["children"] = assets_in_shot
 
-def get_shotgrid_hierarchy(sg, project):
-    
-    entity_fields = {
-        "Project": ["name", "code", "tags", "sg_status"],
-        "Episode": ["code", "type", "project.name", "sg_status_list", "tags"],
-        "Sequence": ["name", "code", "sg_status_list", "tags"],
-        "Shot": ["code", "sg_status_list", "tags"],
-        "Asset": ["code", "sg_status_list", "tags"],
-        "Version": ["code", "sg_status_list", "tags"],
-        "Task": ["content", "step", "sg_status_list", "tags"]
-    }
+            entities_by_id[shot["id"]] = shot
+            entities_by_parent_id.setdefault(sg_project["id"], [])
+            entities_by_parent_id[sg_project["id"]].append(shot)
+            project["Project"]["children"].append(shot)
 
-    project_dict = {
-        "Project": sg.find_one(
-            "Project",
-            filters=[["id", "is", project["id"]]],
-            fields=entity_fields.get("Project")
-        )
-    }
+    project_assets = sg.find(
+        "Asset",
+        filters=[["project", "is", sg_project]],
+        fields=entity_fields.get("Asset")
+    )
 
-    for entity in get_shotgrid_project_entities(sg, project):
-        children = sg.find(
-            entity,
-            filters=[["project", "is", project]],
-            fields=entity_fields.get(entity)
-        )
-        project_dict.setdefault(entity, children)
+    if project_assets:
+        for asset in project_assets:
+            if asset["id"] not in entities_by_id:
+                entities_by_id[asset["id"]] = asset
 
-    # Here we should have
-    # {
-    #     "Project": {},
-    #     "Episode": [<list of episodes>], if any
-    #     "Sequence": [<list of sequences>], if any
-    #     "Shot": [<list of shots>], if any
-    #     ...
-    # }
+            entities_by_parent_id.setdefault(sg_project["id"], [])
+            if asset not in entities_by_parent_id[sg_project["id"]]:
+                entities_by_parent_id[sg_project["id"]].append(asset)
+            project["Project"]["children"].append(asset)
 
-    hierarchical_project = project_dict["Project"]
-    level = "Project"
-    if project_dict.get("Episode"):
-        # There are episodes
-        hierarchical_project.setdefault("children", project_)
-        
-        
+    return project, entities_by_id, entities_by_parent_id
 
-
-
-def get_shotgrid_hierarchy(shotgrid_session: shotgun_api3.Shotgun, project_id: int) -> dict:
+def _old_get_shotgrid_hierarchy(shotgrid_session: shotgun_api3.Shotgun, project_id: int) -> dict:
     entity_fields = {
         "Project": ["name", "code", "tags", "sg_status"],
         "Episode": ["code", "type", "project.name", "sg_status_list", "tags"],
