@@ -171,7 +171,7 @@ class SyncFromShotgrid:
         #     " from TypedContext where project_id is \"{}\""
         # ).format(sg_project["id"])).all()
         #ft_entities, ft_entities_by_id, ft_entities_by_parent_id
-        sg_project_hierarchy, sg_entities_by_id, sg_entities_by_parent_id = project_hierarchy_encore(sg, sg_project)
+        sg_entities_by_id, sg_entities_by_parent_id = get_shotgrid_entities(sg, sg_project)
         t_ft_entities_4 = time.perf_counter()
 
         self.log.debug((
