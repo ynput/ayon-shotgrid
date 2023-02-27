@@ -15,7 +15,7 @@ from .lib.utils import (
     get_shotgrid_project_by_name,
     get_shotgrid_tasks,
     get_shotgrid_project_entities,
-    get_shotgrid_project_hierarchy
+    get_shotgrid_entities
 )
 
 from ftrack_common import (
@@ -106,14 +106,13 @@ class SyncFromShotgrid:
     def report_items(self):
         return self._report_items
 
-    def sync_to_server(self, preset_name=None):
-        t_start = time.perf_counter()
-        project_name = self.project_name
-        sg_session = self._sg_session
+    def sync_to_ayon(self, preset_name=None):
+        self.log.info("Started Ayon Syncronization with Shotgrid.")
+        self.log.info(f"Project Name: {self.project_name}")
+        sync_start_time = time.perf_counter()
 
-        self.log.info(f"Synchronization of project \"{project_name}\" started")
-
-        # Check if there is custom attribute to store server id
+        # ========= STEP 1 =========
+        self.log.info("Making sure the Shotgrid project has all the required attributes.")
         missing_attrs = _get_missing_custom_attrs()
 
         if missing_attrs:
@@ -124,110 +123,113 @@ class SyncFromShotgrid:
             self.log.warning(msg)
             raise ValueError(msg)
 
-        # Query ftrack project
-        sg_project = get_shotgrid_project_by_name(sg_session, project_name)
-        # Make sure project exists on server
+        self.log.info("Ensuring project exists on Shotgrid.")
+        sg_project = get_shotgrid_project_by_name(
+            self._sg_session,
+            self.project_name
+        )
         # TODO: Create `get_or_create_project` in `ayon-python-api`
         ay_project = self.make_sure_project_exists(sg_project, preset_name)
         self._ids_mapping.set_shotgrid_to_server(
             sg_project["id"], ay_project["id"]
         )
-        t_project_existence_1 = time.perf_counter()
-        self.log.debug(
-            f"Project existence check took {t_project_existence_1 - t_start}"
+        sync_step_time = time.perf_counter()
+        self.log.info(
+            f"Project is OK, took {sync_step_time - sync_start_time} to check."
         )
 
-        self.log.debug("Loading entities from Ayon server.")
-        # Query entities from server (project, folders and tasks)
+        # ========= STEP 2 =========
+        self.log.info("Loading Entities data from Ayon.")
         self._entity_hub.query_entities_from_server()
-        t_server_query_2 = time.perf_counter()
+        prev_step_time = sync_step_time
+        sync_step_time = time.perf_counter()
         self.log.debug((
-            "Loading of entities from Ayon server"
-            f" took {t_server_query_2 - t_project_existence_1}"
+            f"Took {sync_step_time - prev_step_time} to load."
         ))
 
-        self.log.info("Querying Tasks and Data Types from Shotgrid.")
-        # Update types on project entity from ftrack
-        self.update_project_types(sg_session, sg_project["id"])
-
-        ft_object_type_name_by_id = {
-            object_type["id"]: object_type["name"]
-            for object_type in get_shotgrid_project_entities(sg_session, sg_project["id"])
-        }
-        ft_type_names_by_id = {
-            task_type["id"]: task_type["name"]
-            for task_type in get_shotgrid_tasks(sg_session, sg_project)
-        }
-
-        t_types_sync_3 = time.perf_counter()
+        # ========= STEP 3 =========
+        self.log.info("Adding Shotgrid Statuses and Tasks to Ayon.")
+        self.update_project_types()
+        prev_step_time = sync_step_time
+        sync_step_time = time.perf_counter()
         self.log.debug((
-            "Update of types from ftrack"
-            f" took {t_types_sync_3 - t_server_query_2}"
+            f"Took {sync_step_time - prev_step_time} to load."
         ))
 
-        self.log.info("Querying project hierarchy from Shotgrid.")
-        # ft_entities = sg_session.query((
-        #     "select id, name, parent_id, type_id, object_type_id"
-        #     " from TypedContext where project_id is \"{}\""
-        # ).format(sg_project["id"])).all()
-        #ft_entities, ft_entities_by_id, ft_entities_by_parent_id
-        sg_entities_by_id, sg_entities_by_parent_id = get_shotgrid_entities(sg, sg_project)
-        t_ft_entities_4 = time.perf_counter()
-
+        # ========= STEP 4 =========
+        self.log.info("Querying all Shotgrid Entities.")
+        sg_entities_by_id, sg_entities_by_parent_id = get_shotgrid_entities(
+            self._sg_session,
+            sg_project
+        )
+        prev_step_time = sync_step_time
+        sync_step_time = time.perf_counter()
         self.log.debug((
-            f"Query of ftrack entities took {t_ft_entities_4 - t_types_sync_3}"
+            f"Took {sync_step_time - prev_step_time} to load."
         ))
 
-        # ft_entities_by_id = {sg_project["id"]: sg_project}
-        # ft_entities_by_parent_id = collections.defaultdict(list)
-        # for entity in ft_entities:
-        #     entity_id = entity["id"]
-        #     parent_id = entity["parent_id"]
-        #     ft_entities_by_id[entity_id] = entity
-        #     ft_entities_by_parent_id[parent_id].append(entity)
-        
-        # ft_entity_ids = set(ft_entities_by_id.keys())
-        sg_entities_id = set(sg_entities_by_id.keys())
-        # cust_attr_value_by_entity_id = get_custom_attributes_by_entity_id(
-        #     sg_session, ft_entity_ids, attr_confs, hier_attr_confs
-        # )
-        self.log.info("Checking changes of immutable entities")
+        # ========= STEP 5 =========
+        self.log.info("Matching Immutable entities between Ayon and Shotgrid.")
         self.match_immutable_entities(
             sg_project,
-            ft_entities_by_id,
-            ft_entities_by_parent_id,
+            sg_entities_by_id,
+            sg_entities_by_parent_id,
         )
-
-        self.log.info("Matching ftrack to server hierarchy")
-        # self.match_existing_entities(
-        #     sg_project,
-        #     ft_entities_by_parent_id,
-        #     ft_object_type_name_by_id,
-        #     ft_type_names_by_id,
-        #     cust_attr_value_by_entity_id
-        # )
-
-        self.log.info("Updating attributes of entities")
-        # self.update_attributes_from_ftrack(
-        #     cust_attr_value_by_entity_id,
-        #     ft_entities_by_id
-        # )
-        self._entity_hub.commit_changes()
-
-        self.log.info("Updating server ids on ftrack entities")
-        self.update_ftrack_attributes(
-            ft_entities_by_id,
-            cust_attr_value_by_entity_id,
-            server_id_conf,
-            server_path_conf,
-            sync_failed_conf
-        )
-        self.create_report(ft_entities_by_id)
-        t_end = time.perf_counter()
-        self.log.info((
-            f"Synchronization of project \"{project_name}\" finished"
-            f" in {t_end-t_start}"
+        prev_step_time = sync_step_time
+        sync_step_time = time.perf_counter()
+        self.log.debug((
+            f"Took {sync_step_time - prev_step_time} to load."
         ))
+
+        # ========= STEP 6 =========
+        self.log.info("Matching Shotgrid to Ayon hierarchy.")
+        cust_attr_value_by_entity_id = get_custom_attributes_by_entity_id(
+            ft_session,
+            set(sg_entities_by_id.keys()),
+            attr_confs,
+            hier_attr_confs
+        )
+
+        self.match_existing_entities(
+            sg_project,
+            sg_entities_by_parent_id,
+            cust_attr_value_by_entity_id
+        )
+
+        prev_step_time = sync_step_time
+        sync_step_time = time.perf_counter()
+        self.log.debug((
+            f"Took {sync_step_time - prev_step_time} to load."
+        ))
+
+        # ========= STEP 7 =========
+        self.log.info("Update Ayon attributes with Shotgrid data.")
+        self.update_attributes_from_ftrack(
+            cust_attr_value_by_entity_id,
+            sg_entities_by_id
+        )
+        self._entity_hub.commit_changes()
+        prev_step_time = sync_step_time
+        sync_step_time = time.perf_counter()
+        self.log.debug((
+            f"Took {sync_step_time - prev_step_time} to load."
+        ))
+
+        # ========= STEP 8 =========
+        self.log.info("Update Ayon IDs on Shotgrid Entities.")
+        self.update_ftrack_attributes(
+            sg_entities_by_id,
+            cust_attr_value_by_entity_id,
+            server_id_conf, # ayon server url in sg
+            server_path_conf, # ayon project path in sg
+            sync_failed_conf # ayon sync status in sg
+        )
+        prev_step_time = sync_step_time
+        sync_step_time = time.perf_counter()
+        self.log.debug((
+            f"Took {sync_step_time - prev_step_time} to load."
+        ))
+
 
     def make_sure_project_exists(self, sg_project, preset_name=None):
         project_name = sg_project["name"]
@@ -248,7 +250,7 @@ class SyncFromShotgrid:
 
         return project
 
-    def update_project_types(self, object_types, task_types):
+    def update_project_types(self):
         project_entity = self._entity_hub.project_entity
 
         sg_tasks = [
@@ -274,6 +276,8 @@ class SyncFromShotgrid:
 
         project_entity.folder_types = new_entities
         project_entity.task_types = new_tasks
+
+        return sg_entities, sg_tasks
 
     def match_immutable_entities(
         self,
@@ -404,9 +408,7 @@ class SyncFromShotgrid:
     def match_existing_entities(
         self,
         sg_project,
-        ft_entities_by_parent_id,
-        ft_object_type_name_by_id,
-        ft_type_names_by_id,
+        sg_entities_by_parent_id,
         cust_attr_value_by_entity_id,
     ):
         """Match exiting entities on both sides.
@@ -420,20 +422,26 @@ class SyncFromShotgrid:
 
         Args:
             sg_project (ftrack_api.Entity): Ftrack project entity.
-            ft_entities_by_parent_id (dict[str, list[ftrack_api.Entity]]): Map
+            sg_entities_by_parent_id (dict[str, list[ftrack_api.Entity]]): Map
                 of ftrack entities by their parent ids.
-            ft_object_type_name_by_id (Dict[str, str]): Mapping of ftrack
-                object type ids to their names.
-            ft_type_names_by_id (Dict[str, str]): Mapping of ftrack task type
-                ids to their names.
         """
 
+        sg_entity_type_name_by_id = {
+            entity["id"]: next(iter(entity.keys()))
+            for entity in get_shotgrid_project_entities()
+        }
+
+        sg_tasks_names_by_id = {
+            task["id"]: task["content"]
+            for task in get_shotgrid_tasks()
+        }
+
         fill_queue = collections.deque()
-        for ft_child in ft_entities_by_parent_id[sg_project["id"]]:
+        for ft_child in sg_entities_by_parent_id[sg_project["id"]]:
             fill_queue.append((self._entity_hub.project_entity, ft_child))
 
         def _add_children_to_queue(ft_entity_id):
-            children = ft_entities_by_parent_id[ft_entity_id]
+            children = sg_entities_by_parent_id[ft_entity_id]
             if not children:
                 return
 
@@ -504,8 +512,8 @@ class SyncFromShotgrid:
                 entity = self._create_new_entity(
                     parent_entity,
                     ft_entity,
-                    ft_object_type_name_by_id,
-                    ft_type_names_by_id,
+                    sg_entity_type_name_by_id,
+                    sg_tasks_names_by_id,
                     cust_attr_value_by_entity_id,
                 )
                 self._processed_server_ids.add(entity.id)
@@ -519,13 +527,13 @@ class SyncFromShotgrid:
             matching_name_entity.active = True
             if matching_name_entity.entity_type == "task":
                 task_type_id = ft_entity["type_id"]
-                task_type_name = ft_type_names_by_id[task_type_id]
+                task_type_name = sg_tasks_names_by_id[task_type_id]
                 if matching_name_entity.task_type != task_type_name:
                     matching_name_entity.task_type = task_type_name
 
             else:
                 object_type_id = ft_entity["object_type_id"]
-                object_type_name = ft_object_type_name_by_id[
+                object_type_name = sg_entity_type_name_by_id[
                     object_type_id]
                 if matching_name_entity.folder_type != object_type_name:
                     matching_name_entity.folder_type = object_type_name
