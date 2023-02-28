@@ -6,13 +6,14 @@ from .constants import AYON_SHOTGRID_ENTITY_MAP
 
 
 def get_shotgrid_entities(
-    shotgrid_session: shotgun_api3.Shotgun, shotgun_project: dict
+    shotgrid_session: shotgun_api3.Shotgun, shotgun_project: dict, custom_fields: list
 ) -> tuple(dict, dict):
     """Get all available entities within a Shotgrid Project.
 
     Args:
         shotgrid_session (shotgun_api3.Shotgun): Shotgun Session object.
         project_name (str): The project name to look for.
+        custom_fields (list): List of fields to pass to the query.
 
     Returns:
         tuple(
@@ -23,13 +24,18 @@ def get_shotgrid_entities(
         )
 
     """
+    common_fields = ["code", "name", "sg_status", "sg_status_list", "tags"]
+
+    if custom_fields and isinstance(custom_fields, list):
+        common_fields = common_fields + custom_fields
+
     entity_fields = {
-        "Project": ["name", "code", "tags", "sg_status"],
-        "Episode": ["code", "type", "sg_status_list", "tags"],
-        "Sequence": ["name", "code", "sg_status_list", "tags", "episode"],
-        "Shot": ["name", "code", "sg_status_list", "tags", "sg_sequence", "episode"],
-        "Asset": ["code", "sg_status_list", "tags"],
-        "Version": ["code", "sg_status_list", "tags"],
+        "Project": common_fields,
+        "Episode": common_fields + ["type"],
+        "Sequence": common_fields + ["episode"],
+        "Shot": common_fields + ["sg_sequence", "episode"],
+        "Asset": common_fields + ["shots"],
+        "Version": common_fields,
     }
 
     project_enabled_entities = get_shotgrid_project_entities(shotgrid_session, shotgun_project)
@@ -232,10 +238,6 @@ def get_shotgrid_project_entities(
             project_entities.append(entity)
 
     return project_entities
-
-
-def get_shotgrid_custom_attributes_config():
-    pass
 
 
 def get_shotgrid_project_by_name(
