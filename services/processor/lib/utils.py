@@ -2,7 +2,22 @@ import copy
 
 import shotgun_api3
 
-from .constants import AYON_SHOTGRID_ENTITY_MAP
+from .constants import AYON_SHOTGRID_ENTITY_MAP, SHOTGRID_PROJECT_ATTRIBUTES
+
+
+def get_shotgrid_missing_ayon_attributes(shotgrid_session: shotgun_api3.Shotgun):
+    missing_attrs = []
+    for ayon_attr, attr_dict in SHOTGRID_PROJECT_ATTRIBUTES.items():
+        try:
+            shotgrid_session.schema_field_read(
+                "Project",
+                field_name=f"sg_{ayon_attr}"
+            )
+        except Exception:
+            # shotgun_api3.shotgun.Fault: API schema_field_read()
+            missing_attrs.append(ayon_attr)
+
+    return missing_attrs
 
 
 def get_shotgrid_entities(

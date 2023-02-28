@@ -1,3 +1,10 @@
+CUST_ATTR_KEY_SERVER_ID = "sg_ayon_id"
+CUST_ATTR_KEY_SERVER_PATH = "sg_ayon_path"
+CUST_ATTR_KEY_SYNC_FAIL = "sg_ayon_sync_status"
+SHOTGRID_ID_ATTRIB = "shotgridId"
+SHOTGRID_PATH_ATTRIB = "shotgridPath"
+REMOVED_ID_VALUE = "removed"
+
 SHOTGRID_PROJECT_ATTRIBUTES = {
     "ayon_project_name": {
         "name": "Ayon Project Name",
