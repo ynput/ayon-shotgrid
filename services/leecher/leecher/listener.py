@@ -49,11 +49,12 @@ class ShotgridListener:
                 function we cast to the processed events.
         """
         logging.info("Initializing the Shotgrid Listener.")
-
         if func is None:
             self.func = self.send_shotgrid_event_to_ayon
+        else:
+            self.func = func
 
-        self.func = func
+        logging.info(f"Callback method is {self.func}.")
 
         try:
             self.settings = ayon_api.get_addon_settings(
@@ -219,16 +220,21 @@ class ShotgridListener:
         logging.info(f"Event is from Project {project_name}")
 
         ayon_api.dispatch_event(
-            "shotgrid.leech",
+            "shotgrid.event",
             sender=socket.gethostname(),
             event_hash=payload["id"],
             project_name=None,
             username=user_name,
             description=description,
             summary=None,
-            payload=payload,
+            payload={
+                "action": "shotgrid-event",
+                "username": user_name,
+                "project": project_name,
+                "payload": payload,
+            }
         )
-        logging.info("Dispatched event", payload['event_type'])
+        logging.info("Dispatched Ayon event ", payload['event_type'])
 
         return payload["id"]
 

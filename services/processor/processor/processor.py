@@ -117,20 +117,20 @@ class ShotgridProcessor:
         """
 
         # Enroll `shotgrid.leech` events
-        logging.info("Start enrolling for Ayon `shotgrid.leech` Events...")
+        logging.info("Start enrolling for Ayon `shotgrid.event` Events...")
 
         while True:
-            logging.info("Querying for new `shotgrid.leech` events...")
+            logging.info("Querying for new `shotgrid.event` events...")
             try:
                 event = ayon_api.enroll_event_job(
-                    "shotgrid.leech",
+                    "shotgrid.event",
                     "shotgrid.proc",
                     socket.gethostname(),
                     description="Shotgrid Event processing",
                 )
 
                 if not event:
-                    logger.info("No event of origin `shotgrid.leech` is pending.")
+                    logging.info("No event of origin `shotgrid.event` is pending.")
                     time.sleep(1.5)
                     continue
 
@@ -142,13 +142,10 @@ class ShotgridProcessor:
                     ayon_api.update_event(source_event["id"], status="finished")
                     continue
 
-                print("hey")
-                print(source_event["payload"]["event_type"])
-                print(source_event["payload"]["event_type"] in self.handlers_map)
-
-                for handler in self.handlers_map.get(source_event["payload"]["event_type"], []):
+                for handler in self.handlers_map.get(source_event["payload"]["action"], []):
                     # If theres any handler "subscirbed" to this event type..
                     try:
+                        logging.info(f"Running the Handler {handler}")
                         handler.process_event(
                             self.shotgrid_session,
                             source_event["payload"]

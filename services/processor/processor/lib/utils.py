@@ -22,7 +22,7 @@ def get_shotgrid_missing_ayon_attributes(shotgrid_session: shotgun_api3.Shotgun)
 
 def get_shotgrid_entities(
     shotgrid_session: shotgun_api3.Shotgun, shotgun_project: dict, custom_fields: list
-) -> tuple(dict, dict):
+) -> tuple:
     """Get all available entities within a Shotgrid Project.
 
     Args:
@@ -267,7 +267,7 @@ def get_shotgrid_project_by_name(
     Returns:
         sg_project (dict): Shotgrid Project dict.
      """
-    sg_project = sg.find_one(
+    sg_project = shotgrid_session.find_one(
         "Project",
         [["name", "is", project_name]],
         fields=["id", "code", "name", "sg_status"],

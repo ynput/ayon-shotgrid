@@ -2,21 +2,20 @@
 Ensure that the project has all the required things in both Ayon and Shotgrid,
 custom attributes, tasks types and statuses.
 """
-import os
-
-from .lib import get_shotgrid_project_by_id
-from .lib.constants import (
+from processor.lib.constants import (
     AYON_SHOTGRID_ATTRIBUTES_MAP,
     AYON_SHOTGRID_ENTITY_MAP,
     SHOTGRID_PROJECT_ATTRIBUTES
 )
-from .lib.utils import get_shotgrid_tasks, get_shotgrid_statuses
-
+from processor.lib.utils import (
+    get_shotgrid_project_by_id, get_shotgrid_statuses, get_shotgrid_tasks
+)
 import ayon_api
 from nxtools import logging
 
 
-REGISTER_EVENT_TYPE = ["Shotgun_Project_New"]
+# REGISTER_EVENT_TYPE = ["sync-from-shotgrid"]
+REGISTER_EVENT_TYPE = []
 
 
 def process_event(shotgrid_session, payload):
@@ -63,7 +62,7 @@ def process_event(shotgrid_session, payload):
 
 def _create_ayon_project_attributes(
     shotgrid_project: dict,
-    shotgrid_session: shotgun_api3.Shotgun,
+    shotgrid_session,
     ayon_project: dict
 ):
     """Create Ayon Project Attributes in Shotgrid
@@ -106,7 +105,7 @@ def _create_ayon_project_attributes(
 
 
 def _create_ayon_entities_attributes(
-    shotgrid_session: shotgun_api3.Shotgun,
+    shotgrid_session,
     ayon_project: dict
 ):
     """Create Ayon Project Attributes in Shotgrid"""

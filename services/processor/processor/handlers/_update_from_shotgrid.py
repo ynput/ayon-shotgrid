@@ -4,7 +4,11 @@ mostly Custom Attributes.
 """
 from nxtools import logging
 
-REGISTER_EVENT_TYPE = [
+
+#REGISTER_EVENT_TYPE = ["shotgrid-event"]
+REGISTER_EVENT_TYPE = []
+
+SG_EVENTS = [
     "Shotgun_Sequence_Edit",
     "Shotgun_Shot_Edit",
     "Shotgun_Asset_Edit",
@@ -46,9 +50,16 @@ SG_AYON_MAP = {
 def process_event(payload):
     """Entry point of the processor"""
     if not payload:
-        logging.error("The Even payload is empty!")
+        logging.error("The Event payload is empty!")
         raise InputError
-    
+
+    print(f"PAYLAOD IS {payload}")
+    payload = payload.get("payload", {})
+    print(f"PAYLAOD IS {payload}")
+    return 
+    if not payload:
+        logging.error("The Shotgrid payload is empty!")
+        raise InputError
     """
         {
           "id": "670f8af6a7ad11eda0a87ae8710998c5",
