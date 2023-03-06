@@ -1,5 +1,6 @@
 import socket
 from typing import Any, Type
+from urllib.parse import parse_qs
 
 from ayon_server.addons import BaseServerAddon
 from ayon_server.api.dependencies import dep_current_user, dep_project_name
@@ -9,13 +10,13 @@ from ayon_server.lib.postgres import Postgres
 from .settings import ShotgridSettings, DEFAULT_VALUES
 from .version import __version__
 
-from fastapi import Depends
+from fastapi import Body, Depends
+from starlette.requests import Request
 from nxtools import logging
 
 
 SG_ID_ATTRIB = "shotgridId"
 SG_PATH_ATTRIB = "shotgridPath"
-
 
 class ShotgridAddon(BaseServerAddon):
     name = "shotgrid"
@@ -29,7 +30,7 @@ class ShotgridAddon(BaseServerAddon):
         logging.info("Initializing Shotgrid Addon.")
         logging.info("Added Create Attributes Endpoint.")
         self.add_endpoint(
-            "create-project/{project_name}",
+            "create-project",
             self._create_project,
             method="POST",
             name="prepare-shotgrid-project",
@@ -96,19 +97,33 @@ class ShotgridAddon(BaseServerAddon):
         )
         logging.info(f"Dispatched event {event_id}")
 
-    async def _create_project(self, project_name: str = Depends(dep_project_name)):
-        event_id = await dispatch_event(
-            "shotgrid.event",
-            sender=socket.gethostname(),
-            project=project_name,
-            user="",
-            description=f"Sync project '{project_name}' from Shotgrid.",
-            payload={
-                "action": "create-project",
-                "project": project_name,
-            },
-        )
-        logging.info(f"Dispatched event {event_id}")
+    async def _create_project(self, request: Request):
+        request_body = await request.body()
+        if not request_body:
+            print("Request has no body")
+            print(f"{request_body}")
+            return
+
+        query_data = parse_qs(request_body)
+        print(query_data)
+
+        project_name = next(iter(query_data.get('project_name', [])), "")
+        user_name = next(query_data.get('user_login', []), "").split("@")[0]
+
+        if project_name:
+            event_id = await dispatch_event(
+                "shotgrid.event",
+                sender=socket.gethostname(),
+                project="project_name",
+                user="",
+                description=f"Create {project_name} from Shotgrid.",
+                payload={
+                    "action": "create-project",
+                    "project":  project_name,
+                    "username": user_name
+                },
+            )
+            logging.info(f"Dispatched event {event_id}")
 
     async def get_default_settings(self):
         logging.info(f"Loading default Settings for {self.name} addon.")
