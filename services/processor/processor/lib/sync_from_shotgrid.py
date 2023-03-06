@@ -1,0 +1,801 @@
+import re
+import collections
+import time
+import logging
+
+from ayon_api import (
+    create_project,
+    EntityHub,
+    get_project,
+    get_attribute_for_types,
+    slugify_name
+)
+
+from .lib.constants import (
+    SHOTGRID_PROJECT_ATTRIBUTES,
+    CUST_ATTR_KEY_SERVER_ID,
+    CUST_ATTR_KEY_SERVER_PATH,
+    CUST_ATTR_KEY_SYNC_FAIL,
+    SHOTGRID_ID_ATTRIB,
+    SHOTGRID_PATH_ATTRIB,
+    REMOVED_ID_VALUE,
+)
+
+from .lib.utils import (
+    get_shotgrid_entities,
+    get_shotgrid_missing_ayon_attributes,
+    get_shotgrid_project_by_name,
+    get_shotgrid_project_entities,
+    get_shotgrid_tasks,
+)
+
+from ftrack_common import (
+    create_chunks,  # Separate iterable into multiple chunks by size.
+)
+
+
+class IdsMapping(object):
+    def __init__(self):
+        self._ftrack_to_server = {}
+        self._server_to_ftrack = {}
+
+    def set_ftrack_to_server(self, ftrack_id, server_id):
+        self._ftrack_to_server[ftrack_id] = server_id
+        self._server_to_ftrack[server_id] = ftrack_id
+
+    def set_server_to_ftrack(self, server_id, ftrack_id):
+        self.set_ftrack_to_server(ftrack_id, server_id)
+
+    def get_server_mapping(self, ftrack_id):
+        return self._ftrack_to_server.get(ftrack_id)
+
+    def get_ftrack_mapping(self, server_id):
+        return self._server_to_ftrack.get(server_id)
+
+
+class SyncFromShotgrid:
+    """Helper for sync project from ftrack."""
+
+    def __init__(self, session, project_name, log=None):
+        self._log = log
+        self._sg_session = session
+        self._project_name = project_name
+
+        self._sg_project = None
+        self._ayon_project = None
+        self._sg_entities_by_id = {}
+        self._sg_entities_by_parent_id = {}
+
+        self._ids_mapping = IdsMapping()
+        # Create entity hub which handle entity changes
+        self._entity_hub = EntityHub(project_name)
+
+        self._report_items = []
+
+        # TODO add more and use them
+        self._processed_server_ids = set()
+        self._processed_shotgrid_ids = set()
+        self._skipped_shotgrid_ids = set()
+        self._duplicated_shotgrid_ids = {}
+
+        # Immutable
+        self._im_invalid_entity_ids = set()
+        self._im_renamed_entity_ids = set()
+        self._im_moved_entity_ids = set()
+        self._im_removed_entity_ids = set()
+
+    @property
+    def project_name(self):
+        return self._project_name
+
+    @property
+    def log(self):
+        if self._log is None:
+            self._log = logging.getLogger(self.__class__.__name__)
+        return self._log
+
+    @property
+    def report_items(self):
+        return self._report_items
+
+    def sync_to_ayon(self, preset_name=None):
+        self.log.info("Started Ayon Syncronization with Shotgrid.")
+        self.log.info(f"Project Name: {self.project_name}")
+        sync_start_time = time.perf_counter()
+
+        # ========= STEP 1 =========
+        self.log.info("Making sure the Shotgrid project has all the required attributes.")
+        missing_attrs = get_shotgrid_missing_ayon_attributes(self._sg_session)
+
+        if missing_attrs:
+            msg = (
+                f"Shotgrid is missing attributes: {missing_attrs}"
+                "Please run the 'Create attributes' event from the Addon Page."
+            )
+            self.log.warning(msg)
+            raise ValueError(msg)
+
+        self.log.info("Ensuring project exists on Shotgrid.")
+        self._sg_project = get_shotgrid_project_by_name(
+            self._sg_session,
+            self.project_name
+        )
+        # TODO: Create `get_or_create_project` in `ayon-python-api`
+        self._ayon_project = self.make_sure_project_exists(preset_name)
+        self._ids_mapping.set_shotgrid_to_server(
+            self._sg_project["id"],
+            self._ayon_project["id"],
+        )
+        sync_step_time = time.perf_counter()
+        self.log.info(
+            f"Project is OK, took {sync_step_time - sync_start_time} to check."
+        )
+
+        # ========= STEP 2 =========
+        self.log.info("Loading Entities data from Ayon.")
+        self._entity_hub.query_entities_from_server()
+        prev_step_time = sync_step_time
+        sync_step_time = time.perf_counter()
+        self.log.debug((
+            f"Took {sync_step_time - prev_step_time} to load."
+        ))
+
+        # ========= STEP 3 =========
+        self.log.info("Adding Shotgrid Statuses and Tasks to Ayon.")
+        self.update_ayon_tasks_and_entities_types()
+        prev_step_time = sync_step_time
+        sync_step_time = time.perf_counter()
+        self.log.debug((
+            f"Took {sync_step_time - prev_step_time} to load."
+        ))
+
+        # ========= STEP 4 =========
+        self.log.info("Querying all Shotgrid Entities.")
+        shotgrid_custom_attributes = ["sg_ayon_sync_status"]
+
+        for attr, attr_definition in get_attribute_for_types():
+            shotgrid_custom_attributes.append(f"sg_ayon_{attr}")
+
+        self.sg_entities_by_id, self.sg_entities_by_parent_id = get_shotgrid_entities(
+            self._sg_session,
+            self._sg_project,
+            custom_fields=shotgrid_custom_attributes
+        )
+        prev_step_time = sync_step_time
+        sync_step_time = time.perf_counter()
+        self.log.debug((
+            f"Took {sync_step_time - prev_step_time} to load."
+        ))
+
+        # ========= STEP 5 =========
+        self.log.info("Matching Immutable entities between Ayon and Shotgrid.")
+        self.match_immutable_entities()
+        prev_step_time = sync_step_time
+        sync_step_time = time.perf_counter()
+        self.log.debug((
+            f"Took {sync_step_time - prev_step_time} to load."
+        ))
+
+        # ========= STEP 6 =========
+        self.log.info("Matching Shotgrid to Ayon hierarchy.")
+        self.match_existing_entities()
+
+        prev_step_time = sync_step_time
+        sync_step_time = time.perf_counter()
+        self.log.debug((
+            f"Took {sync_step_time - prev_step_time} to load."
+        ))
+
+        # ========= STEP 7 =========
+        # self.log.info("Update Ayon attributes with Shotgrid data.")
+        # self.update_attributes_from_ftrack()
+        # self._entity_hub.commit_changes()
+        # prev_step_time = sync_step_time
+        # sync_step_time = time.perf_counter()
+        # self.log.debug((
+        #     f"Took {sync_step_time - prev_step_time} to load."
+        # ))
+
+        # # ========= STEP 8 =========
+        # self.log.info("Update Ayon IDs on Shotgrid Entities.")
+        # self.update_ftrack_attributes(
+        #     ayon_api.get_base_url(), # ayon server url in sg
+        #     server_path_conf, # ayon project path in sg
+        #     sync_failed_conf # ayon sync status in sg
+        # )
+        # prev_step_time = sync_step_time
+        # sync_step_time = time.perf_counter()
+        # self.log.debug((
+        #     f"Took {sync_step_time - prev_step_time} to load."
+        # ))
+
+    def make_sure_project_exists(self, preset_name=None):
+        project_name = self._sg_project["name"]
+        # Make sure project exists on server
+        project = get_project(project_name)
+        if not project:
+            self.log.info(f"Creating project \"{project_name}\" on server")
+            if not self._sg_project["code"]:
+                project_code = project_name.replace(" ", "").lower()[:3]
+            else:
+                project_code = self._sg_project["code"]
+
+            project = create_project(
+                project_name,
+                project_code,
+                preset_name=preset_name
+            )
+
+        return project
+
+    def update_ayon_tasks_and_entities(self):
+        project_entity = self._entity_hub.project_entity
+
+        sg_tasks = [
+            {"name": task["content"], "shortName": task["content"].lower()[:4]}
+            for task in get_shotgrid_tasks()
+        ]
+        new_tasks = sg_tasks + project_entity.task_types
+        new_tasks = list({
+            task['name']: task
+            for task in new_tasks
+        }.values())
+
+        sg_entities = [
+            {"name": next(iter(entity.keys()))}
+            for entity in get_shotgrid_project_entities()
+        ]
+
+        new_entities = sg_entities + project_entity.folder_types
+        new_entities = list({
+            entity['name']: entity
+            for entity in new_entities
+        }.values())
+
+        project_entity.folder_types = new_entities
+        project_entity.task_types = new_tasks
+
+        return sg_entities, sg_tasks
+
+    def _get_immutable_entities(self):
+        # Collect all shotgrid ids from immuable entities
+        immutable_queue = collections.deque()
+        for entity in self._entity_hub.project_entity.children:
+            if entity.immutable_for_hierarchy:
+                immutable_queue.append(entity)
+
+        all_immutable_shotgrid_ids = set()
+        while immutable_queue:
+            entity = immutable_queue.popleft()
+            all_immutable_shotgrid_ids.add(entity.attribs[SHOTGRID_ID_ATTRIB])
+            for child in entity.children:
+                immutable_queue.append(child)
+
+        # Go through entities and find matching shotgrid entity id
+        hierarchy_queue = collections.deque()
+        for entity in self._entity_hub.project_entity.children:
+            if entity.immutable_for_hierarchy:
+                hierarchy_queue.append((entity, self._sg_project["id"]))
+
+        return hierarchy_queue, all_immutable_shotgrid_ids
+
+    def _find_orphaned_entity(
+        self,
+        all_immutable_shotgrid_ids,
+        ayon_entity,
+        sg_parent_id=None
+    ):
+        sg_children = []
+        sg_entity = None
+
+        if sg_parent_id is not None:
+            sg_children = self.sg_entities_by_parent_id[sg_parent_id]
+
+        is_folder = ayon_entity.entity_type == "folder"
+        for sg_child in sg_children:
+            # Skip all entities that are already reserved for other
+            #   entities
+            if sg_child["id"] in all_immutable_shotgrid_ids:
+                continue
+            name = slugify_name(sg_child["name"])
+            if name != ayon_entity.name:
+                continue
+            sg_is_folder = sg_child.entity_type != "Task"
+            if is_folder is sg_is_folder:
+                sg_entity = sg_child
+                break
+
+        return sg_entity
+
+    def match_immutable_entities(self):
+        self.log.debug("Validation of immutable entities started")
+
+        hierarchy_queue, immutable_shotgrid_ids = self._get_immutable_entities()
+
+        while hierarchy_queue:
+            (entity, sg_parent_id) = hierarchy_queue.popleft()
+
+            expected_shotgrid_id = entity.attribs[SHOTGRID_ID_ATTRIB]
+            sg_entity = self._sg_entities_by_id.get(expected_shotgrid_id)
+
+            if sg_entity is None:
+                sg_entity = self._find_orphaned_entity(
+                    immutable_shotgrid_ids,
+                    entity,
+                    sg_parent_id
+                )
+
+                if sg_entity is None:
+                    # We couldn't find it so
+                    # Make sure 'expected_shotgrid_id' is None
+                    expected_shotgrid_id = None
+                    # Set shotgrid id on entity to removed
+                    entity.attribs[SHOTGRID_ID_ATTRIB] = REMOVED_ID_VALUE
+                else:
+                    # Change shotgrid id of entity to matching shotgrid entity
+                    expected_shotgrid_id = sg_entity["id"]
+                    entity.attribs[SHOTGRID_ID_ATTRIB] = expected_shotgrid_id
+                    # Add the shotgrid id to immutable ids
+                    immutable_shotgrid_ids.add(expected_shotgrid_id)
+
+            else:
+                # Need to see if the record we have is still good
+                valid = True
+                sg_name = slugify_name(sg_entity["name"])
+                if sg_name != entity.name:
+                    self._im_renamed_entity_ids.add(entity.id)
+                    valid = False
+
+                if sg_entity["parent_id"] != sg_parent_id:
+                    self._im_moved_entity_ids.add(entity.id)
+                    valid = False
+
+                if not valid:
+                    self._im_invalid_entity_ids.add(entity.id)
+
+            if expected_shotgrid_id:
+                self._processed_shotgrid_ids.add(expected_shotgrid_id)
+                self._ids_mapping.set_server_to_shotgrid(
+                    entity.id, expected_shotgrid_id)
+
+            self._processed_server_ids.add(entity.id)
+            for child in entity.children:
+                if child.immutable_for_hierarchy:
+                    hierarchy_queue.append((child, expected_shotgrid_id))
+
+    def _create_new_entity(
+        self,
+        parent_entity,
+        ft_entity,
+        ft_object_type_name_by_id,
+        ft_type_names_by_id,
+        cust_attr_value_by_entity_id,
+    ):
+        ftrack_id = ft_entity["id"]
+        custom_attributes = cust_attr_value_by_entity_id[ftrack_id]
+        entity_id = custom_attributes.get(CUST_ATTR_KEY_SERVER_ID)
+
+        label = ft_entity["name"]
+        name = slugify_name(label)
+        entity_type = ft_entity.entity_type
+        if entity_type.lower() == "task":
+            task_type_name = ft_type_names_by_id[ft_entity["type_id"]]
+            new_entity = self._entity_hub.add_new_task(
+                task_type_name,
+                name=name,
+                label=label,
+                entity_id=entity_id,
+                parent_id=parent_entity.id
+            )
+
+        else:
+            object_type = ft_object_type_name_by_id[
+                ft_entity["object_type_id"]]
+            new_entity = self._entity_hub.add_new_folder(
+                object_type,
+                name=name,
+                label=label,
+                entity_id=entity_id,
+                parent_id=parent_entity.id
+            )
+        self._ids_mapping.set_ftrack_to_server(ftrack_id, new_entity.id)
+
+        return new_entity
+
+    def match_existing_entities(
+        self,
+        cust_attr_value_by_entity_id,
+    ):
+        """Match exiting entities on both sides.
+
+        Create new entities that are on ftrack and are not on server and remove
+        those which are not on ftrack.
+
+        Todos:
+            Handle duplicates more clearly. Don't compare children only by name
+                but also by type (right now task == folder).
+        """
+
+        sg_entity_type_name_by_id = {
+            entity["id"]: next(iter(entity.keys()))
+            for entity in get_shotgrid_project_entities()
+        }
+
+        sg_tasks_names_by_id = {
+            task["id"]: task["content"]
+            for task in get_shotgrid_tasks()
+        }
+
+        fill_queue = collections.deque()
+        for ft_child in self._sg_entities_by_parent_id[self._sg_project["id"]]:
+            fill_queue.append((self._entity_hub.project_entity, ft_child))
+
+        def _add_children_to_queue(ft_entity_id):
+            children = self._sg_entities_by_parent_id[ft_entity_id]
+            if not children:
+                return
+
+            entity_id = self._ids_mapping.get_server_mapping(ft_entity_id)
+            entity = None
+            if entity_id:
+                entity = self._entity_hub.get_entity_by_id(entity_id)
+
+            for ft_child in children:
+                fill_queue.append((entity, ft_child))
+
+        while fill_queue:
+            (parent_entity, ft_entity) = fill_queue.popleft()
+            ft_entity_path = "/".join([
+                item["name"]
+                for item in ft_entity["link"]
+            ])
+            ft_entity_id = ft_entity["id"]
+            # Go to next children if is already processed
+            if ft_entity_id in self._processed_ftrack_ids:
+                _add_children_to_queue(ft_entity_id)
+                self.log.debug(
+                    f"{ft_entity_path} - Ftrack id already processed")
+                continue
+
+            if parent_entity is None:
+                self._skipped_ftrack_ids.add(ft_entity_id)
+                _add_children_to_queue(ft_entity_id)
+                self.log.debug(f"{ft_entity_path} - Skipped")
+                continue
+
+            label = ft_entity["name"]
+            name = slugify_name(label)
+            matching_name_entity = None
+            for child in parent_entity.children:
+                if child.name.lower() == name.lower():
+                    matching_name_entity = child
+                    break
+
+            ft_is_folder = ft_entity.entity_type != "Task"
+            if matching_name_entity is not None:
+                # If entity was already processed we can skip ftrack entity
+                # --- This is last condition that handle immutable entities ---
+                #   After this condition can be server entities changed,
+                #       removed or created.
+                if matching_name_entity.id in self._processed_server_ids:
+                    self._processed_ftrack_ids.add(ft_entity_id)
+                    self._duplicated_ftrack_ids[ft_entity_id] = matching_name_entity
+                    _add_children_to_queue(ft_entity_id)
+                    self.log.debug(
+                        f"{ft_entity_path} - Server id already processed")
+                    continue
+
+                is_folder = matching_name_entity.entity_type == "folder"
+                # It is possible to remove previous server entity at this point
+                #   as we're 100% sure it is not immutable at this point
+                if ft_is_folder is not is_folder:
+                    self.log.debug(
+                        f"{ft_entity_path} - Deleted previous entity")
+                    # Remove current entity if type does not match
+                    matching_name_entity.parent_id = None
+                    # Reset variable so new entity is created
+                    matching_name_entity = None
+
+            # No match was found, so we can create new server entity
+            if matching_name_entity is None:
+                self.log.debug(f"{ft_entity_path} - Creating new entity")
+                entity = self._create_new_entity(
+                    parent_entity,
+                    ft_entity,
+                    sg_entity_type_name_by_id,
+                    sg_tasks_names_by_id,
+                    cust_attr_value_by_entity_id,
+                )
+                self._processed_server_ids.add(entity.id)
+                self._processed_ftrack_ids.add(ft_entity_id)
+                _add_children_to_queue(ft_entity_id)
+                continue
+
+            self.log.debug(f"{ft_entity_path} - Updating existing entity")
+            matching_name_entity.name = name
+            matching_name_entity.label = label
+            matching_name_entity.active = True
+            if matching_name_entity.entity_type == "task":
+                task_type_id = ft_entity["type_id"]
+                task_type_name = sg_tasks_names_by_id[task_type_id]
+                if matching_name_entity.task_type != task_type_name:
+                    matching_name_entity.task_type = task_type_name
+
+            else:
+                object_type_id = ft_entity["object_type_id"]
+                object_type_name = sg_entity_type_name_by_id[
+                    object_type_id]
+                if matching_name_entity.folder_type != object_type_name:
+                    matching_name_entity.folder_type = object_type_name
+
+            self._processed_server_ids.add(matching_name_entity.id)
+            self._processed_ftrack_ids.add(ft_entity_id)
+            self._ids_mapping.set_ftrack_to_server(
+                ft_entity_id, matching_name_entity.id
+            )
+            _add_children_to_queue(ft_entity_id)
+
+        deactivate_queue = collections.deque()
+        for child in self._entity_hub.project_entity.children:
+            deactivate_queue.append(child)
+
+        while deactivate_queue:
+            entity = deactivate_queue.popleft()
+            if entity.id not in self._processed_server_ids:
+                entity.active = False
+
+            for child in entity.children:
+                deactivate_queue.append(child)
+
+    def update_attributes_from_ftrack(
+        self, cust_attr_value_by_entity_id,
+    ):
+        hierarchy_queue = collections.deque()
+        hierarchy_queue.append(self._entity_hub.project_entity)
+        while hierarchy_queue:
+            entity = hierarchy_queue.popleft()
+            # Add children to queue
+            for child_entity in entity.children:
+                hierarchy_queue.append(child_entity)
+
+            ftrack_id = self._ids_mapping.get_ftrack_mapping(entity.id)
+            if ftrack_id is None:
+                continue
+
+            ft_entity = self.sg_entities_by_id[ftrack_id]
+            path = "/".join([
+                item["name"]
+                for item in ft_entity["link"]
+                if item["type"] != "Project"
+            ])
+            entity.attribs[SHOTGRID_ID_ATTRIB] = ftrack_id
+            entity.attribs[SHOTGRID_PATH_ATTRIB] = path
+            # Ftrack id can not be available if ftrack entity was recreated
+            #   during immutable entity processing
+            attribute_values = cust_attr_value_by_entity_id[ftrack_id]
+            is_project = entity.entity_type == "project"
+
+            # TODO handle "data" to sync custom attributes not available
+            #   in 'attribs'
+            for key, value in attribute_values.items():
+                # QUESTION Should we skip "unsetting" of project attributes?
+                #   - very dangerous for OpenPype and maybe for project should
+                #       be taken default value of attribute (if there is any)
+                if is_project and value is None:
+                    continue
+
+                if key in entity.attribs:
+                    entity.attribs[key] = value
+
+    def _create_ft_operation(
+        self, conf_id, entity_id, is_new, new_value, old_value=None
+    ):
+        entity_key = collections.OrderedDict((
+            ("configuration_id", conf_id),
+            ("entity_id", entity_id)
+        ))
+        if is_new:
+            return ftrack_api.operation.CreateEntityOperation(
+                "CustomAttributeValue",
+                entity_key,
+                {"value": new_value}
+            )
+
+        return ftrack_api.operation.UpdateEntityOperation(
+            "CustomAttributeValue",
+            entity_key,
+            "value",
+            old_value,
+            new_value
+        )
+
+    def update_ftrack_attributes(
+        self,
+        cust_attr_value_by_entity_id,
+        server_id_conf,
+        server_path_conf,
+        sync_failed_conf
+    ):
+        operations = []
+        for ftrack_id, ft_entity in self._sg_entities_by_id.items():
+            if ft_entity.entity_type == "Project":
+                continue
+
+            server_id = self._ids_mapping.get_server_mapping(ftrack_id)
+            entity = None
+            if server_id:
+                entity = self._entity_hub.get_entity_by_id(server_id)
+
+            entity_id = ""
+            if entity is not None:
+                entity_id = entity.id
+
+            custom_attributes = cust_attr_value_by_entity_id[ftrack_id]
+
+            oring_sync_failed = custom_attributes.get(CUST_ATTR_KEY_SYNC_FAIL)
+            orig_id = custom_attributes.get(CUST_ATTR_KEY_SERVER_ID)
+            orig_path = custom_attributes.get(CUST_ATTR_KEY_SERVER_PATH)
+            sync_failed = False
+            if entity is None or entity.id in self._im_invalid_entity_ids:
+                sync_failed = True
+
+            if sync_failed != oring_sync_failed:
+                operations.append(
+                    self._create_ft_operation(
+                        sync_failed_conf["id"],
+                        ftrack_id,
+                        CUST_ATTR_KEY_SYNC_FAIL not in custom_attributes,
+                        sync_failed,
+                        oring_sync_failed
+                    )
+                )
+
+            if orig_id != entity_id:
+                operations.append(
+                    self._create_ft_operation(
+                        server_id_conf["id"],
+                        ftrack_id,
+                        CUST_ATTR_KEY_SERVER_ID not in custom_attributes,
+                        entity_id,
+                        orig_id
+                    )
+                )
+
+            if ft_entity.entity_type == "Task" or sync_failed:
+                continue
+
+            path = entity.path
+            if path != orig_path:
+                operations.append(
+                    self._create_ft_operation(
+                        server_path_conf["id"],
+                        ftrack_id,
+                        CUST_ATTR_KEY_SERVER_PATH not in custom_attributes,
+                        path,
+                        orig_path
+                    )
+                )
+
+        if not operations:
+            return
+
+        for chunk in create_chunks(operations, 500):
+            for operation in chunk:
+                self._sg_session.recorded_operations.push(operation)
+            self._sg_session.commit()
+
+    def create_report(self, ft_entities_by_id):
+        report_items = []
+
+        # --- Immutable entities ---
+        # Removed entities - they don't have ftrack euqivalent anymore
+        deleted_paths = []
+        for entity_id in self._im_removed_entity_ids:
+            entity = self._entity_hub.get_entity_by_id(entity_id)
+            path = entity.attribs[SHOTGRID_PATH_ATTRIB]
+            if not path:
+                path = entity.path
+            deleted_paths.append(path)
+
+        deleted_paths.sort()
+        if deleted_paths:
+            report_items.append({
+                "type": "label",
+                "value": "## Not found entities"
+            })
+            for path in deleted_paths:
+                self.log.info((
+                    f"Skipped sync of immutable entity {path} (was removed)"
+                ))
+                report_items.append({"type": "label", "value": f"- {path}"})
+
+        # Changed position or name
+        renamed_mapping = {}
+        changed_hierarchy = (
+            self._im_renamed_entity_ids | self._im_moved_entity_ids
+        )
+        for entity_id in changed_hierarchy:
+            entity = self._entity_hub.get_entity_by_id(entity_id)
+            ftrack_id = entity.attribs[SHOTGRID_ID_ATTRIB]
+            ft_entity = ft_entities_by_id.get(ftrack_id)
+            if ft_entity is None:
+                continue
+            path = "/".join([
+                item["name"]
+                for item in ft_entity["link"]
+                if item["type"] != "Project"
+            ])
+            expected_path = entity.attribs[SHOTGRID_PATH_ATTRIB]
+            if not expected_path:
+                expected_path = entity.path
+            renamed_mapping[path] = expected_path
+
+        renamed_paths = []
+        for path in sorted(renamed_mapping.keys()):
+            renamed_paths.append((path, renamed_mapping[path]))
+
+        if renamed_paths:
+            if report_items:
+                report_items.append({"type": "label", "value": "---"})
+            report_items.append({
+                "type": "label",
+                "value": "## Renamed/Moved entities"
+            })
+            report_items.append({
+                "type": "label",
+                "value": (
+                    "Entities were renamed or moved to different location"
+                    " but it is not allowed to propagate the change."
+                )
+            })
+            for (path, expected_path) in renamed_paths:
+                self.log.info((
+                    "Skipped sync of immutable"
+                    f" entity {path} -> {expected_path}"
+                ))
+                report_items.append({
+                    "type": "label",
+                    "value": f"- {path} -> {expected_path}"
+                })
+
+        # --- Other possible issues ---
+        synced_path_mapping = collections.defaultdict(list)
+        for ftrack_id, entity in self._duplicated_ftrack_ids.items():
+            synced_path = entity.attribs[SHOTGRID_PATH_ATTRIB]
+            ft_entity = ft_entities_by_id.get(ftrack_id)
+            if ft_entity is not None:
+                path = "/".join([
+                    item["name"]
+                    for item in ft_entity["link"]
+                    if item["type"] != "Project"
+                ])
+                synced_path_mapping[synced_path].append(path)
+
+        if synced_path_mapping:
+            if report_items:
+                report_items.append({"type": "label", "value": "---"})
+
+            report_items.append({
+                "type": "label",
+                "value": "## Duplicated names"
+            })
+            for synced_path in sorted(synced_path_mapping.keys()):
+                paths = synced_path_mapping[synced_path]
+                self.log.info((
+                    "Skipped sync because duplicated names."
+                    "\nSource entity: {}\n{}"
+                ).format(
+                    synced_path,
+                    "\n".join([f"- {path}" for path in paths])
+                ))
+                report_items.append({
+                    "type": "label",
+                    "value": f"### {synced_path}"
+                })
+                for path in paths:
+                    report_items.append({
+                        "type": "label",
+                        "value": f"- {path}"
+                    })
+
+        self._report_items = report_items

@@ -26,24 +26,95 @@
     <h1>Shotgrid Integration</h1>
     <p> Via this page you can trigger certain events that will interact with Shotgird and gather some stats about the integration.</p>
 
-    <h3> Prepare Project on Shotgrid</h3>
-    <p> Ensure all the required data is present in Shotgrid, greyed out fields means they are not really set on Shotgrid, use <a href=#create_attributes>Create attributes </a> below to fix that.
-    <button id="prepare-shotgrid-project"> Prepare Shotgrid Project </button>
+    <h3> Prepare '<span id="project-name"></span>' Project on Shotgrid</h3>
+    <p> Ensure all the required data is present in both Shotgrid and Ayon, greyed out fields means they are not really set on Shotgrid, use <a href=#create_attributes>Create attributes </a> below to fix that.
+    <button id="sg-prepare-shotgrid-project"> Prepare Shotgrid Project </button>
 
-    <h3> Create Custom Attributes </h3>
-    <p> Ensure that all the Ayon specific attributes are present in Shotgrid </p>
-    <details>
-      <summary>List of Custom Fields in Shotgrid</summary>
-      <ul>
-        <li>ay_url</li>
-        <li>...</li>
-      </ul>
-    </details>
-    <button id="sg-create-custom-attributes"> Create Custom Attributes </button>
-    
     <h3> Perform a full Sync </h3>
     <p> Compare the Shotgrid Project with the Ayon one, and backfill any missing data. </p>
-    <button id="sg-create-custom-attributes"> Create Custom Attributes </button>
+    <button id="sg-sync-from-shotgrid"> Create Custom Attributes </button>
+    <p id="call-result"> </p>
+
+    <script>
+
+    var addonName = null
+    var addonVersion = null
+    var projectName = null
+    var accessToken = null
+
+
+    const init = () => {
+
+      /*
+        When the addon page is loaded, it receive a message with context and
+        additional data (accessToken, addon version...). When the context is changed, 
+        a message is re-broadcasted, so the page can react to changes in selection etc.
+      */        
+
+
+      window.onmessage = (e) => {
+        const context = e.data.context
+        addonName = e.data.addonName
+        addonVersion = e.data.addonVersion
+        accessToken = e.data.accessToken
+        projectName = context.projectName
+        console.log("Data is")
+        console.log(e.data)
+
+        document.querySelector('#project-name').innerHTML = projectName
+        //document.querySelector('#addon-name').innerHTML = `${addonName} ${addonVersion}`
+
+        // get the current user info
+
+        // const headers = {"Authorization": `Bearer ${accessToken}`}
+        // axios
+        //   .get("/api/users/me", {headers})
+        //   .then((response) => {
+        //     console.log(response.data)
+        //     document.querySelector("#user-name").innerHTML = response.data.name
+        //   })
+    
+
+      } // end of window.onmessage
+
+      /*
+        Since has the access token, it can call any rest endpoints including
+        the ones specific to the addon.
+        In this case, we call the addon endpoint get-random-folder.
+      */
+      document.querySelector("#sg-prepare-shotgrid-project").addEventListener("click", () => {
+        const url = `/api/addons/${addonName}/${addonVersion}/prepare-shotgrid-project/demo_Commercial`
+        const headers = {"Authorization": `Bearer ${accessToken}`}
+        axios
+          .get(url, {headers})
+          .then((response) => {
+            const msg = `Sync response data: ${response.data}` 
+            document.querySelector("#call-result").innerHTML = msg
+          })
+
+      }) // end of call-button.onclick
+
+
+      document.querySelector("#sg-sync-from-shotgrid").addEventListener("click", () => {
+        const url = `/api/addons/${addonName}/${addonVersion}/sync-from-shotgrid/demo_Commercial`
+        const headers = {"Authorization": `Bearer ${accessToken}`}
+        axios
+          .get(url, {headers})
+          .then((response) => {
+            const msg = `Sync response data: ${response.data}` 
+            document.querySelector("#call-result").innerHTML = msg
+          })
+
+      }) // end of call-button.onclick
+
+    } // end of init
+
+
+
+    document.addEventListener('DOMContentLoaded', () => {
+      init()
+    })
+  </script>
 
   </body>
 </html>
