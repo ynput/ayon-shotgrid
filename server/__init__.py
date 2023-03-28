@@ -1,12 +1,19 @@
+import json
+import socket
 from typing import Any, Type
 
 from ayon_server.addons import BaseServerAddon
+from ayon_server.api.dependencies import dep_current_user, dep_project_name
+from ayon_server.entities import UserEntity
+from ayon_server.events import dispatch_event
 from ayon_server.lib.postgres import Postgres
-
-from nxtools import logging
-
 from .settings import ShotgridSettings, DEFAULT_VALUES
 from .version import __version__
+
+from fastapi import Depends
+import requests
+from starlette.requests import Request
+from nxtools import logging
 
 
 SG_ID_ATTRIB = "shotgridId"
@@ -15,11 +22,190 @@ SG_PATH_ATTRIB = "shotgridPath"
 
 class ShotgridAddon(BaseServerAddon):
     name = "shotgrid"
-    title = "Shotgrid"
+    title = "Shotgrid Sync"
     version = __version__
     settings_model: Type[ShotgridSettings] = ShotgridSettings
 
-    frontend_scopes: dict[str, Any] = {"project": {"sidebar": "hierarchy"}}
+    frontend_scopes: dict[str, Any] = {"settings": {}}
+
+    def initialize(self):
+        logging.info("Initializing Shotgrid Addon.")
+
+        self.add_endpoint(
+            "create-project",
+            self._create_project,
+            method="POST",
+            name="create-shotgrid-project",
+            description="Create project in Ayon, with the given name.",
+        )
+        logging.info("Added Create Project Endpoint.")
+
+        self.add_endpoint(
+            "sync-from-shotgrid/{project_name}",
+            self._sync_from_shotgrid,
+            method="GET",
+            name="sync-from-shotgrid",
+            description="Trigger Shotgrid -> Ayon Sync of entities.",
+        )
+        logging.info("Added Sync from Shotgrid Project Endpoint.")
+
+        self.add_endpoint(
+            "get-importable-projects",
+            self._get_importable_projects,
+            method="GET",
+            name="get-importable-projects",
+            description="Return a list of Shotgrid projects ready to be imported into Ayon.",
+        )
+        logging.info("Added Get Syncable Projects Endpoint.")
+
+    async def _dispatch_shotgrid_event(
+        self,
+        action,
+        user_name,
+        project_name,
+        description=None
+    ):
+        event_id = await dispatch_event(
+            "shotgrid.event",
+            sender=socket.gethostname(),
+            project=project_name,
+            user=user_name,
+            description=description,
+            summary=None,
+            payload={
+                "action": action,
+                "user_name": user_name,
+                "project_name": project_name,
+            },
+        )
+        logging.info(f"Dispatched event {event_id}")
+        return event_id
+
+    async def _sync_from_shotgrid(
+        self,
+        user: UserEntity = Depends(dep_current_user),
+        project_name: str = Depends(dep_project_name),
+    ):
+        await self._dispatch_shotgrid_event(
+            "sync-from-shotgrid",
+            user.name,
+            project_name,
+            description=f"Sync project '{project_name}' from Shotgrid."
+        )
+
+    async def _create_project(
+        self,
+        request: Request,
+        user: UserEntity = Depends(dep_current_user)
+    ):
+        request_body = await request.body()
+
+        if not request_body:
+            logging.error(f"Request has no body: {request_body}")
+            return
+        else:
+            request_body = json.loads(request_body)
+
+        project_name = request_body.get("project_name")
+        project_code = request_body.get("project_code")
+
+        logging.info("Project name is: ", project_name)
+        description = f"Create {project_name} from Shotgrid."
+
+        if project_name and project_code:
+            event_id = await dispatch_event(
+                "shotgrid.event",
+                sender=socket.gethostname(),
+                project=project_name,
+                user=user.name,
+                description=description,
+                summary=None,
+                payload={
+                    "action": "create-project",
+                    "user_name": user.name,
+                    "project_name": project_name,
+                    "project_code": project_code,
+                    "description": description,
+                },
+            )
+            logging.info(f"Dispatched event {event_id}")
+
+    async def _get_importable_projects(self):
+        """ Query Shotgrid for existing non-template Projects.
+
+        It uses the Rest APi to avoid importing the Shotgrid API.
+        """
+        logging.info("Trying to fetch projects from Shotgrid.")
+        addon_settings = await self.get_studio_settings()
+
+        if not addon_settings:
+            logging.error(f"Unable to get Studio Settings for {self.name} addon.")
+            return
+        elif not all((
+            addon_settings.shotgrid_server,
+            addon_settings.shotgrid_script_name,
+            addon_settings.shotgrid_api_key
+        )):
+            logging.error("Missing data in the addon settings.")
+            return
+
+        shotgrid_credentials_token = requests.post(
+            f"{addon_settings.shotgrid_server}api/v1/auth/access_token",
+            data={
+                "client_id": f"{addon_settings.shotgrid_script_name}",
+                "client_secret": f"{addon_settings.shotgrid_api_key}",
+                "grant_type": "client_credentials"
+            }
+        )
+        shotgrid_token = shotgrid_credentials_token.json().get('access_token')
+
+        if not shotgrid_token:
+            logging.error("Unable to Acquire Shotgrid REST API token.")
+            return
+
+        logging.info("Querying the Shotgrid REST API token.")
+        request_headers = {
+            "Authorization": f"Bearer {shotgrid_token}",
+            "Accept": "application/vnd+shotgun.api3_array+json"
+        }
+        shotgrid_projects = requests.get(
+            f"{addon_settings.shotgrid_server}api/v1/entity/projects/",
+            headers=request_headers
+        )
+        sg_projects = []
+
+        if shotgrid_projects.json().get("data"):
+            logging.info("Shotgrid REST API returned some data, processing it.")
+            for project in shotgrid_projects.json().get("data"):
+                sg_project = requests.get(
+                    f"{addon_settings.shotgrid_server}api/v1/entity/projects/{project['id']}",
+                    data=json.dumps({
+                        "fields": [
+                            "name",
+                            "code",
+                            "sg_ayon_sync_status",
+                        ]
+                    }),
+                    headers=request_headers
+                )
+                if not sg_project.json()["data"]:
+                    continue
+
+                sg_project = sg_project.json()["data"]
+
+                if sg_project["attributes"].get("is_template"):
+                    continue
+
+                sg_projects.append({
+                    "projectName": sg_project["attributes"].get("name"),
+                    "projectCode": sg_project["attributes"].get("code"),
+                    "shotgridId": sg_project["id"],
+                    "ayonId": sg_project["attributes"].get("sg_ayon_id"),
+                    "ayonAutoSync": sg_project["attributes"].get("sg_ayon_auto_sync"),
+                })
+        logging.info("Finished processing Shotgrid data.")
+        logging.debug(f"Processed the following projects {sg_projects}.")
+        return sg_projects
 
     async def get_default_settings(self):
         logging.info(f"Loading default Settings for {self.name} addon.")
@@ -34,7 +220,7 @@ class ShotgridAddon(BaseServerAddon):
             self.request_server_restart()
 
     async def create_shotgrid_attributes(self) -> bool:
-        """Make sure there are required attributes which ftrack addon needs.
+        """Make sure Ayon has the `shotgridId` and `shotgridPath` attributes.
 
         Returns:
             bool: 'True' if an attribute was created or updated.
@@ -53,11 +239,11 @@ class ShotgridAddon(BaseServerAddon):
         all_attributes = await Postgres.fetch(
             "SELECT name from public.attributes"
         )
-        logging.info("Querying database for existing attributes...")
-        logging.info(shotgrid_attributes)
+        logging.debug("Querying database for existing attributes...")
+        logging.debug(shotgrid_attributes)
 
         if shotgrid_attributes:
-            logging.info("Shotgrid Attributes already exist in database!")
+            logging.debug("Shotgrid Attributes already exist in database!")
             return False
 
         postgres_query = "\n".join((
@@ -70,7 +256,7 @@ class ShotgridAddon(BaseServerAddon):
             "    scope = $3,",
             "    data = $4",
         ))
-        logging.info("Creating Shotgrid Attributes...")
+        logging.debug("Creating Shotgrid Attributes...")
 
         await Postgres.execute(
             postgres_query,
@@ -87,7 +273,7 @@ class ShotgridAddon(BaseServerAddon):
         await Postgres.execute(
             postgres_query,
             SG_PATH_ATTRIB,  # name
-            len(all_attributes) + 2,  # Add Attributes at the end of the list 
+            len(all_attributes) + 2,  # Add Attributes at the end of the list
             ["project", "folder", "task"],  # scope
             {
                 "type": "string",

@@ -3,48 +3,52 @@
   <head>
     <meta charset="utf-8">
     <title>Shotgrid Integration</title>
-    <style>
-
-      html, body {
-        padding: 20px;
-        background: #2c313a;
-        color: #ccc;
-        font-family: sans-serif;
-      }
-
-      fieldset {
-        border-color: #252323;
-        margin-bottom: 20px;
-      }
-
-    </style>
+    <link rel="stylesheet" type="text/css" href="shotgrid-addon.css">
     <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
-
   </head>
 
   <body>
-    <h1>Shotgrid Integration</h1>
-    <p> Via this page you can trigger certain events that will interact with Shotgird and gather some stats about the integration.</p>
+    <h1>Shotgrid Sync</h1>
+    <p> From this page you can Import projects from Shotgrid or trigger a project Sync!</p>
+    <div class="shotgrid-addon-container">
+        <div class="shotgrid-addon-block">
+            <h2>Import a New Project</h2>
+            <p> To be able to import a project from Shotgrid, there are two minimum requirements</p>
+            <ul>
+                <li> The Project name cannot contain spaces. </li>
+                <li> The Project has to have a code.
+            </ul>
+            
+            <p> If the above criteria isn't met, they won't show in the dropdown, so make sure they are correctly configured </p>
 
-    <h3> Prepare Project on Shotgrid</h3>
-    <p> Ensure all the required data is present in Shotgrid, greyed out fields means they are not really set on Shotgrid, use <a href=#create_attributes>Create attributes </a> below to fix that.
-    <button id="prepare-shotgrid-project"> Prepare Shotgrid Project </button>
+            <div class="project-creation">
+                <div class="project-item">
+                    <label for="new-shotgrid-projects-select">Choose a Shotgrid Project:</label>
+                    <select name="new-shotgrid-projects" id="new-shotgrid-projects-select">
+                        <option value="" id="fetching-shotgrid-option">Fetching Shotgrid projects...</option>
+                    </select>
+                </div>
+            </div>
 
-    <h3> Create Custom Attributes </h3>
-    <p> Ensure that all the Ayon specific attributes are present in Shotgrid </p>
-    <details>
-      <summary>List of Custom Fields in Shotgrid</summary>
-      <ul>
-        <li>ay_url</li>
-        <li>...</li>
-      </ul>
-    </details>
-    <button id="sg-create-custom-attributes"> Create Custom Attributes </button>
-    
-    <h3> Perform a full Sync </h3>
-    <p> Compare the Shotgrid Project with the Ayon one, and backfill any missing data. </p>
-    <button id="sg-create-custom-attributes"> Create Custom Attributes </button>
+            <button id="sg-import-shotgrid-project" disabled>Import Project...</button>
+        </div>
+        <div class="shotgrid-addon-block">
+            <h2>Manage Existing Project</h2>
+            <p>Compare the Shotgrid Project with the Ayon one, and backfill any missing data from Shotgrid.</p>
+            <p>Currently we sync: Episodes, Sequences, Shots and Tasks.</p>
+            <div class="project-item">
+                <label for="manage-shotgrid-projects-select">Dropdown of already imported Projects:</label>
+                <select name="shotgrid-projects" id="manage-shotgrid-projects-select">
+                    <option value="">Choose a project to Sync...</option>
+                </select>
+            </div>
 
+            <button id="sg-sync-from-shotgrid" disabled> Sync Shotgrid Project</button>
+        </div>
+    </div>
+    <p id="call-result"> </p>
+
+    <script type="text/javascript" src="shotgrid-addon.js"></script>
   </body>
 </html>
 
