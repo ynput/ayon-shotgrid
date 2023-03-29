@@ -13,6 +13,7 @@ RUN cat pyproject.toml
 
 
 RUN poetry config virtualenvs.create false \
+ && poetry lock \
  && poetry install --no-interaction --no-ansi
 
 # Create a group and user: ayonuser

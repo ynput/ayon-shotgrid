@@ -8,7 +8,8 @@ clean:
 		docker rmi $(image); \
 	fi
 
-clean-build: clean build
+clean-build: clean
+	docker build --no-cache -t $(image) . 
 
 dev:
 	docker run --rm -u ayonuser -ti \
