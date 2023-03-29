@@ -1,0 +1,54 @@
+body {
+    padding: 0 20px;
+    background: #21252b;;
+    color: #ccc;
+    font-family: sans-serif;
+}
+
+iframe > html {
+    border-radius: 5px;
+}
+
+fieldset {
+    border-color: #252323;
+    margin-bottom: 20px;
+}
+
+h2 {
+    margin-top: 40px;
+}
+
+button {
+    margin-top: 20px;
+}
+
+select {
+    margin-top: 10px;
+}
+
+.shotgrid-addon-container {
+    display:flex;
+    flex-flow: row nowrap;
+}
+
+.shotgrid-addon-block {
+    /* padding-right: 20px; */
+}
+
+.shotgrid-addon-block:last-child{
+    border-left: 4px solid #2c313a;
+    padding-left: 20px;
+}
+
+.project-creation {
+    display:flex;
+    flex-flow: column nowrap;
+}
+
+.project-item {
+    display:flex;
+    flex-flow: column nowrap;
+    margin-right: 20px;
+    margin-bottom: 20px;
+    max-width: 415px;
+}
