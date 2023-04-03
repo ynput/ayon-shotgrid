@@ -157,7 +157,6 @@ class ShotgridProcessor:
                         log_traceback(e)
                         ayon_api.update_event(event["id"], status="failed")
                         ayon_api.update_event(source_event["id"], status="failed")
-                        raise e
 
                 logging.info("Event has been processed... setting to finished!")
                 ayon_api.update_event(event["id"], status="finished")
