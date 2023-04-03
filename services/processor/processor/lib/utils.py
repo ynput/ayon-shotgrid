@@ -313,7 +313,8 @@ def get_sg_entity_as_ay_dict(
     sg_session: shotgun_api3.Shotgun,
     sg_type: str,
     sg_id: int,
-    extra_fields: Optional[list] = None
+    extra_fields: Optional[list] = None,
+    retired_only: Optional[bool] = False
 ) -> dict:
     """Get a Shotgrid entity, and morph it to an Ayon compatible one.
 
@@ -333,7 +334,8 @@ def get_sg_entity_as_ay_dict(
     sg_entity = sg_session.find_one(
         sg_type,
         filters=[["id", "is", sg_id]],
-        fields=query_fields
+        fields=query_fields,
+        retired_only=retired_only
     )
 
     if not sg_entity:
