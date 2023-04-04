@@ -139,7 +139,7 @@ class ShotgridAddon(BaseServerAddon):
         addon_settings = await self.get_studio_settings()
 
         if not addon_settings:
-            logging.error(f"Unable to get Studio Settings for {self.name} addon.")
+            logging.error(f"Unable to get Studio Settings: {self.name} addon.")
             return
         elif not all((
             addon_settings.shotgrid_server,
@@ -149,8 +149,12 @@ class ShotgridAddon(BaseServerAddon):
             logging.error("Missing data in the addon settings.")
             return
 
+        shotgrid_url = addon_settings.shotgrid_server
+        if shotgrid_url.endswith("/"):
+            shotgrid_url = shotgrid_url.rstrip("/")
+
         shotgrid_credentials_token = requests.post(
-            f"{addon_settings.shotgrid_server}api/v1/auth/access_token",
+            f"{addon_settings.shotgrid_server}/api/v1/auth/access_token",
             data={
                 "client_id": f"{addon_settings.shotgrid_script_name}",
                 "client_secret": f"{addon_settings.shotgrid_api_key}",
@@ -168,17 +172,20 @@ class ShotgridAddon(BaseServerAddon):
             "Authorization": f"Bearer {shotgrid_token}",
             "Accept": "application/vnd+shotgun.api3_array+json"
         }
+
+
         shotgrid_projects = requests.get(
-            f"{addon_settings.shotgrid_server}api/v1/entity/projects/",
+            f"{shotgrid_url}/api/v1/entity/projects/",
             headers=request_headers
         )
+
         sg_projects = []
 
         if shotgrid_projects.json().get("data"):
             logging.info("Shotgrid REST API returned some data, processing it.")
             for project in shotgrid_projects.json().get("data"):
                 sg_project = requests.get(
-                    f"{addon_settings.shotgrid_server}api/v1/entity/projects/{project['id']}",
+                    f"{shotgrid_url}/api/v1/entity/projects/{project['id']}",
                     data=json.dumps({
                         "fields": [
                             "name",

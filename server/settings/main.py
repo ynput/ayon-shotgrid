@@ -2,11 +2,6 @@ from pydantic import Field
 
 from ayon_server.settings import BaseSettingsModel
 
-from .service_handlers import (
-    ShotgridServiceHandlers,
-    DEFAULT_SERVICE_HANDLERS_SETTINGS,
-)
-
 
 class ShotgridServiceSettings(BaseSettingsModel):
     """Shotgrid service cares about handling shotgrid event and synchronization.
@@ -15,9 +10,10 @@ class ShotgridServiceSettings(BaseSettingsModel):
     of shotgrid users. It is recommended to use special user for that purposes
     so you can see which changes happened from service.
     """
-    polling_frequency: str = Field(
+    polling_frequency: int = Field(
         10,
-        title="How often (in seconds) to query the Shotgrid Database."
+        title="How often (in seconds) to query the Shotgrid Database.",
+        validate_default=False,
     )
 
 
@@ -26,7 +22,7 @@ class ShotgridSettings(BaseSettingsModel):
 
     shotgrid_server: str = Field(
         "",
-        title="Shotgrid server url",
+        title="Shotgrid server url ",
     )
     shotgrid_script_name: str = Field(
         "",
@@ -37,11 +33,6 @@ class ShotgridSettings(BaseSettingsModel):
         title="Shotgrid API Key"
     )
 
-    service_event_handlers: ShotgridServiceHandlers = Field(
-        default_factory=ShotgridServiceHandlers,
-        title="Server Actions/Events",
-    )
-
     service_settings: ShotgridServiceSettings = Field(
         default_factory=ShotgridServiceSettings,
         title="Service settings",
@@ -50,9 +41,9 @@ class ShotgridSettings(BaseSettingsModel):
 
 DEFAULT_VALUES = {
     "shotgrid_server": "",
-    "service_event_handlers": DEFAULT_SERVICE_HANDLERS_SETTINGS,
     "service_settings": {
         "username": "",
         "api_key": ""
     },
 }
+
