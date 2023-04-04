@@ -1,7 +1,7 @@
 # Shotgrid integration for Ayon
 
 This project provides three elements for the Ayon pipeline:
- * server/ - The Ayon Backend Addon. - https://github.com/ynput/ayon-addon-template/blob/main/README.md
+ * server/ - The Ayon Backend Addon.
  * TODO: client/ - The Ayon (currently OpenPype) desktop integration.
  * services/ - Standalone dockerized daemons that act based on events (aka `leecher` and `processors`).
 
