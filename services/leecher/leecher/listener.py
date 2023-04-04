@@ -35,6 +35,14 @@ EVENT_TYPES = [
     "Shotgun_{0}_Revival",  # an entity was revived.
 ]
 
+# To be revised once we usin links
+IGNORE_ATTRIBUTE_NAMES = [
+    "assets",
+    "parent_shots",
+    "retirement_date",
+    "shots"
+]
+
 
 class ShotgridListener:
     def __init__(self, func: Union[Callable, None] = None):
@@ -74,6 +82,7 @@ class ShotgridListener:
         except Exception as e:
             logging.error("Unable to get Addon settings from the server.")
             logging.error(e)
+
             raise e
 
         try:
@@ -176,6 +185,9 @@ class ShotgridListener:
 
                     for event in events:
                         if not event:
+                            continue
+
+                        if event.get("attribute_name") in IGNORE_ATTRIBUTE_NAMES:
                             continue
 
                         last_event_id = self.func(event)
