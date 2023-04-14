@@ -1,92 +1,76 @@
-
-from urllib.parse import urlparse
-
 import shotgun_api3
 from shotgun_api3.shotgun import AuthenticationFault
 
-from openpype.lib import OpenPypeSecureRegistry, OpenPypeSettingsRegistry
-from openpype.modules.shotgrid.lib.record import Credentials
+from openpype.lib import OpenPypeSettingsRegistry
 
 
-def _get_shotgrid_secure_key(hostname, key):
-    """Secure item key for entered hostname."""
-    return f"shotgrid/{hostname}/{key}"
+def check_user_permissions(shotgrid_url, script_name, api_key, username):
+    """Check if the provided user can access the Shotgrid API.
+
+    Args:
+        shotgrid_url (str): The Shotgun server URL.
+        script_name (str): The Shotgrid API script name.
+        api_key (str): The Shotgrid API key.
+        username (str): The Shotgrid username to use the Session as.
+        
+    Returns:
+        tuple(bool, str): Whether the connection was succsefull or not, and a 
+            string message with the result.
+     """
+    
+    if not shotgrid_url or not script_name or not api_key or not username:
+        return (False, "Missing a field.")
+
+    try:
+        session = create_sg_session(
+            shotgrid_url,
+            script_name,
+            api_key,
+            username
+        )
+        session.close()
+    except AuthenticationFault as e:
+        return (False, str(e))
+
+    return (True, "Succesfully logged in.")
 
 
-def _get_secure_value_and_registry(
-    hostname,
-    name,
-):
-    key = _get_shotgrid_secure_key(hostname, name)
-    registry = OpenPypeSecureRegistry(key)
-    return registry.get_item(name, None), registry
+def clear_local_login():
+    """Clear the Shotgrid Login entry from the local registry. """
+    reg = OpenPypeSettingsRegistry()
+    reg.delete_item("shotgrid_login")
 
 
-def get_shotgrid_hostname(shotgrid_url):
+def create_sg_session(shotgrid_url, script_name, api_key, username):
+    """Attempt to create a Shotgun Session
 
-    if not shotgrid_url:
-        raise Exception("Shotgrid url cannot be a null")
-    valid_shotgrid_url = (
-        f"//{shotgrid_url}" if "//" not in shotgrid_url else shotgrid_url
-    )
-    return urlparse(valid_shotgrid_url).hostname
+    Args:
+        shotgrid_url (str): The Shotgun server URL.
+        script_name (str): The Shotgrid API script name.
+        api_key (str): The Shotgrid API key.
+        username (str): The Shotgrid username to use the Session as.
 
+    Returns:
+        session (shotgun_api3.Shotgun): A Shotgrid API Session.
 
-# Credentials storing function (using keyring)
+    Raises:
+        AuthenticationFault: If the authentication with Shotgrid fails.
+    """
 
-
-def get_credentials(shotgrid_url):
-    hostname = get_shotgrid_hostname(shotgrid_url)
-    if not hostname:
-        return None
-    login_value, _ = _get_secure_value_and_registry(
-        hostname,
-        Credentials.login_key_prefix(),
-    )
-    password_value, _ = _get_secure_value_and_registry(
-        hostname,
-        Credentials.password_key_prefix(),
-    )
-    return Credentials(login_value, password_value)
-
-
-def save_credentials(login, password, shotgrid_url):
-    hostname = get_shotgrid_hostname(shotgrid_url)
-    _, login_registry = _get_secure_value_and_registry(
-        hostname,
-        Credentials.login_key_prefix(),
-    )
-    _, password_registry = _get_secure_value_and_registry(
-        hostname,
-        Credentials.password_key_prefix(),
-    )
-    clear_credentials(shotgrid_url)
-    login_registry.set_item(Credentials.login_key_prefix(), login)
-    password_registry.set_item(Credentials.password_key_prefix(), password)
-
-
-def clear_credentials(shotgrid_url):
-    hostname = get_shotgrid_hostname(shotgrid_url)
-    login_value, login_registry = _get_secure_value_and_registry(
-        hostname,
-        Credentials.login_key_prefix(),
-    )
-    password_value, password_registry = _get_secure_value_and_registry(
-        hostname,
-        Credentials.password_key_prefix(),
+    session = shotgun_api3.Shotgun(
+        base_url=shotgrid_url,
+        script_name=script_name,
+        api_key=api_key,
+        sudo_as_login=username,
     )
 
-    if login_value is not None:
-        login_registry.delete_item(Credentials.login_key_prefix())
+    session.preferences_read()
 
-    if password_value is not None:
-        password_registry.delete_item(Credentials.password_key_prefix())
-
-
-# Login storing function (using json)
+    return session
 
 
 def get_local_login():
+    """Get the Shotgrid Login entry from the local registry. """
     reg = OpenPypeSettingsRegistry()
     try:
         return str(reg.get_item("shotgrid_login"))
@@ -95,31 +79,7 @@ def get_local_login():
 
 
 def save_local_login(login):
+    """Save the Shotgrid Login entry from the local registry. """
     reg = OpenPypeSettingsRegistry()
     reg.set_item("shotgrid_login", login)
 
-
-def clear_local_login():
-    reg = OpenPypeSettingsRegistry()
-    reg.delete_item("shotgrid_login")
-
-
-def check_credentials(
-    login,
-    password,
-    shotgrid_url,
-):
-
-    if not shotgrid_url or not login or not password:
-        return False
-    try:
-        session = shotgun_api3.Shotgun(
-            shotgrid_url,
-            login=login,
-            password=password,
-        )
-        session.preferences_read()
-        session.close()
-    except AuthenticationFault:
-        return False
-    return True

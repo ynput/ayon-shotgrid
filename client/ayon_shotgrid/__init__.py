@@ -1,5 +1,5 @@
-from .shotgrid_module import (
-    ShotgridModule,
+from .addon import (
+    ShotgridAddon,
 )
 
-__all__ = ("ShotgridModule",)
+__all__ = ("ShotgridAddon",)

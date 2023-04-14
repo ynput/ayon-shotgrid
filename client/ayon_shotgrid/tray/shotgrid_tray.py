@@ -1,75 +1,79 @@
 import os
-import webbrowser
 
 from qtpy import QtWidgets
 
-from openpype.modules.shotgrid.lib import credentials
-from openpype.modules.shotgrid.tray.credential_dialog import (
-    CredentialsDialog,
-)
+from ayon_shotgrid.lib import credentials
+from ayon_shotgrid.tray.change_sg_username_dialog import ChangeSgUsername
 
 
 class ShotgridTrayWrapper:
-    module = None
-    credentials_dialog = None
-    logged_user_label = None
+    """ Shotgrid menu entry for the Ayon tray.
 
+    Displays the Shotgrid URL specified in the Server Addon Settings and
+    allows the person to set a username to be used with the API.
+
+    There's the option to check if said user has persmissions to connect to the
+    API.
+    """
     def __init__(self, module):
         self.module = module
-        self.credentials_dialog = CredentialsDialog(module)
-        self.credentials_dialog.login_changed.connect(self.set_login_label)
-        self.logged_user_label = QtWidgets.QAction("")
-        self.logged_user_label.setDisabled(True)
-        self.set_login_label()
 
-    def show_batch_dialog(self):
-        if self.module.leecher_manager_url:
-            webbrowser.open(self.module.leecher_manager_url)
+        server_url = self.module.get_sg_url()
 
-    def show_connect_dialog(self):
-        self.show_credential_dialog()
+        if not server_url:
+            server_url = "No Shotgrid Server set in Ayon Settings."
 
-    def show_credential_dialog(self):
-        self.credentials_dialog.show()
-        self.credentials_dialog.activateWindow()
-        self.credentials_dialog.raise_()
-
-    def set_login_label(self):
-        login = credentials.get_local_login()
-        if login:
-            self.logged_user_label.setText("{}".format(login))
-        else:
-            self.logged_user_label.setText(
-                "No User logged in {0}".format(login)
+        self.sg_server_label = QtWidgets.QAction("Server: {0}".format(
+                server_url
             )
+        )
+        self.sg_server_label.setDisabled(True)
+        self.sg_username_label = QtWidgets.QAction("")
+        self.sg_username_label.triggered.connect(self.show_sg_username_dialog)
+
+        self.sg_username_dialog = ChangeSgUsername(self.module)
+        self.sg_username_dialog.dialog_closed.connect(self.set_username_label)
+
+    def show_sg_username_dialog(self):
+        """Display the Shotgrid Username dialog
+
+        Used to set a Shotgird Username, that will then be used by any API call
+        and to check that the user can access the Shotgrid API.
+        """
+        self.sg_username_dialog.show()
+        self.sg_username_dialog.activateWindow()
+        self.sg_username_dialog.raise_()
 
     def tray_menu(self, tray_menu):
-        # Add login to user menu
-        menu = QtWidgets.QMenu("Shotgrid", tray_menu)
-        show_connect_action = QtWidgets.QAction("Connect to Shotgrid", menu)
-        show_connect_action.triggered.connect(self.show_connect_dialog)
-        menu.addAction(self.logged_user_label)
-        menu.addSeparator()
-        menu.addAction(show_connect_action)
-        tray_menu.addMenu(menu)
+        """Add Shotgrid Submenu to Ayon tray.
 
-        # Add manager to Admin menu
-        for m in tray_menu.findChildren(QtWidgets.QMenu):
-            if m.title() == "Admin":
-                shotgrid_manager_action = QtWidgets.QAction(
-                    "Shotgrid manager", menu
-                )
-                shotgrid_manager_action.triggered.connect(
-                    self.show_batch_dialog
-                )
-                m.addAction(shotgrid_manager_action)
+        A non-actionable action displays the Shotgrid URL and the other
+        action allows the person to set and check their Shotgrid username.
 
-    def validate(self):
-        login = credentials.get_local_login()
+        Args:
+            tray_menu (QtWidgets.QMenu): The Ayon Tray menu.
+        """
+        shotgrid_tray_menu = QtWidgets.QMenu("Shotgrid", tray_menu)
+        shotgrid_tray_menu.addAction(self.sg_server_label)
+        shotgrid_tray_menu.addSeparator()
+        shotgrid_tray_menu.addAction(self.sg_username_label)
+        tray_menu.addMenu(shotgrid_tray_menu)
 
-        if not login:
-            self.show_credential_dialog()
+    def set_username_label(self):
+        """Set the Username Label based on local login setting.
+
+        Depending on the login credentiasl we want to display one message or
+        another in the Shotgrid submenu action.
+        """
+        sg_username = credentials.get_local_login()
+
+        if sg_username:
+            self.sg_username_label.setText(
+                "Username: {} (Click to change)".format(sg_username)
+            )
+            os.environ["AYON_SG_USERNAME"] = sg_username
         else:
-            os.environ["OPENPYPE_SG_USER"] = login
+            self.sg_username_label.setText("Specify a Username...")
+            os.environ["AYON_SG_USERNAME"] = ""
+            self.show_sg_username_dialog()
 
-        return True
