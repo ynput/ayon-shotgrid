@@ -5,13 +5,13 @@ Requires Python 3.9. (Or at least 3.8+).
 This script should be called from cloned addon repo.
 
 It will produce 'package' subdirectory which could be pasted into server
-addon directory directly (eg. into `openpype4-backend/addons`).
+addon directory directly (eg. into `ayon-backend/addons`).
 
 Format of package folder:
 ADDON_REPO/package/{addon name}/{addon version}
 
 You can specify `--output_dir` in arguments to change output directory where
-package will be created. Existing package directory will be always purged if
+package will be created. Existing package directory will always be purged if
 already present! This could be used to create package directly in server folder
 if available.
 
@@ -26,19 +26,14 @@ import shutil
 import argparse
 import logging
 import collections
+import zipfile
 
+# Name of addon
+#   - e.g. 'maya'
 ADDON_NAME = "shotgrid"
-
-# Files or directories that won't be copied to server part of addon
-SERVER_ADDON_SUBPATHS = {
-    "frontend",
-    "private",
-    "public",
-    "services",
-    "settings",
-    "__init__.py",
-    "version.py",
-}
+# Name of folder where client code is located to copy 'version.py'
+#   - e.g. 'ayon_maya'
+ADDON_CLIENT_DIR = "ayon_shotgrid"
 
 # Patterns of directories to be skipped for server part of addon
 IGNORE_DIR_PATTERNS = [
@@ -138,25 +133,30 @@ def copy_server_content(addon_output_dir, current_dir, log):
 
     log.info("Copying server content")
 
-    shutil.copytree(
-        os.path.join(current_dir, "server"),
-        addon_output_dir
-    )
+    filepaths_to_copy = []
+    server_dirpath = os.path.join(current_dir, "server")
 
-    shutil.copy2(
-        os.path.join(current_dir, "version.py"),
-        addon_output_dir
-    )
+    # Version
+    src_version_path = os.path.join(current_dir, "version.py")
+    dst_version_path = os.path.join(addon_output_dir, "version.py")
+    filepaths_to_copy.append((src_version_path, dst_version_path))
+
+    for item in find_files_in_subdir(server_dirpath):
+        src_path, dst_subpath = item
+        dst_path = os.path.join(addon_output_dir, dst_subpath)
+        filepaths_to_copy.append((src_path, dst_path))
+
+    # Copy files
+    for src_path, dst_path in filepaths_to_copy:
+        safe_copy_file(src_path, dst_path)
 
 
-def zip_client_side(addon_package_dir, current_dir, zip_file_name, log):
-    """Copy and zip `client` content into `addon_package_dir'.
+def zip_client_side(addon_package_dir, current_dir, log):
+    """Copy and zip `client` content into 'addon_package_dir'.
 
     Args:
         addon_package_dir (str): Output package directory path.
-        current_dir (str): Directoy path of addon source.
-        zip_file_name (str): Output zip file name in format
-            '{ADDON_NAME}_{ADDON_VERSION}'.
+        current_dir (str): Directory path of addon source.
         log (logging.Logger): Logger object.
     """
 
@@ -167,19 +167,21 @@ def zip_client_side(addon_package_dir, current_dir, zip_file_name, log):
 
     log.info("Preparing client code zip")
     private_dir = os.path.join(addon_package_dir, "private")
-    temp_dir_to_zip = os.path.join(private_dir, "temp")
-    # shutil.copytree expects glob-style patterns, not regex
-    zip_dir_path = os.path.join(temp_dir_to_zip, zip_file_name)
-    for path, sub_path in find_files_in_subdir(client_dir):
-        safe_copy_file(path, os.path.join(zip_dir_path, sub_path))
 
-    toml_path = os.path.join(client_dir, "pyproject.toml")
-    if os.path.exists(toml_path):
-        shutil.copy(toml_path, private_dir)
+    if not os.path.exists(private_dir):
+        os.makedirs(private_dir)
 
-    zip_file_path = os.path.join(os.path.join(private_dir, zip_file_name))
-    shutil.make_archive(zip_file_path, "zip", temp_dir_to_zip)
-    shutil.rmtree(temp_dir_to_zip)
+    src_version_path = os.path.join(current_dir, "version.py")
+    dst_version_path = os.path.join(ADDON_CLIENT_DIR, "version.py")
+
+    zip_filepath = os.path.join(os.path.join(private_dir, "client.zip"))
+    with zipfile.ZipFile(zip_filepath, "w", zipfile.ZIP_DEFLATED) as zipf:
+        # Add client code content to zip
+        for path, sub_path in find_files_in_subdir(client_dir):
+            zipf.write(path, sub_path)
+
+        # Add 'version.py' to client code
+        zipf.write(src_version_path, dst_version_path)
 
 
 def main(output_dir=None):
@@ -205,15 +207,13 @@ def main(output_dir=None):
 
     log.info(f"Preparing package for {ADDON_NAME}-{addon_version}")
 
-    zip_file_name = f"{ADDON_NAME}_{addon_version}"
     addon_output_dir = os.path.join(output_dir, ADDON_NAME, addon_version)
-
-    if os.path.exists(addon_output_dir):
-        os.rmdir(addon_output_dir)
+    if not os.path.exists(addon_output_dir):
+        os.makedirs(addon_output_dir)
 
     copy_server_content(addon_output_dir, current_dir, log)
 
-    zip_client_side(addon_output_dir, current_dir, zip_file_name, log)
+    zip_client_side(addon_output_dir, current_dir, log)
 
 
 if __name__ == "__main__":
@@ -228,3 +228,4 @@ if __name__ == "__main__":
 
     args = parser.parse_args(sys.argv[1:])
     main(args.output_dir)
+
