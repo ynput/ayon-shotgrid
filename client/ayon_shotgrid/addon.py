@@ -1,5 +1,7 @@
 import os
 
+from .lib import credentials
+
 from openpype.modules import (
     OpenPypeModule,
     ITrayModule,
