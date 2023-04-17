@@ -1,38 +1,48 @@
 import pyblish.api
 from openpype.pipeline.publish import ValidateContentsOrder
+from openpype.pipeline import PublishValidationError
 
 
 class ValidateShotgridUser(pyblish.api.ContextPlugin):
     """
     Check if user is valid and have access to the project.
     """
-
     label = "Validate Shotgrid User"
     order = ValidateContentsOrder
 
     def process(self, context):
-        sg = context.data.get("shotgridSession")
+        sg_session = context.data.get("shotgridSession")
+        user_login = context.data.get("shotgridUser")
+        sg_project = context.data.get("shotgridProject")
+        project_name = context.data["projectEntity"]["name"]
 
-        login = context.data.get("shotgridUser")
-        self.log.info("Login shotgrid set in OpenPype is {}".format(login))
-        project = context.data.get("shotgridProject")
-        self.log.info("Current shotgun project is {}".format(project))
+        if not (user_login and sg_session and sg_project):
+            raise PublishValidationError("Missing Shotgrid Credentials")
 
-        if not (login and sg and project):
-            raise KeyError()
+        self.log.info("Login Shotgrid set in Ayon is {}".format(user_login))
+        self.log.info("Current shotgun Project is {}".format(sg_project))
 
-        user = sg.find_one("HumanUser", [["login", "is", login]], ["projects"])
+        sg_user = sg_session.find_one(
+            "HumanUser",
+            [
+                ["login", "is", user_login],
+                ["projects", "name_contains", project_name]
+            ],
+            ["projects"]
+        )
 
-        self.log.info(user)
-        self.log.info(login)
-        user_projects_id = [p["id"] for p in user.get("projects", [])]
-        if not project.get("id") in user_projects_id:
-            raise PermissionError(
-                "Login {} don't have access to the project {}".format(
-                    login, project
+        self.log.info("Found User in Shotgrid: {}".format(sg_user))
+
+        if not sg_user:
+            raise PublishValidationError(
+                "Login {0} don't have access to the project {1} <{2}>".format(
+                    user_login, project_name, sg_project
                 )
             )
 
         self.log.info(
-            "Login {} have access to the project {}".format(login, project)
+            "Login {0} have access to the project {1} <{2}>".format(
+                user_login, project_name, sg_project
+            )
         )
+
