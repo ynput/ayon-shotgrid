@@ -2,25 +2,32 @@
 
 This project provides three elements for the Ayon pipeline:
  * server/ - The Ayon Backend Addon.
- * TODO: client/ - The Ayon (currently OpenPype) desktop integration.
+ * client/ - The Ayon (currently OpenPype) desktop integration.
  * services/ - Standalone dockerized daemons that act based on events (aka `leecher` and `processors`).
 
-## Server
-This is the part that needs to be uplaoded (or copied) to the `/backend/addons/` directory of your Ayon instance, as a helper, you can run the following command:
-`python create_package.py` from the root of this project; which will create a folder `package` and you can copy the **contents** of that into the `addons` folder of your Ayon isntance.
+In order to use this integrations you'll need to run the `python create_package.py` script which will create a folder with the current version (the number is defined in `version.py`) in `ayon-shotgrid/package/shotgrid/{addon version}`, you then have to upload the `shotgrid` directory (included) into your Ayon instance, in the `/<server root>/addons/shotgrid` path, this should trigger a restart of the server, otherwise do so manually.
 
-Once copied, and the instance restarted, you should be able to enable the addon by going into the `Settings > Addon Version > Shotgrid Sync` and choosing `0.0.1` in the `Production` dropdown.
+## Server
+Once the instance has restarted, you should be able to enable the addon by going into the `Settings > Addon Version > Shotgrid Sync` and choosing the version number of the addon you uploaded in the `Production` dropdown.
 If the Addon loaded succesfully you should be able to see a new tab in your `Settings > Shotgrid Sync`.
 
-Before we can do anything we need to fill some information in the `Settings > Studio settings > Shotgrid Sync` page, we need the Shotgrid URL, a script name and a Shotgrid API key of said script, to set this up refer to the [Shotgrid Documentation](https://developer.shotgridsoftware.com/99105475/?title=Create+and+manage+API+scripts), after creating one, jsut fill the corresponding fields.
+Before proceeding some information has to be provided in the `Settings > Studio settings > Shotgrid Sync` page:
+ * Shotgrid URL
+ * Shotgrid Script Name
+ * Shotgrid API Key
 
+Refer to the [Shotgrid Documentation](https://developer.shotgridsoftware.com/99105475/?title=Create+and+manage+API+scripts) to set these up.
+
+## Desktop application
+When launching Ayon for the first time you'll be asked to provide a login (only the username) for Shotgrid, this is the user that will be used for publishing.
+After providing a login people can publish normally, the integartion will ensure that the user can connect to Shotgrid, that has the correct permissions and will create the Version and PublishedFile in Shotgrid if the publish is succesful.
 
 ## Services
 There are two services that the Addon requires to perform any activity:
  * `processor` - This has a set of handlers for different `shotgrid.event` and act on those.
- * `leecher` - Periodically queries the `EventLogEntry` table on Shotgrid and ingests any event that interstes us dispatching it as a `shotgird.event`.
+ * `leecher` - Periodically queries the `EventLogEntry` table on Shotgrid and ingests any event that interests us dispatching it as a `shotgird.event`.
 
-To get any of these two running, navigate to their respective folder, and we'll use `make` to build a `Docker` iamge that will run our services.
+To get any of these two running, navigate to their respective folder, we'll use `make` to build a `Docker` image that will run our services.
 ```sh
 cd services/processor
 make build # This will create the Container image
@@ -34,7 +41,7 @@ AY_ADDON_NAME=<addon_name>
 AY_ADDON_VERSION=<addon_version>
 ```
 
-We are ready to spin up the service, for convinience we got a `make` commadn for this:
+We are ready to spin up the service, for convinience we got a `make` command for this:
 ```sh
 make dev
 ```
@@ -57,7 +64,7 @@ python -m processor
 ```
 
 # Usage
-With this Addon you can perform the following actions:
+With this Integration you can perform the following actions:
 
 ## Import a New Shotgrid Project
 With the `processor` service running, you can go to the `Settings > Shotgrid Sync` page, and after waiting some seconds, the dropdown under `Choose a Shotgrid Project:` should change from `Fetching Shotgrid projects...` to `Choose a Project to Import and Sync...` you'll then be able to choose any Shotgrid project that matches the specified requirements.
