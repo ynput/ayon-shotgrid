@@ -1,6 +1,7 @@
 import os
 
 from openpype.pipeline import KnownPublishError
+
 import pyblish.api
 
 
