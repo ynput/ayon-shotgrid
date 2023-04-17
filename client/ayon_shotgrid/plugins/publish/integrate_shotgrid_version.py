@@ -126,3 +126,4 @@ class IntegrateShotgridVersion(pyblish.api.InstancePlugin):
             version_data
         )
 
+
