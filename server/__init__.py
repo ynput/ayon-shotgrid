@@ -17,7 +17,7 @@ from nxtools import logging
 
 
 SG_ID_ATTRIB = "shotgridId"
-SG_PATH_ATTRIB = "shotgridPath"
+SG_TYPE_ATTRIB = "shotgridType"
 
 
 class ShotgridAddon(BaseServerAddon):
@@ -235,7 +235,7 @@ class ShotgridAddon(BaseServerAddon):
 
         query = (
             "SELECT name, position, scope, data from public.attributes "
-            f"WHERE (name = '{SG_ID_ATTRIB}' OR name = '{SG_PATH_ATTRIB}') "
+            f"WHERE (name = '{SG_ID_ATTRIB}' OR name = '{SG_TYPE_ATTRIB}') "
             "AND (scope = '{project, folder, task}')"
         )
 
@@ -279,13 +279,13 @@ class ShotgridAddon(BaseServerAddon):
 
         await Postgres.execute(
             postgres_query,
-            SG_PATH_ATTRIB,  # name
+            SG_TYPE_ATTRIB,  # name
             len(all_attributes) + 2,  # Add Attributes at the end of the list
             ["project", "folder", "task"],  # scope
             {
                 "type": "string",
-                "title": "Shotgrid Path",
-                "decription": "The path in the Shotgrid Instance."
+                "title": "Shotgrid Type",
+                "decription": "The Type of the Shotgrid entity."
             }
         )
 

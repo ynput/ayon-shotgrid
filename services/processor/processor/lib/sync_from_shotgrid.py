@@ -13,6 +13,7 @@ from .constants import (
     CUST_FIELD_CODE_ID,
     CUST_FIELD_CODE_SYNC,
     SHOTGRID_ID_ATTRIB,
+    SHOTGRID_TYPE_ATTRIB,
 )
 
 from .utils import (
@@ -199,6 +200,10 @@ class SyncFromShotgrid:
                 ay_entity.attribs.set(
                     SHOTGRID_ID_ATTRIB,
                     sg_entity[SHOTGRID_ID_ATTRIB]
+                )
+                ay_entity.attribs.set(
+                    SHOTGRID_TYPE_ATTRIB,
+                    sg_entity["type"]
                 )
             elif str(shotgrid_id_attrib) != str(sg_entity[SHOTGRID_ID_ATTRIB]):
                 self.log.error("Wrong Shotgrid ID in ayon record.")
