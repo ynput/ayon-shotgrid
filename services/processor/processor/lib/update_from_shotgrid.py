@@ -31,6 +31,7 @@ from .constants import (
     CUST_FIELD_CODE_ID,  # Shotgrid Field for the Ayon ID.
     CUST_FIELD_CODE_AUTO_SYNC,  # Shotgrid Field for the Auto Sync toggle.
     SHOTGRID_ID_ATTRIB,  # Ayon Entity Attribute.
+    SHOTGRID_TYPE_ATTRIB,  # Ayon Entity Attribute.
     SHOTGRID_REMOVED_VALUE
 )
 
@@ -134,6 +135,10 @@ class UpdateFromShotgrid:
                         SHOTGRID_ID_ATTRIB,
                         ay_shotgrid_id
                     )
+                    ay_entity.attribs.set(
+                        SHOTGRID_TYPE_ATTRIB,
+                        sg_entity_dict["type"]
+                    )
 
                 return ay_entity
 
@@ -173,6 +178,10 @@ class UpdateFromShotgrid:
         ay_entity.attribs.set(
             SHOTGRID_ID_ATTRIB,
             sg_entity_dict.get(SHOTGRID_ID_ATTRIB, "")
+        )
+        ay_entity.attribs.set(
+            SHOTGRID_TYPE_ATTRIB,
+            sg_entity_dict.get(SHOTGRID_TYPE_ATTRIB, "")
         )
 
         try:

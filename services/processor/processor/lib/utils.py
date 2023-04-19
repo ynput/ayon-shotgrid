@@ -8,6 +8,7 @@ from .constants import (
     SG_COMMON_ENTITY_FIELDS,
     SG_PROJECT_ATTRS,
     SHOTGRID_ID_ATTRIB,
+    SHOTGRID_TYPE_ATTRIB,
 )
 
 from ayon_api.entity_hub import ProjectEntity
@@ -36,6 +37,7 @@ def _sg_to_ay_dict(sg_entity: dict) -> dict:
         "label": label,
         "name": name,
         SHOTGRID_ID_ATTRIB: sg_entity["id"],
+        SHOTGRID_TYPE_ATTRIB: sg_entity["type"],
         CUST_FIELD_CODE_ID: sg_entity.get(CUST_FIELD_CODE_ID, None),
         CUST_FIELD_CODE_SYNC: sg_entity.get(CUST_FIELD_CODE_SYNC, None),
         "type": sg_entity["type"],
@@ -291,6 +293,7 @@ def get_sg_entities(
                         "label": asset_category,
                         "name": slugify_string(asset_category).lower(),
                         SHOTGRID_ID_ATTRIB: slugify_string(asset_category).lower(),
+                        SHOTGRID_TYPE_ATTRIB: "AssetCategory",
                         CUST_FIELD_CODE_ID: None,
                         CUST_FIELD_CODE_SYNC: None,
                         "type": "Folder",
