@@ -9,6 +9,7 @@ SHOTGRID_REMOVED_VALUE = "removed"
 
 SHOTGRID_ID_ATTRIB = "shotgridId"
 SHOTGRID_PATH_ATTRIB = "shotgridPath"
+SHOTGRID_TYPE_ATTRIB = "shotgridType"
 
 
 REMOVED_ID_VALUE = "removed"
