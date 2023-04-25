@@ -5,7 +5,7 @@ This project provides three elements for the Ayon pipeline:
  * client/ - The Ayon (currently OpenPype) desktop integration.
  * services/ - Standalone dockerized daemons that act based on events (aka `leecher` and `processors`).
 
-In order to use this intergrations you'll need to run the `python create_package.py` script which will create a folder with the current version (the number is defined in `version.py`) in `ayon-shotgrid/package/shotgrid/{addon version}`, you then have to upload the `shotgrid` directory (included) unto your Ayon instance, in the `/<server root>/addons/shotgrid` path, this should trigger a restart of the server, otherwise do so manually.
+In order to use this integrations you'll need to run the `python create_package.py` script which will create a folder with the current version (the number is defined in `version.py`) in `ayon-shotgrid/package/shotgrid/{addon version}`, you then have to upload the `shotgrid` directory (included) into your Ayon instance, in the `/<server root>/addons/shotgrid` path, this should trigger a restart of the server, otherwise do so manually.
 
 ## Server
 Once the instance has restarted, you should be able to enable the addon by going into the `Settings > Addon Version > Shotgrid Sync` and choosing the version number of the addon you uploaded in the `Production` dropdown.
