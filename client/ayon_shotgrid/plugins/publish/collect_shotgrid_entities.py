@@ -109,8 +109,7 @@ class CollectShotgridEntities(pyblish.api.ContextPlugin):
             sg_assets = self._query_sg_by_ids(
                 sg_session,
                 sg_type,
-                sg_ids,
-                ["type"]
+                sg_ids
             )
             for sg_asset in sg_assets:
                 sg_assets_by_id[sg_asset["id"]] = sg_asset
