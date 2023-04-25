@@ -32,23 +32,31 @@ class IntegrateShotgridVersion(pyblish.api.InstancePlugin):
             "v{:03}".format(int(anatomy["version"]))
         )
 
-        sg_version = self._find_existing_version(version_name, instance)
-
-        if not sg_version:
-            sg_version = self._create_version(version_name, instance)
-            self.log.info("Create Shotgrid version: {}".format(sg_version))
-        else:
-            self.log.info("Use existing Shotgrid version: {}".format(sg_version))
-
         data_to_update = {}
         intent = instance.context.data.get("intent")
         if intent:
             data_to_update["sg_status_list"] = intent["value"]
 
-        for representation in instance.data.get("representations", []):
+        sg_review_representations = [
+            representation
+            for representation in instance.data.get("representations", [])
+            if "shotgridreview" in representation.get("tags", [])
+        ]
 
-            if "shotgridreview" not in representation.get("tags", []):
-                continue
+        if not sg_review_representations:
+            self.log.info("No valid Representations to publish.")
+            instance.data["shotgridVersion"] = None
+            return
+
+        sg_version = self._find_existing_version(version_name, instance)
+
+        if not sg_version:
+            sg_version = self._create_version(version_name, instance)
+            self.log.info("Create Shotgrid version: {}".format(sg_version))
+
+        self.log.info("Using Shotgrid version: {}".format(sg_version))
+
+        for representation in sg_review_representations:
 
             local_path = get_publish_repre_path(
                 instance, representation, False
@@ -95,7 +103,9 @@ class IntegrateShotgridVersion(pyblish.api.InstancePlugin):
         ]
 
         if instance.data.get("shotgridTask"):
-            filters.append(["sg_task", "is", instance.data.get("shotgridTask")])
+            filters.append(
+                ["sg_task", "is", instance.data.get("shotgridTask")]
+            )
 
         return instance.context.data["shotgridSession"].find_one(
             "Version",
@@ -108,7 +118,7 @@ class IntegrateShotgridVersion(pyblish.api.InstancePlugin):
         Args:
             version_name(str): The full version name, `code` field in SG.
             instance (pyblish.Instance): The version's Instance.
-        
+
         Returns:
             dict: The newly created Shotgrid Version.
         """
