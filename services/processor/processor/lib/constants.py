@@ -29,6 +29,11 @@ SG_PROJECT_ATTRS = {
         "name": "Ayon Server URL",
         "type": "text",
         "sg_field": CUST_FIELD_CODE_URL,
+    },
+    "ayon_project_name": {
+        "name": "Ayon Project Name",
+        "type": "text",
+        "sg_field": CUST_FIELD_CODE_NAME
     }
 }
 
