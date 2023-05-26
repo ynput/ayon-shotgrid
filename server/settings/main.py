@@ -32,7 +32,10 @@ class ShotgridSettings(BaseSettingsModel):
         "",
         title="Shotgrid API Key"
     )
-
+    shotgrid_project_code_field: str = Field(
+        "",
+        title="Shotgrid field for the project Code i.e.: `code`, `sg_code`, `sg_internal_code`."
+    )
     service_settings: ShotgridServiceSettings = Field(
         default_factory=ShotgridServiceSettings,
         title="Service settings",
@@ -41,6 +44,8 @@ class ShotgridSettings(BaseSettingsModel):
 
 DEFAULT_VALUES = {
     "shotgrid_server": "",
+    "shotgrid_script_name": "Ayon Connector",
+    "shotgrid_project_code_field": "code",
     "service_settings": {
         "username": "",
         "api_key": ""
