@@ -4,15 +4,10 @@ Handle Events originated from Shotgrid.
 from nxtools import logging
 
 from processor.lib.update_from_shotgrid import UpdateFromShotgrid
-from processor.lib.constants import CUST_FIELD_CODE_ID, CUST_FIELD_CODE_AUTO_SYNC
+from processor.lib.constants import CUST_FIELD_CODE_AUTO_SYNC
 from processor.lib.utils import get_sg_project_by_id
 
 REGISTER_EVENT_TYPE = ["shotgrid-event"]
-FIELDS_WE_CARE = [
-    "code",
-    "name",
-    CUST_FIELD_CODE_ID,
-]
 
 
 def process_event(

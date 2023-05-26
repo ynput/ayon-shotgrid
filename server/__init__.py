@@ -144,7 +144,8 @@ class ShotgridAddon(BaseServerAddon):
         elif not all((
             addon_settings.shotgrid_server,
             addon_settings.shotgrid_script_name,
-            addon_settings.shotgrid_api_key
+            addon_settings.shotgrid_api_key,
+            addon_settings.shotgrid_project_code_field
         )):
             logging.error("Missing data in the addon settings.")
             return
@@ -173,7 +174,6 @@ class ShotgridAddon(BaseServerAddon):
             "Accept": "application/vnd+shotgun.api3_array+json"
         }
 
-
         shotgrid_projects = requests.get(
             f"{shotgrid_url}/api/v1/entity/projects/",
             headers=request_headers
@@ -189,7 +189,7 @@ class ShotgridAddon(BaseServerAddon):
                     data=json.dumps({
                         "fields": [
                             "name",
-                            "code",
+                            addon_settings.shotgrid_project_code_field,
                             "sg_ayon_sync_status",
                         ]
                     }),
@@ -205,7 +205,9 @@ class ShotgridAddon(BaseServerAddon):
 
                 sg_projects.append({
                     "projectName": sg_project["attributes"].get("name"),
-                    "projectCode": sg_project["attributes"].get("code"),
+                    "projectCode": sg_project["attributes"].get(
+                        addon_settings.shotgrid_project_code_field
+                    ),
                     "shotgridId": sg_project["id"],
                     "ayonId": sg_project["attributes"].get("sg_ayon_id"),
                     "ayonAutoSync": sg_project["attributes"].get("sg_ayon_auto_sync"),
