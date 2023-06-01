@@ -65,8 +65,8 @@ class ShotgridListener:
 
         try:
             self.settings = ayon_api.get_addon_settings(
-                os.environ["AY_ADDON_NAME"],
-                os.environ["AY_ADDON_VERSION"]
+                os.environ["AYON_ADDON_NAME"],
+                os.environ["AYON_ADDON_VERSION"]
             )
             self.shotgird_url = self.settings["shotgrid_server"]
             self.shotgrid_script_name = self.settings["shotgrid_script_name"]

@@ -34,7 +34,7 @@ class ShotgridSettings(BaseSettingsModel):
     )
     shotgrid_project_code_field: str = Field(
         "",
-        title="Shotgrid field for the project Code i.e.: `code`, `sg_code`, `sg_internal_code`."
+        title="Shotgrid field for the Project Code"
     )
     service_settings: ShotgridServiceSettings = Field(
         default_factory=ShotgridServiceSettings,

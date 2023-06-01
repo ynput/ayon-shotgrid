@@ -13,7 +13,6 @@ RUN cat pyproject.toml
 
 
 RUN poetry config virtualenvs.create false \
- && poetry lock \
  && poetry install --no-interaction --no-ansi
 
 # Create a group and user: ayonuser
@@ -22,6 +21,10 @@ RUN addgroup -S ayonuser && adduser -SH ayonuser -G ayonuser
 RUN chown ayonuser:ayonuser -R /service
 RUN chmod 777 -R /service
 
+COPY . /service
+
 # Tell docker that all future commands should run as the appuser user
 USER ayonuser
+
+CMD ["python", "-m", "processor"]
 
