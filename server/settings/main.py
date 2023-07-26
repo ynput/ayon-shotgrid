@@ -21,6 +21,12 @@ class ShotgridServiceSettings(BaseSettingsModel):
         title="Project Codes we want to leech (Comma separated list).",
     )
 
+    service_sync_sender: str = Field(
+        "shotgrid_sync",
+        title="""Whenever we do a on demand sync, we do not want to trigger a
+        transmitter sync, by specifing a sender, we can filter out events."""
+    )
+
 
 class ShotgridSettings(BaseSettingsModel):
     """Shotgrid addon settings."""
@@ -39,11 +45,12 @@ class ShotgridSettings(BaseSettingsModel):
     )
     shotgrid_project_code_field: str = Field(
         "",
-        title="Shotgrid field for the Project Code"
+        title="""Shotgrid field for the Project Code, a unique identifier for the
+        project that's lowercase and without spaces."""
     )
     service_settings: ShotgridServiceSettings = Field(
         default_factory=ShotgridServiceSettings,
-        title="Service settings",
+        title="Services settings",
     )
 
 
