@@ -16,6 +16,11 @@ class ShotgridServiceSettings(BaseSettingsModel):
         validate_default=False,
     )
 
+    projects_to_leech: str = Field(
+        "",
+        title="Project Codes we want to leech (Comma separated list).",
+    )
+
 
 class ShotgridSettings(BaseSettingsModel):
     """Shotgrid addon settings."""
@@ -44,11 +49,7 @@ class ShotgridSettings(BaseSettingsModel):
 
 DEFAULT_VALUES = {
     "shotgrid_server": "",
-    "shotgrid_script_name": "Ayon Connector",
+    "shotgrid_script_name": "ayon_connector",
     "shotgrid_project_code_field": "code",
-    "service_settings": {
-        "username": "",
-        "api_key": ""
-    },
 }
 

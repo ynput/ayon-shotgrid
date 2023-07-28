@@ -71,6 +71,8 @@ class ShotgridListener:
             self.shotgird_url = self.settings["shotgrid_server"]
             self.shotgrid_script_name = self.settings["shotgrid_script_name"]
             self.shotgrid_api_key = self.settings["shotgrid_api_key"]
+            self.shotgrid_leechable_projects = self.settings["service_settings"]["projects_to_leech"]
+            self.shotgrid_project_code_field = self.settings["shotgrid_project_code_field"]
 
             try:
                 self.shotgrid_polling_frequency = int(
@@ -147,12 +149,30 @@ class ShotgridListener:
         ):
             last_event_id = int(last_event_id["hash"])
 
+        event_type_filters = [
+            ["event_type", "is", event_type]
+            for event_type in self._get_valid_events()
+        ]
+
+        sg_projects = self.shotgrid_session.find(
+            "Project",
+            filters=[{
+                "filter_operator": "any",
+                "filters": [
+                    [f"{self.shotgrid_project_code_field}", "is", project_code.strip()]
+                    for project_code in self.shotgrid_leechable_projects.split(",")
+                ]
+            }]
+        )
+
+        projects_filters = [
+            ["project", "is", project]
+            for project in sg_projects
+        ]
+
         shotgrid_events_filter = {
             "filter_operator": "any",
-            "filters": [
-                ["event_type", "is", event_type]
-                for event_type in self._get_valid_events()
-            ]
+            "filters": event_type_filters + projects_filters
         }
 
         if not last_event_id:

@@ -170,7 +170,7 @@ class ShotgridAddon(BaseServerAddon):
         shotgrid_token = shotgrid_credentials_token.json().get('access_token')
 
         if not shotgrid_token:
-            logging.error("Unable to Acquire Shotgrid REST API token.")
+            logging.error(f"Unable to Acquire Shotgrid REST API token. {shotgrid_credentials_token.json()}")
             return
 
         logging.info("Querying the Shotgrid REST API token.")
