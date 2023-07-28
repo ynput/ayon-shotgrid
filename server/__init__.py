@@ -157,7 +157,8 @@ class ShotgridAddon(BaseServerAddon):
 
         shotgrid_url = addon_settings.shotgrid_server
         if shotgrid_url.endswith("/"):
-            shotgrid_url = shotgrid_url.rstrip("/")
+            shotgrid_url = shotgrid_url.rstrip("/").strip()
+
 
         shotgrid_credentials_token = requests.post(
             f"{addon_settings.shotgrid_server}/api/v1/auth/access_token",
@@ -196,6 +197,10 @@ class ShotgridAddon(BaseServerAddon):
                             "name",
                             addon_settings.shotgrid_project_code_field,
                             "sg_ayon_sync_status",
+                        ],
+                        "filters": [
+                            [addon_settings.shotgrid_project_code_field, "is_not", None],
+                            ["name", "not_contains", " "]
                         ]
                     }),
                     headers=request_headers

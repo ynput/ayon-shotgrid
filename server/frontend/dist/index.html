@@ -9,28 +9,34 @@
 
   <body>
     <h1>Shotgrid Sync</h1>
-    <p> From this page you can Import projects from Shotgrid or trigger a project Sync!</p>
+    <p>
+        From this page you can Import projects from Shotgrid or trigger a project Sync!<br>
+        In order for the below to work, a <b><code>ShotgridProcessor</code> service must be running</b><br>
+        But first we need to fetch data from Shotgrid:
+    </p>
+
+    <button id="sg-fetch-data" onclick="getShotgridData();">Fetch data from Shotgrid</button>
     <div class="shotgrid-addon-container">
         <div class="shotgrid-addon-block">
             <h2>Import a New Project</h2>
-            <p> To be able to import a project from Shotgrid, there are two minimum requirements</p>
+            <p> To be able to import a project from Shotgrid, there are two minimum requirements on Shotgrid:</p>
             <ul>
                 <li> The Project name cannot contain spaces. </li>
-                <li> The Project has to have a code.
+                <li> The Project has to have a code. (You can choose what the field code is in the Addon Settings) </li>
             </ul>
-            
-            <p> If the above criteria isn't met, they won't show in the dropdown, so make sure they are correctly configured </p>
+            <p> If the above criteria isn't met, they won't show in the dropdown, so make sure they are correctly configured.</p>
 
-            <div class="project-creation">
+            <div class="project-creation" display="none">
                 <div class="project-item">
                     <label for="new-shotgrid-projects-select">Choose a Shotgrid Project:</label>
                     <select name="new-shotgrid-projects" id="new-shotgrid-projects-select">
-                        <option value="" id="fetching-shotgrid-option">Fetching Shotgrid projects...</option>
+                        <option value="" id="fetching-shotgrid-option">Please press the "Fetch data from Shotgrid" above.</option>
                     </select>
                 </div>
             </div>
 
-            <button id="sg-import-shotgrid-project" disabled>Import Project...</button>
+            <button id="sg-import-shotgrid-project" disabled>Import Selected Project...</button>
+
         </div>
         <div class="shotgrid-addon-block">
             <h2>Manage Existing Project</h2>
@@ -39,7 +45,7 @@
             <div class="project-item">
                 <label for="manage-shotgrid-projects-select">Already imported Projects:</label>
                 <select name="shotgrid-projects" id="manage-shotgrid-projects-select">
-                    <option value="">Choose a project to Sync...</option>
+                    <option value="">Please press the "Fetch data from Shotgrid" above.</option>
                 </select>
             </div>
 
