@@ -17,9 +17,6 @@ a message is re-broadcasted, so the page can react to changes in selection etc.
     addonVersion = e.data.addonVersion
     accessToken = e.data.accessToken
     addonScope = e.data.scope
-
-    getSyncableProjects();
-    getShotgridProjects();
   } // end of window.onmessage
 } // end of init
 
@@ -56,7 +53,7 @@ const syncProject = (projectName) => {
     axios
       .get(url, {headers})
       .then((response) => {
-        const msg = `Create response data: ${response.data}` 
+        const msg = `Create response data: ${response}`
         document.querySelector("#call-result").innerHTML = msg
       })
   }
@@ -76,6 +73,18 @@ const getImportableProjects = async () => {
     {headers}
   );
   return response.data
+}
+
+const getShotgridData = () => {
+  /* Wrapper function to trigger the fetch of Shotgrid data.*/
+    let projectsSyncSelect = document.getElementById("manage-shotgrid-projects-select");
+    projectsSyncSelect.children[0].innerText = "Fetching data from Shotgrid...";
+
+    let projectsImportSelect = document.getElementById("new-shotgrid-projects-select")
+    projectsImportSelect.children[0].innerText = "Fetching data from Shotgrid...";
+
+    getSyncableProjects();
+    getShotgridProjects();
 }
 
 const getShotgridProjects = () => {
@@ -198,6 +207,9 @@ const getSyncableProjects = () => {
     }
     if (foundProjects) {
       populateSyncDropdown(foundProjects);
+    } else {
+      let projectsSyncSelect = document.getElementById("manage-shotgrid-projects-select");
+      projectsSyncSelect.children[0].innerText = "No projects to Sync, import some first.";
     }
     return foundProjects
   });
