@@ -11,7 +11,12 @@ from processor.lib.utils import (
     get_sg_project_by_name,
     create_sg_entities_in_ay
 )
-from processor.lib.constants import SHOTGRID_ID_ATTRIB
+from processor.lib.constants import (
+    SHOTGRID_ID_ATTRIB,
+    CUST_FIELD_CODE_ID,
+    CUST_FIELD_CODE_CODE,
+    CUST_FIELD_CODE_URL
+)
 
 
 from ayon_api import (
@@ -110,9 +115,9 @@ def process_event(
         "Project",
         shotgrid_project["id"],
         {
-            "sg_ayon_project_name": ayon_project["name"],
-            "sg_ayon_project_code": ayon_project["code"],
-            "sg_ayon_server_url": get_base_url(),
+            CUST_FIELD_CODE_ID: ayon_project["name"],
+            CUST_FIELD_CODE_CODE: ayon_project["code"],
+            CUST_FIELD_CODE_URL: get_base_url(),
         }
     )
 
