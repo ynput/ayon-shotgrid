@@ -2,7 +2,6 @@
 CUST_FIELD_CODE_ID = "sg_ayon_id"
 CUST_FIELD_CODE_SYNC = "sg_ayon_sync_status"
 CUST_FIELD_CODE_AUTO_SYNC = "sg_ayon_auto_sync"
-CUST_FIELD_CODE_NAME = "sg_ayon_project_name"
 CUST_FIELD_CODE_CODE = "sg_ayon_project_code"
 CUST_FIELD_CODE_URL = "sg_ayon_server_url"
 SHOTGRID_REMOVED_VALUE = "removed"
@@ -15,6 +14,11 @@ SHOTGRID_TYPE_ATTRIB = "shotgridType"
 REMOVED_ID_VALUE = "removed"
 
 SG_PROJECT_ATTRS = {
+    "ayon_id": {
+        "name": "Ayon ID",
+        "type": "text",
+        "sg_field": CUST_FIELD_CODE_ID,
+    },
     "ayon_project_code": {
         "name": "Ayon Project Code",
         "type": "text",
