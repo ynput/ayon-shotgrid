@@ -18,7 +18,7 @@
     <button id="sg-fetch-data" onclick="getShotgridData();">Fetch data from Shotgrid</button>
     <div class="shotgrid-addon-container">
         <div class="shotgrid-addon-block">
-            <h2>Import a New Project</h2>
+            <h2>Import a New Project from Shotgrid</h2>
             <p> To be able to import a project from Shotgrid, there are two minimum requirements on Shotgrid:</p>
             <ul>
                 <li> The Project name cannot contain spaces. </li>
@@ -35,7 +35,22 @@
                 </div>
             </div>
 
-            <button id="sg-import-shotgrid-project" disabled>Import Selected Project...</button>
+            <button id="sg-import-shotgrid-project" disabled>Import Selected Project from Shotgrid...</button>
+
+            <h2>Create an AYON project in Shotgrid</h2>
+            <p>Choose the AYON project below that you want to create in Shotgrid, not that if the project already exists in Shotgrid it will attempt to repair it, and you'll have to then use the "Manage Existing Proejct" to sync it.</p>
+
+            <div class="project-creation" display="none">
+                <div class="project-item">
+                    <label for="new-ayon-projects-select">Choose an AYON Project:</label>
+                    <select name="new-ayon-projects" id="new-ayon-projects-select">
+                        <option value="" id="fetching-ayon-option">Please press the "Fetch data from Shotgrid" above.</option>
+                    </select>
+                    </select>
+                </div>
+            </div>
+
+            <button id="sg-export-ayon-project" disabled>Create Selected Project in Shotgrid...</button>
 
         </div>
         <div class="shotgrid-addon-block">
@@ -49,7 +64,8 @@
                 </select>
             </div>
 
-            <button id="sg-sync-from-shotgrid" disabled> Sync Shotgrid Project</button>
+            <button id="sg-sync-from-shotgrid" disabled> Sync Shotgrid Project into AYON</button>
+            <button id="sg-sync-from-ayon" disabled> Sync AYON into Shotgrid</button>
         </div>
     </div>
     <p id="call-result"> </p>
