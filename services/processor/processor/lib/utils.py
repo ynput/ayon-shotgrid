@@ -147,6 +147,51 @@ def create_sg_entities_in_ay(
     return sg_entities, sg_tasks
 
 
+def create_ay_entities_in_sg(
+    project_entity: ProjectEntity,
+    sg_session: shotgun_api3.Shotgun,
+    shotgrid_project: dict
+):
+    """Ensure Shotgrid has all the Ayon Tasks and Folder types.
+
+    Args:
+        project_entity (ProjectEntity): The ProjectEntity for a given project.
+        sg_session (shotgun_api3.Shotgun): Shotgun Session object.
+        shotgrid_project (dict): The project owning the Tasks.
+    """
+    sg_tasks = [
+        {"name": task, "shortName": task.lower()[:4]}
+        for task in get_sg_tasks(
+            sg_session,
+            shotgrid_project
+        )
+    ]
+    new_tasks = sg_tasks + project_entity.task_types
+    new_tasks = list({
+        task['name']: task
+        for task in new_tasks
+    }.values())
+
+    sg_entities = [
+        {"name": entity_type}
+        for entity_type, _ in get_sg_project_enabled_entities(
+            sg_session,
+            shotgrid_project
+        )
+    ]
+
+    new_entities = sg_entities + project_entity.folder_types
+    new_entities = list({
+        entity['name']: entity
+        for entity in new_entities
+    }.values())
+
+    project_entity.folder_types = new_entities
+    project_entity.task_types = new_tasks
+
+    return sg_entities, sg_tasks
+
+
 def get_or_create_sg_field(
     sg_session: shotgun_api3.Shotgun,
     sg_entity_type: str,

@@ -5,18 +5,16 @@ This service will continually run and query the Ayon Events Server in orther to
 entroll the events of topic `shotgrid.leech` to perform processing of Shotgrid
 related events.
 """
-import importlib
 import os
-import sys
 import time
-import types
-import signal
 import socket
+
+from .lib.ayon_shotgrid_hub import AyonShotgridHub
 
 import ayon_api
 from nxtools import logging, log_traceback
-import shotgun_api3
 
+SECONDS_BETWEEN_PROCESSING = 5
 
 class ShotgridProcessor:
     def __init__(self):
@@ -31,10 +29,6 @@ class ShotgridProcessor:
         """
         logging.info("Initializing the Shotgrid Processor.")
 
-        # Grab all the `handlers` from `processor/handlers` and map them to
-        # the events that are meant to trigger them
-        self.handlers_map = None
-
         try:
             self.settings = ayon_api.get_addon_settings(
                 os.environ["AYON_ADDON_NAME"],
@@ -44,70 +38,10 @@ class ShotgridProcessor:
             self.shotgrid_script_name = self.settings["shotgrid_script_name"]
             self.shotgrid_api_key = self.settings["shotgrid_api_key"]
 
-            try:
-                self.shotgrid_polling_frequency = int(
-                    self.settings["service_settings"]["polling_frequency"]
-                )
-            except Exception:
-                self.shotgrid_polling_frequency = 10
-
         except Exception as e:
             logging.error("Unable to get Addon settings from the server.")
             log_traceback(e)
             raise e
-
-        try:
-            self.shotgrid_session = shotgun_api3.Shotgun(
-                self.shotgird_url,
-                script_name=self.shotgrid_script_name,
-                api_key=self.shotgrid_api_key
-            )
-            self.shotgrid_session.connect()
-        except Exception as e:
-            logging.error("Unable to connect to Shotgrid Instance:")
-            log_traceback(e)
-            raise e
-
-        self.handlers_map = self._get_handlers()
-        logging.debug(f"Found the these handlers: {self.handlers_map}")
-        signal.signal(signal.SIGINT, self._signal_teardown_handler)
-        signal.signal(signal.SIGTERM, self._signal_teardown_handler)
-
-    def _signal_teardown_handler(self, signalnum, frame):
-        logging.warning("Process stop requested. Terminating process.")
-        self.shotgrid_session.close()
-        logging.warning("Termination finished.")
-        sys.exit(0)
-
-    def _get_handlers(self):
-        """ Import the handlers found in the `handlers` directory.
-
-        """
-        handlers_dir = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "handlers"
-        )
-        handlers_dict = {}
-
-        for root, handlers_directories, handler_files in os.walk(handlers_dir):
-            for handler in handler_files:
-                if handler.endswith(".py") and not handler.startswith((".", "_")):
-                    module_name = str(handler.replace(".py", ""))
-                    module_obj = types.ModuleType(module_name)
-
-                    module_loader = importlib.machinery.SourceFileLoader(
-                        module_name,
-                        os.path.join(root, handler)
-                    )
-                    module_loader.exec_module(module_obj)
-                    register_event_types = module_obj.REGISTER_EVENT_TYPE
-
-                    for event_type in register_event_types:
-                        handlers_dict.setdefault(
-                            event_type, []
-                        ).append(module_obj)
-
-        return handlers_dict
 
     def start_processing(self):
         """ Main loop querying the Shotgrid database for new events
@@ -120,7 +54,10 @@ class ShotgridProcessor:
         logging.info("Start enrolling for Ayon `shotgrid.event` Events...")
 
         while True:
-            logging.info("Querying for new `shotgrid.event` events...")
+            logging.info("Enroling `shotgrid.event` events every {} seconds...".format(
+                SECONDS_BETWEEN_PROCESSING
+            ))
+
             try:
                 event = ayon_api.enroll_event_job(
                     "shotgrid.event",
@@ -131,41 +68,56 @@ class ShotgridProcessor:
 
                 if not event:
                     logging.info("No event of origin `shotgrid.event` is pending.")
-                    time.sleep(1.5)
+                    time.sleep(SECONDS_BETWEEN_PROCESSING)
                     continue
 
                 source_event = ayon_api.get_event(event["dependsOn"])
                 payload = source_event["payload"]
 
                 if not payload:
-                    time.sleep(1.5)
+                    time.sleep(SECONDS_BETWEEN_PROCESSING)
                     ayon_api.update_event(event["id"], status="finished")
-                    ayon_api.update_event(source_event["id"], status="finished")
                     continue
 
-                for handler in self.handlers_map.get(payload["action"], []):
-                    # If theres any handler "subscirbed" to this event type..
-                    try:
-                        logging.info(f"Running the Handler {handler}")
-                        handler.process_event(
-                            self.shotgrid_session,
-                            **payload,
-                        )
+                try:
+                    ay_sg_hub = AyonShotgridHub(
+                        payload.get("project_name"),
+                        payload.get("project_code"),
+                        self.shotgird_url,
+                        self.shotgrid_api_key,
+                        self.shotgrid_script_name,
+                    )
+                except Exception as e:
+                    log_traceback(e)
+                    ayon_api.update_event(event["id"], status="failed")
 
-                    except Exception as e:
-                        logging.error(f"Unable to process handler {handler.__name__}")
-                        log_traceback(e)
-                        ayon_api.update_event(event["id"], status="failed")
-                        ayon_api.update_event(source_event["id"], status="failed")
+                match payload["action"]:
+                    case "create-project":
+                        ay_sg_hub.create_project()
+                        ay_sg_hub.syncronize_projects(source="shotgrid")
+
+                    case "export-project":
+                        ay_sg_hub.create_project()
+                        ay_sg_hub.syncronize_projects(source="ayon")
+
+                    case "sync-from-ayon":
+                        ay_sg_hub.syncronize_projects(source="ayon")
+
+                    case "sync-from-shotgrid":
+                        ay_sg_hub.syncronize_projects(source="shotgrid")
+
+                    case "shotgrid-event":
+                        if not payload.get("meta"):
+                            time.sleep(SECONDS_BETWEEN_PROCESSING)
+                            ayon_api.update_event(event["id"], status="finished")
+                            continue
+
+                        ay_sg_hub.react_to_shotgrid_event(payload["meta"])
 
                 logging.info("Event has been processed... setting to finished!")
                 ayon_api.update_event(event["id"], status="finished")
-                ayon_api.update_event(source_event["id"], status="finished")
 
-            except Exception as err:
-                log_traceback(err)
+            except Exception as e:
+                log_traceback(e)
 
-            logging.info(
-                f"Waiting {self.shotgrid_polling_frequency} seconds..."
-            )
-            time.sleep(self.shotgrid_polling_frequency)
+            time.sleep(SECONDS_BETWEEN_PROCESSING)
