@@ -7,7 +7,7 @@ from .constants import (
     SHOTGRID_TYPE_ATTRIB,
 )
 
-from .utils import get_sg_entities
+from .utils import get_sg_entities, get_sg_entity_parent_field
 
 from nxtools import logging
 
@@ -23,127 +23,118 @@ def match_ayon_hierarchy_in_shotgrid(entity_hub, sg_project, sg_session):
     Args:
         entity_hub (ayon_api.entity_hub.EntityHub): The AYON EntityHub.
         sg_project (dict): The Shotgrid project.
-        sg_project (shotgun_api3.Shotgun): The Shotgrid session.
+        sg_session (shotgun_api3.Shotgun): The Shotgrid session.
     """
+    logging.info("Getting AYON entities.")
+    entity_hub.query_entities_from_server()
 
+    logging.info("Getting Shotgrid entities.")
     sg_entities_by_id, sg_entities_by_parent_id = get_sg_entities(
         sg_session,
-        sg_project,
+        sg_project
     )
 
-    sg_entities_deck = collections.deque()
-
-    # Append the project's direct children.
-    for sg_project_child in sg_entities_by_parent_id[sg_project["id"]]:
-        sg_entities_deck.append((entity_hub.project_entity, sg_project_child))
-
+    ay_entities_deck = collections.deque()
     sg_project_sync_status = "Synced"
 
-    while sg_entities_deck:
-        (ay_parent_entity, sg_entity) = sg_entities_deck.popleft()
-        logging.debug(f"Processing {sg_entity})")
+    # Append the project's direct children.
+    for ay_project_child in entity_hub._entities_by_parent_id[entity_hub.project_name]:
+        ay_entities_deck.append((sg_project, ay_project_child))
 
-        ay_entity = None
-        sg_entity_sync_status = "Synced"
+    while ay_entities_deck:
+        (sg_parent_entity, ay_entity) = ay_entities_deck.popleft()
+        logging.debug(f"Processing {ay_entity})")
 
-        # Traverse the parent's children to see if it already exists in AYON.
-        for ay_child in ay_parent_entity.children:
-            if ay_child.name == sg_entity["name"]:
-                ay_entity = ay_child
-                logging.debug(f"Entity {ay_entity.name} exists in Ayon.")
+        sg_entity = None
+        if (
+            (ay_entity.entity_type == "folder" and ay_entity.folder_type != "Folder")
+            or ay_entity.entity_type == "task"
+        ):
+            sg_entity_id = ay_entity.attribs.get(SHOTGRID_ID_ATTRIB, None)
 
-        # If we couldn't find it we create it.
-        if ay_entity is None:
-            ay_entity = _create_new_entity(
-                ay_parent_entity,
-                sg_entity,
-            )
+            if sg_entity_id and sg_entity_id in sg_entities_by_id:
+                sg_entity = sg_entities_by_id[sg_entity_id]
+                logging.info(f"Entity already exists in Shotgrid {sg_entity}")
 
-        # Make sure that if the AYON entity has a shotgridId attribute it matches SG.
-        logging.debug(f"Updating {ay_entity.name} <{ay_entity.id}>.")
-        shotgrid_id_attrib = ay_entity.attribs.get_attribute(
-            SHOTGRID_ID_ATTRIB
-        ).value
+                if sg_entity[CUST_FIELD_CODE_ID] != ay_entity.id:
+                    logging.error("Shotgrid record for AYON id does not match...")
+                    sg_session.update(
+                        sg_entity["type"],
+                        sg_entity["id"],
+                        {
+                            CUST_FIELD_CODE_ID: "",
+                            CUST_FIELD_CODE_SYNC: "Failed"
+                        }
+                    )
+                    sg_project_sync_status = "Failed"
 
-        if not shotgrid_id_attrib:
+            if sg_entity is None:
+                sg_entity = _create_new_entity(
+                    ay_entity,
+                    sg_session,
+                    sg_project,
+                    sg_parent_entity
+                )
+                sg_entities_by_id[sg_entity["id"]] = sg_entity
+                sg_entities_by_parent_id[sg_parent_entity["id"]].append(sg_entity)
+
             ay_entity.attribs.set(
                 SHOTGRID_ID_ATTRIB,
-                sg_entity[SHOTGRID_ID_ATTRIB]
+                sg_entity["id"]
             )
             ay_entity.attribs.set(
                 SHOTGRID_TYPE_ATTRIB,
                 sg_entity["type"]
             )
-        elif str(shotgrid_id_attrib) != str(sg_entity[SHOTGRID_ID_ATTRIB]):
-            logging.error("Wrong Shotgrid ID in ayon record.")
-            sg_entity_sync_status = "Failed"
-            sg_project_sync_status = "Failed"
-            # TODO: How to deal with mismatches?
+            entity_hub.commit_changes()
 
-        # Update SG entity with new created data
-        sg_entity[CUST_FIELD_CODE_ID] = ay_entity.id
-        sg_entities_by_id[sg_entity[SHOTGRID_ID_ATTRIB]] = sg_entity
+        if sg_entity is None:
+            # Shotgrid doesn't have the concept of "Folders"
+            sg_entity = sg_parent_entity
 
-        entity_id = sg_entity["name"]
-
-        if sg_entity["type"] != "Folder":
-            if (
-                sg_entity[CUST_FIELD_CODE_ID] != ay_entity.id
-                or sg_entity[CUST_FIELD_CODE_SYNC] != sg_entity_sync_status
-            ):
-                update_data = {
-                    CUST_FIELD_CODE_ID: ay_entity.id,
-                    CUST_FIELD_CODE_SYNC: sg_entity[CUST_FIELD_CODE_SYNC]
-                }
-                sg_session.update(
-                    sg_entity["type"],
-                    sg_entity[SHOTGRID_ID_ATTRIB],
-                    update_data
-                )
-
-            # If the entity has children, add it to the deck
-            entity_id = sg_entity[SHOTGRID_ID_ATTRIB]
-
-        # If the entity has children, add it to the deck
-        for sg_child in sg_entities_by_parent_id.get(
-            entity_id, []
-        ):
-            sg_entities_deck.append((ay_entity, sg_child))
+        for ay_entity_child in entity_hub._entities_by_parent_id.get(ay_entity.id, []):
+            ay_entities_deck.append((sg_entity, ay_entity_child))
 
     sg_session.update(
         "Project",
         sg_project["id"],
         {
-            CUST_FIELD_CODE_ID: entity_hub.project_entity.id,
+            CUST_FIELD_CODE_ID: entity_hub.project_name,
             CUST_FIELD_CODE_SYNC: sg_project_sync_status
         }
     )
 
-def _create_new_entity(entity_hub, parent_entity, sg_entity):
-    """Helper method to create entities in the EntityHub.
+def _create_new_entity(ay_entity, sg_session, sg_project, sg_parent_entity):
+    """Helper method to create entities in Shotgrid.
 
     Args:
         parent_entity: Ayon parent entity.
-        sg_entity (dict): Shotgrid entity to create.
+        ay_entity (dict): Shotgrid entity to create.
     """
-    if sg_entity["type"].lower() == "task":
-        new_entity = entity_hub.add_new_task(
-            sg_entity["label"],
-            name=sg_entity["name"],
-            label=sg_entity["label"],
-            entity_id=sg_entity[CUST_FIELD_CODE_ID],
-            parent_id=parent_entity.id
+
+    if ay_entity.entity_type == "task":
+        new_entity = sg_session.create(
+            "Task",
+            {
+                "project": sg_project,
+                "content": ay_entity.name,
+                CUST_FIELD_CODE_ID: ay_entity.id,
+                CUST_FIELD_CODE_SYNC: "Synced"
+            }
         )
     else:
-        new_entity = entity_hub.add_new_folder(
-            sg_entity["type"],
-            name=sg_entity["name"],
-            label=sg_entity["label"],
-            entity_id=sg_entity[CUST_FIELD_CODE_ID],
-            parent_id=parent_entity.id
+        sg_parent_field = sg_parent_entity["type"].lower()
+        new_entity = sg_session.create(
+            ay_entity.folder_type,
+            {
+                "code": ay_entity.name,
+                CUST_FIELD_CODE_ID: ay_entity.id,
+                CUST_FIELD_CODE_SYNC: "Synced",
+                sg_parent_field: sg_parent_entity,
+            }
         )
 
-    logging.debug(f"Created new entity: {new_entity.name} ({new_entity.id})")
-    logging.debug(f"Parent is: {parent_entity.name} ({parent_entity.id})")
+    logging.debug(f"Created new entity: {new_entity}")
+    logging.debug(f"Parent is: {sg_parent_entity}")
     return new_entity
 

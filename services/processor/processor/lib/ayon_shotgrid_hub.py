@@ -11,6 +11,8 @@ from .constants import (
 )
 
 from .sync_shotgrid_to_ayon import match_shotgrid_hierarchy_in_ayon
+from .sync_ayon_to_shotgrid import match_ayon_hierarchy_in_shotgrid
+
 from .update_from_shotgrid import (
     create_ay_entity_from_sg_event,
     update_ayon_entity_from_sg_event,
@@ -21,6 +23,7 @@ from .utils import (
     create_ay_fields_in_sg_project,
     create_ay_fields_in_sg_entities,
     create_sg_entities_in_ay,
+    create_ay_entities_in_sg,
     get_sg_project_by_name,
     get_sg_missing_ay_attributes,
 )
@@ -106,14 +109,11 @@ class AyonShotgridHub:
         self._project_name = project_name
 
         try:
-            logging.info("Trying to set _ay_project")
             self._ay_project = EntityHub(project_name)
             self._ay_project.project_entity
         except Exception:
             logging.warning(f"Project {project_name} does not exist in AYON.")
             self._ay_project = None
-
-        logging.info("AY PROJECT IS", self._ay_project)
 
         try:
             self._sg_project = get_sg_project_by_name(
@@ -162,19 +162,19 @@ class AyonShotgridHub:
 
         match source:
             case "ayon":
-                print("_sync_ay_to_sg()")
-                """
+                logging.info("Creating AYON entities types in Shotgrid.")
                 create_ay_entities_in_sg(
                     self._ay_project.project_entity,
                     self._sg,
                     self._sg_project,
                 )
+                logging.info("Creating AYON entities in Shotgrid.")
                 match_ayon_hierarchy_in_shotgrid(
                     self._ay_project, 
                     self._sg_project,
                     self._sg
                 )
-                """
+
 
             case "shotgrid":
                 create_sg_entities_in_ay(
