@@ -17,7 +17,7 @@ from nxtools import logging
 import shotgun_api3
 
 
-def _sg_to_ay_dict(sg_entity: dict) -> dict:
+def _sg_to_ay_dict(sg_entity: dict, project_code_field=None) -> dict:
     """Morph a Shotgrid entity dict into an Ayon compatible one.
 
     Create a dictionary that follows the Ayon Entity schema and handle edge
@@ -26,9 +26,16 @@ def _sg_to_ay_dict(sg_entity: dict) -> dict:
     Args:
         sg_entity (dict): Shotgun Entity dict representation.
     """
+
+    if not project_code_field:
+        project_code_field = "code"
+
     if sg_entity["type"] == "Task":
         name = slugify_string(sg_entity["content"])
         label = sg_entity["content"]
+    elif sg_entity["type"] == "Project":
+        name = slugify_string(sg_entity[project_code_field])
+        label = sg_entity[project_code_field]
     else:
         name = slugify_string(sg_entity["code"])
         label = sg_entity["code"]
@@ -218,7 +225,8 @@ def get_or_create_sg_field(
 def get_sg_entities(
     sg_session: shotgun_api3.Shotgun,
     sg_project: dict,
-    custom_fields: Optional[list] = None
+    custom_fields: Optional[list] = None,
+    project_code_field: str = None,
 ) -> tuple[dict, dict]:
     """Get all available entities within a Shotgrid Project.
 
@@ -256,10 +264,16 @@ def get_sg_entities(
         sg_project
     )
 
+    if not project_code_field:
+        project_code_field = "code"
+
     entities_to_ignore = ["Version"]
 
     entities_by_id = {
-        sg_project["id"]: _sg_to_ay_dict(sg_project),
+        sg_project["id"]: _sg_to_ay_dict(
+            sg_project,
+            project_code_field=project_code_field
+        ),
     }
 
     entities_by_parent_id: Dict[str, list] = (
@@ -440,6 +454,7 @@ def get_sg_project_by_id(
 def get_sg_project_by_name(
     sg_session: shotgun_api3.Shotgun,
     project_name: str,
+    custom_fields: list = None,
 ) -> dict:
     """ Find a project in Shotgrid by its name.
 
@@ -449,10 +464,15 @@ def get_sg_project_by_name(
     Returns:
         sg_project (dict): Shotgrid Project dict.
     """
+    common_fields = ["id", "code", "name", "sg_status"]
+
+    if custom_fields and isinstance(custom_fields, list):
+        common_fields = common_fields + custom_fields
+
     sg_project = sg_session.find_one(
         "Project",
         [["name", "is", project_name]],
-        fields=["id", "code", "name", "sg_status"],
+        fields=common_fields,
     )
 
     if not sg_project:

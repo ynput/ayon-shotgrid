@@ -52,6 +52,8 @@ def process_event(
         logging.error("Can't create a project without a code!")
         raise ValueError
 
+    project_code_field = kwargs.get("project_code_field", "code")
+
     logging.debug("Finding Project in Shotgrid...")
     shotgrid_project = get_sg_project_by_name(
         shotgrid_session,
@@ -73,8 +75,9 @@ def process_event(
         return
 
     try:
-        logging.info(f"Creating project {project_name} in Ayon.")
-        ayon_project = create_project(project_name, project_code)
+        if not ayon_project:
+            logging.info(f"Creating project {project_name} in Ayon.")
+            ayon_project = create_project(project_name, project_code)
     except Exception as e:
         logging.error("Unable to create the Ayon project.")
         log_traceback(e)
@@ -116,7 +119,7 @@ def process_event(
         shotgrid_project["id"],
         {
             CUST_FIELD_CODE_ID: ayon_project["name"],
-            CUST_FIELD_CODE_CODE: ayon_project["code"],
+            project_code_field: ayon_project["code"],
             CUST_FIELD_CODE_URL: get_base_url(),
         }
     )
@@ -125,6 +128,6 @@ def process_event(
     create_ay_fields_in_sg_entities(shotgrid_session)
 
     logging.debug("Trigger the initial Sync.")
-    sg_sync = SyncFromShotgrid(shotgrid_session, project_name, log=logging)
+    sg_sync = SyncFromShotgrid(shotgrid_session, project_name, project_code_field, log=logging)
     sg_sync.sync_to_ayon()
 

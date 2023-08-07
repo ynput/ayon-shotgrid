@@ -28,6 +28,8 @@ def process_event(
         logging.error("Can't Sync a project without a name!")
         return
 
+    project_code_field = kwargs.get("project_code_field", "code")
+
     try:
         shotgrid_project = get_sg_project_by_name(
             shotgrid_session,
@@ -36,6 +38,7 @@ def process_event(
     except ValueError:
         logging.error(f"Could not find {project_name} in Shotgrid!")
         return
+
 
     try:
         ayon_project = get_project(project_name)
@@ -49,7 +52,8 @@ def process_event(
 
     try:
         # Trigger a one time Sync.
-        sg_sync = SyncFromShotgrid(shotgrid_session, project_name, log=logging)
+        project_code_field = kwargs.get("project_code_field", "code")
+        sg_sync = SyncFromShotgrid(shotgrid_session, project_name, project_code_field, log=logging)
         sg_sync.sync_to_ayon()
     except Exception as e:
         logging.error(f"Shotgrid Sync of project {project_name} failed!")

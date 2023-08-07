@@ -70,6 +70,8 @@ class ShotgridAddon(BaseServerAddon):
         project_name,
         description=None
     ):
+        addon_settings = await self.get_studio_settings()
+
         event_id = await dispatch_event(
             "shotgrid.event",
             sender=socket.gethostname(),
@@ -81,6 +83,7 @@ class ShotgridAddon(BaseServerAddon):
                 "action": action,
                 "user_name": user_name,
                 "project_name": project_name,
+                "project_code_field": addon_settings.shotgrid_project_code_field,
             },
         )
         logging.info(f"Dispatched event {event_id}")
@@ -91,6 +94,8 @@ class ShotgridAddon(BaseServerAddon):
         user: UserEntity = Depends(dep_current_user),
         project_name: str = Depends(dep_project_name),
     ):
+        addon_settings = await self.get_studio_settings()
+
         await self._dispatch_shotgrid_event(
             "sync-from-shotgrid",
             user.name,
@@ -111,6 +116,7 @@ class ShotgridAddon(BaseServerAddon):
         else:
             request_body = json.loads(request_body)
 
+        addon_settings = await self.get_studio_settings()
         project_name = request_body.get("project_name")
         project_code = request_body.get("project_code")
 
@@ -130,6 +136,7 @@ class ShotgridAddon(BaseServerAddon):
                     "user_name": user.name,
                     "project_name": project_name,
                     "project_code": project_code,
+                    "project_code_field": addon_settings.shotgrid_project_code_field,
                     "description": description,
                 },
             )

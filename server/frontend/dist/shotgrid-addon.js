@@ -77,11 +77,18 @@ const getImportableProjects = async () => {
 
 const getShotgridData = () => {
   /* Wrapper function to trigger the fetch of Shotgrid data.*/
-    let projectsSyncSelect = document.getElementById("manage-shotgrid-projects-select");
-    projectsSyncSelect.children[0].innerText = "Fetching data from Shotgrid...";
+    default_option = document.createElement('option');
+    default_option.text = "Fetching data from Shotgrid..."
 
+    let projectsSyncSelect = document.getElementById("manage-shotgrid-projects-select");
+    projectsSyncSelect.options.length = 0
+    projectsSyncSelect.appendChild(default_option)
+
+    default_option2 = document.createElement('option');
+    default_option2.text = "Fetching data from Shotgrid..."
     let projectsImportSelect = document.getElementById("new-shotgrid-projects-select")
-    projectsImportSelect.children[0].innerText = "Fetching data from Shotgrid...";
+    projectsImportSelect.options.length = 0
+    projectsImportSelect.appendChild(default_option2)
 
     getSyncableProjects();
     getShotgridProjects();
@@ -122,12 +129,12 @@ const populateImportDropdown = (projectsArray) => {
     Also enable the "Sync Shotgrid Project" button when choosing a valid option or
     removing it when its not.
   */
-  
-  let projectsImportPlaceholderOption = document.getElementById("fetching-shotgrid-option")
-
-  if (projectsArray) {
-    projectsImportPlaceholderOption.innerHTML = "Choose a Project to Import and Sync..."
     let projectsImportSelect = document.getElementById("new-shotgrid-projects-select")
+    projectsImportSelect.options.length = 0;
+  if (projectsArray) {
+    default_option = document.createElement('option');
+    default_option.text = "Choose a Project to Import and Sync..."
+    projectsImportSelect.appendChild(default_option)
     let projectsImportButton= document.getElementById("sg-import-shotgrid-project")
 
     projectsArray.forEach((projectOption) => {
@@ -147,7 +154,9 @@ const populateImportDropdown = (projectsArray) => {
         }
     });
   } else {
-    projectsImportPlaceholderOption.innerHTML = "Unable to find valid Projects."
+    default_option = document.createElement('option');
+    default_option.text = "Unable to find valid Projects."
+    projectsImportSelect.appendChild(default_option)
   };
 }
 
@@ -205,11 +214,15 @@ const getSyncableProjects = () => {
         })
       }
     }
+
     if (foundProjects) {
       populateSyncDropdown(foundProjects);
     } else {
       let projectsSyncSelect = document.getElementById("manage-shotgrid-projects-select");
-      projectsSyncSelect.children[0].innerText = "No projects to Sync, import some first.";
+      projectsSyncSelect.options.length = 0;
+      default_option = document.createElement('option');
+      default_option.text = "No projects to Sync, import some first."
+      projectsSyncSelect.appendChild(default_option);
     }
     return foundProjects
   });
@@ -222,6 +235,10 @@ const populateSyncDropdown = (projectsArray) => {
   */
   if (projectsArray) {
     let projectsSyncSelect = document.getElementById("manage-shotgrid-projects-select");
+    projectsSyncSelect.options.length = 0;
+    default_option = document.createElement('option');
+    default_option.text = "Select a project to Sync..."
+    projectsSyncSelect.appendChild(default_option);
 
     projectsArray.forEach((projectOption) => {
       projectsSyncSelect.appendChild(projectOption)
@@ -239,7 +256,6 @@ const populateSyncDropdown = (projectsArray) => {
           syncProjectButton.removeEventListener("click", syncProjectCallback);
         }
     });
-    
   };
 }
 
