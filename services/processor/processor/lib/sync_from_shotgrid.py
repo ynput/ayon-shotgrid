@@ -46,7 +46,7 @@ class IdsMapping(object):
 class SyncFromShotgrid:
     """Helper for sync project from Shotgrid."""
 
-    def __init__(self, session, project_name, log=None):
+    def __init__(self, session, project_name, project_code_field, log=None):
         self._log = log
         self._sg_session = session
 
@@ -59,11 +59,17 @@ class SyncFromShotgrid:
             self.log.error(msg)
             raise ValueError(msg)
 
+        if project_code_field:
+            self.project_code_field = project_code_field
+        else:
+            self.project_code_field = "code"
+
         self._entity_hub = EntityHub(project_name)
 
         self._sg_project = get_sg_project_by_name(
             self._sg_session,
-            project_name
+            project_name,
+            custom_fields=[self.project_code_field]
         )
         self._check_shotgrid_project()
 
@@ -97,6 +103,7 @@ class SyncFromShotgrid:
     def sync_to_ayon(self, preset_name=None):
         self.log.info("Started Ayon Syncronization with Shotgrid.")
         self.log.info(f"Project Name: {self._ay_project['name']}")
+        self.log.info(f"The Shotgrid field for project code is: {self.project_code_field}")
 
         sync_start_time = time.perf_counter()
         self.log.info("Loading Entities data from Ayon.")
@@ -126,6 +133,8 @@ class SyncFromShotgrid:
         ) = get_sg_entities(
             self._sg_session,
             self._sg_project,
+            custom_fields=[self.project_code_field],
+            project_code_field=self.project_code_field
         )
 
         prev_step_time = sync_step_time
