@@ -18,37 +18,62 @@ h2 {
     margin-top: 40px;
 }
 
-button {
-    margin-top: 20px;
-}
-
 select {
     margin-top: 10px;
 }
 
-.shotgrid-addon-container {
-    display:flex;
-    flex-flow: row nowrap;
+table {
+  table-layout: fixed;
+  width: 100%;
+  border-collapse: collapse;
+  border: 4px solid #2C313A;
+  margin-top: 25px;
 }
 
-.shotgrid-addon-block {
-    /* padding-right: 20px; */
+thead {
+    text-align: left;
+    background-color: #2C313A;
 }
 
-.shotgrid-addon-block:last-child{
-    border-left: 4px solid #2c313a;
-    padding-left: 20px;
+thead th:nth-child(1) {
+  width: 20%;
 }
 
-.project-creation {
-    display:flex;
-    flex-flow: column nowrap;
+thead th:nth-child(2) {
+  width: 20%;
 }
 
-.project-item {
-    display:flex;
-    flex-flow: column nowrap;
-    margin-right: 20px;
-    margin-bottom: 20px;
-    max-width: 415px;
+thead th:nth-child(3) {
+  width: 20%;
 }
+
+thead th:nth-child(4) {
+  width: 20%;
+}
+
+thead th:nth-child(5) {
+  width: 35%;
+}
+
+tbody td {
+  text-align: left;
+  border: 3px solid #2C313A;
+}
+
+th,
+td {
+  border: 3px solid #2C313A;
+}
+
+tbody tr:nth-child(odd) {
+  background-color: var(--gray-50);
+}
+
+tbody tr:nth-child(even) {
+  background-color: #2C313A;
+}
+
+.populate-table-button {
+    margin-top: 20px;
+}
+

@@ -3,182 +3,152 @@ var addonVersion = null
 var accessToken = null
 var projectName = null
 var addonScope = null
+var addonSettings = null
+var sgAccessToken = null
+var ayonAPI = null
 
 const init = () => {
- /*
-When the addon page is loaded, it receive a message with context and
-additional data (accessToken, addon version...). When the context is changed, 
-a message is re-broadcasted, so the page can react to changes in selection etc.
- */
+ /* When the addon page is loaded, it receive a message with context and
+  additional data (accessToken, addon version...). When the context is changed, 
+  a message is re-broadcasted, so the page can react to changes in selection etc.  */
 
-  window.onmessage = (e) => {
+  window.onmessage = async (e) => {
     const context = e.data.context
     addonName = e.data.addonName
     addonVersion = e.data.addonVersion
     accessToken = e.data.accessToken
     addonScope = e.data.scope
+
+    ayonAPI = axios.create({
+      baseUrl: `${e.origin}/api/`,
+      headers: {"Authorization": `Bearer ${accessToken}`}
+    })
+
+    addonSettings = await ayonAPI
+      .get(`/api/addons/${addonName}/${addonVersion}/settings`)
+      .then((result) => result.data);
+
   } // end of window.onmessage
 } // end of init
 
-const importProject = (projectName, projectCode) => {
-  /* Trigger an event dispatching for a project creation/import.
 
-    Given a `projectName` and `projectCode` make an API call to the custom API
-    endpoint `create-project` which will create a `shotgrid.event` to be handled
-    by any listening processor.
-  */
-  if (projectName) {
-    const url = `/api/addons/${addonName}/${addonVersion}/create-project`
-    const headers = {"Authorization": `Bearer ${accessToken}`}
-    axios
-      .post(url, data={"project_name": `${projectName}`, "project_code": `${projectCode}`}, {headers})
-      .then((response) => {
-        const msg = `Create response data: ${response.data}` 
-        document.querySelector("#call-result").innerHTML = msg
-      })
-  }
-}
+const populateTable = async () => {
+  /* Get all the projects from AYON and Shotgird, then populate the table with their info
+  and a button to Syncronize if they pass the requirements */
+  ayonProjects = await getAyonProjects();
+  sgProjects = await getShotgridProjects();
+  allProjects = ayonProjects.concat(sgProjects);
+  allProjects.sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
 
-const syncProject = (projectName) => {
-  /* Trigger an event dispatching for a project syncronization.
+  const ProjectsTable = document.getElementById("sg-addon-projects-table")
+  const ProjectsTableHeader = document.getElementById("sg-addon-projects-table-header")
+  const ProjectsTableBody = document.getElementById("sg-addon-projects-table")
+  ProjectsTableBody.innerHTML = '';
+  ProjectsTableBody.appendChild(ProjectsTableHeader);
 
-    Given a `projectName` make an API call to the custom API endpoint
-    `sync-from-shotgrid` which will create a `shotgrid.event` to be handled
-    by any listening processor.
-  */
-  if (projectName) {
-    const url = `/api/addons/${addonName}/${addonVersion}/sync-from-shotgrid/${projectName}`
-    const headers = {"Authorization": `Bearer ${accessToken}`}
+  allProjects.forEach((project) => {
+    var tableRow = document.createElement('tr')
 
-    axios
-      .get(url, {headers})
-      .then((response) => {
-        const msg = `Create response data: ${response}`
-        document.querySelector("#call-result").innerHTML = msg
-      })
-  }
-}
+    var nameCell = document.createElement('td')
+    nameCell.innerText = project.name
+    tableRow.appendChild(nameCell)
 
-const getImportableProjects = async () => {
-  /* Retrieve projects from Shotgrid
+    var codeCell = document.createElement('td')
+    codeCell.innerText = project.code
+    tableRow.appendChild(codeCell)
 
-    Via the custom `get-importable-projects` endpoint, receive an array
-    of projects that can be imported from Shotgrid, i.e. have a valid `name` and
-    `code`.
-  */
-  const headers = {"Authorization": `Bearer ${accessToken}`};
+    var ayonCell = document.createElement('td')
+    ayonCell.innerText = project.ayonId ? 'Yes' : 'No';
+    tableRow.appendChild(ayonCell)
 
-  const response = await axios.get(
-    `/api/addons/${addonName}/${addonVersion}/get-importable-projects`,
-    {headers}
-  );
-  return response.data
-}
+    var sgCell = document.createElement('td')
+    sgCell.innerText = project.shotgridId ? 'Yes' : 'No';
+    tableRow.appendChild(sgCell)
 
-const getShotgridData = () => {
-  /* Wrapper function to trigger the fetch of Shotgrid data.*/
-    default_option = document.createElement('option');
-    default_option.text = "Fetching data from Shotgrid..."
+    var syncCell = document.createElement('td')
 
-    let projectsSyncSelect = document.getElementById("manage-shotgrid-projects-select");
-    projectsSyncSelect.options.length = 0
-    projectsSyncSelect.appendChild(default_option)
+    var sgSyncButton = document.createElement('button')
+    sgSyncButton.innerText = `Shotgrid -> AYON`
+    sgSyncButton.disabled = true;
 
-    default_option2 = document.createElement('option');
-    default_option2.text = "Fetching data from Shotgrid..."
-    let projectsImportSelect = document.getElementById("new-shotgrid-projects-select")
-    projectsImportSelect.options.length = 0
-    projectsImportSelect.appendChild(default_option2)
+    if (project.shotgridId && project.code) {
+      if (/^["a-zA-Z0-9_"]{1,32}/.test(project.name) && /^[a-zA-Z][a-zA-Z0-9]+/.test(project.code)) {
+        // Only Enable button if its a valid name and code
+        sgSyncButton.disabled = false;
+        sgSyncButton.setAttribute("data-ayon-name", project.name);
+        sgSyncButton.setAttribute("data-ayon-code", project.code);
 
-    getSyncableProjects();
-    getShotgridProjects();
-}
-
-const getShotgridProjects = () => {
-  /* Retrieve projects from Shotgrid and populate the Import dropdown.
-
-    Relies in `getImportableProjects` to get the projects, then we ensure the
-    fetched projects contain all needed information and populate the Import 
-    dropdown.
-  */
-  getImportableProjects()
-  .then((shotgridProjects) => {
-    const foundProjects = []
-    if (shotgridProjects) {
-      shotgridProjects.forEach((el) => {
-        if (el.projectName && el.projectCode && el.ayonId == null) {
-          let projectOption = document.createElement("option")
-          projectOption.innerHTML = `${el.projectName} (${el.projectCode}) - Shotgrid ID: ${el.shotgridId}`
-          projectOption.setAttribute("value", `${el.projectName}`)
-          projectOption.setAttribute("data-project-name", `${el.projectName}`)
-          projectOption.setAttribute("data-project-code", `${el.projectCode}`)
-          foundProjects.push(projectOption)
-        }
-      })
+        sgSyncButton.addEventListener('click', function () {
+          syncShotgridToAyon(this.attributes["data-ayon-name"].value, this.attributes["data-ayon-code"].value)
+        }, false);
+      }
     }
-    if (foundProjects) {
-      populateImportDropdown(foundProjects);
-    }
-    return foundProjects
+    syncCell.appendChild(sgSyncButton)
+
+    // TODO: Enable when AYON sync is ready
+    // var ayonSyncButton = document.createElement('button')
+    // ayonSyncButton.innerText = `AYON -> Shotgrid`
+    // ayonSyncButton.disabled = true
+    // syncCell.appendChild(ayonSyncButton)
+
+    tableRow.appendChild(syncCell)
+
+    ProjectsTableBody.appendChild(tableRow)
   });
 }
 
 
-const populateImportDropdown = (projectsArray) => {
-  /* Given a non-empty array of projects, add the them to the Select Dropdwon
-    Also enable the "Sync Shotgrid Project" button when choosing a valid option or
-    removing it when its not.
-  */
-    let projectsImportSelect = document.getElementById("new-shotgrid-projects-select")
-    projectsImportSelect.options.length = 0;
-  if (projectsArray) {
-    default_option = document.createElement('option');
-    default_option.text = "Choose a Project to Import and Sync..."
-    projectsImportSelect.appendChild(default_option)
-    let projectsImportButton= document.getElementById("sg-import-shotgrid-project")
-
-    projectsArray.forEach((projectOption) => {
-      projectsImportSelect.appendChild(projectOption)
+const getShotgridProjects = async () => {
+  /* Query Shotgrid for all existing projects. */
+  const sgBaseUrl = `${addonSettings.shotgrid_server.replace(/\/+$/, '')}/api/v1`
+  sgAuthToken = await axios
+    .post(`${sgBaseUrl}/auth/access_token`, {
+        client_id: addonSettings.shotgrid_script_name,
+        client_secret: addonSettings.shotgrid_api_key,
+        grant_type: "client_credentials",
+    }, {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Accept': 'application/json'
+      }
+    })
+    .then((result) => result.data.access_token)
+    .catch((error) => {
+      console.log("Unable to Acquire the Shotgrid Authorization Token!")
+      console.log(error)
     });
 
-    projectsImportSelect.addEventListener('change', () => {
-        let syncProjectButton = document.getElementById("sg-sync-from-shotgrid")
-
-        if (projectsImportSelect.selectedOptions[0].value) {
-          projectsImportButton.disabled = false
-          projectsImportButton.addEventListener("click", importProjectCallback);
-
-        } else {
-          projectsImportButton.disabled = true
-          projectsImportButton.removeEventListener("click", importProjectCallback);
-        }
+  sgProjects = await axios
+    .get(`${sgBaseUrl}/entity/projects?fields=*`, {
+      headers: {
+        'Authorization': `Bearer ${sgAuthToken}`,
+        'Accept': 'application/vnd+shotgun.api3_array+json'
+      }
+    })
+    .then((result) => result.data.data)
+    .catch((error) => {
+      console.log("Unable to Fetch Shotgrid Projects!")
+      console.log(error)
     });
-  } else {
-    default_option = document.createElement('option');
-    default_option.text = "Unable to find valid Projects."
-    projectsImportSelect.appendChild(default_option)
-  };
-}
 
-const importProjectCallback = () => {
-  /* Trigger the Addon API endpoint to Sync a project.
-    Named function so we can remove it from the event handler.
-  */
-  let projectsImportSelect = document.getElementById("new-shotgrid-projects-select")
-  let projectName = projectsImportSelect.selectedOptions[0].getAttribute("data-project-name");
-  let projectCode = projectsImportSelect.selectedOptions[0].getAttribute("data-project-code");
+  var sgProjectsConformed = []
 
-  if (projectName) {
-    importProject(projectName, projectCode);
+  if (sgProjects) {
+    sgProjects.forEach((project) => {
+      sgProjectsConformed.push({
+      "name": project.attributes.name,
+      "code": project.attributes[`${addonSettings.shotgrid_project_code_field}`],
+      "shotgridId": project.id,
+      "ayonId": project.attributes.sg_ayon_id,
+    })
+    });
   }
+  return sgProjectsConformed;
 }
 
-
-const getSyncableProjects = () => {
-  /* Query Ayon for all existing projects that have the shotgridID field not null
-    and append them to the Sync projects dropdown. 
-  */
-  axios({
+const getAyonProjects = async () => {
+  /* Query AYON for all existing projects. */
+  ayonProjects = await axios({
     url: '/graphql',
     headers: {"Authorization": `Bearer ${accessToken}`},
     method: 'post',
@@ -200,74 +170,51 @@ const getSyncableProjects = () => {
         }
         `
     }
-  }).then((result) => {
-    const foundProjects = []
-    if (result.data) {
-      if (result.data.data.projects.edges) {
-        result.data.data.projects.edges.forEach((el) => {
-          if (el.node.attrib.shotgridId) {
-            let projectOption = document.createElement("option")
-            projectOption.innerHTML = `${el.node.name} (${el.node.code}) - Shotgrid ID: ${el.node.attrib.shotgridId}`
-            projectOption.setAttribute("value", `${el.node.name}`)
-            foundProjects.push(projectOption)
-          }
-        })
-      }
-    }
+  }).then((result) => result.data.data.projects.edges);
 
-    if (foundProjects) {
-      populateSyncDropdown(foundProjects);
-    } else {
-      let projectsSyncSelect = document.getElementById("manage-shotgrid-projects-select");
-      projectsSyncSelect.options.length = 0;
-      default_option = document.createElement('option');
-      default_option.text = "No projects to Sync, import some first."
-      projectsSyncSelect.appendChild(default_option);
-    }
-    return foundProjects
-  });
+  var ayonProjectsConformed = []
+
+  if (ayonProjects) {
+    ayonProjects.forEach((project) => {
+      ayonProjectsConformed.push({
+        "name": project.node.name,
+        "code": project.node.code,
+        "shotgridId": project.node.attrib.shotgridId,
+        "ayonId": project.node.name,
+      })
+    })
+  }
+    return ayonProjectsConformed
 }
 
-const populateSyncDropdown = (projectsArray) => {
-  /* Given a non-empty array of projects, add the them to the Select Dropdwon
-    Also enable the "Sync Shotgrid Project" button when choosing a valid option or
-    removing it when its not.
-  */
-  if (projectsArray) {
-    let projectsSyncSelect = document.getElementById("manage-shotgrid-projects-select");
-    projectsSyncSelect.options.length = 0;
-    default_option = document.createElement('option');
-    default_option.text = "Select a project to Sync..."
-    projectsSyncSelect.appendChild(default_option);
 
-    projectsArray.forEach((projectOption) => {
-      projectsSyncSelect.appendChild(projectOption)
+const syncShotgridToAyon = async (projectName, projectCode) => {
+  /* Spawn an AYON Event of topic "shotgrid.event" to synchcronize a project
+  from Shotgrid into AYON. */
+  call_result_paragraph = document.getElementById("call-result");
+
+  dispatch_event = await ayonAPI
+    .post("/api/events", {
+      "topic": "shotgrid.event",
+      "project": projectName,
+      "description": `Synchronize Project ${projectName} from Shotgrid.`,
+      "payload": {
+        "action": "sync-from-shotgrid",
+        "project_name": projectName,
+        "project_code_field": addonSettings.shotgrid_project_code_field,
+      },
+      "finished": true,
+      "store": true
+    })
+    .then((result) => result)
+    .catch((error) => {
+      console.log("Unable to submit event to AYON!")
+      console.log(error)
+      call_result_paragraph.innerHTML = `Unable to submit event to AYON! ${error}`
     });
 
-    projectsSyncSelect.addEventListener('change', () => {
-        let syncProjectButton = document.getElementById("sg-sync-from-shotgrid")
-
-        if (projectsSyncSelect.selectedOptions[0].value) {
-          syncProjectButton.disabled = false
-          syncProjectButton.addEventListener("click", syncProjectCallback);
-
-        } else {
-          syncProjectButton.disabled = true
-          syncProjectButton.removeEventListener("click", syncProjectCallback);
-        }
-    });
-  };
-}
-
-const syncProjectCallback = () => {
-  /* Trigger the Addon API endpoint to Sync a project.
-    Named function so we can remove it from the event handler.
-  */
-  let projectsSyncSelect = document.getElementById("manage-shotgrid-projects-select");
-  let projectName = projectsSyncSelect.selectedOptions[0].value
-
-  if (projectName) {
-    syncProject(`${projectName}`);
+  if (dispatch_event) {
+    call_result_paragraph.innerHTML = `Succesfully Spawned Event! ${dispatch_event.data.id}`
   }
 }
 
