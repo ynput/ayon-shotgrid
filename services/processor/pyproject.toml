@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "shotgrid-processor"
-version = "0.1.0"
+version = "0.1.1"
 description = "Shotgrid Integration for Ayon"
 authors = ["Oscar Domingo <oscar.domingo@ynput.com>"]
 

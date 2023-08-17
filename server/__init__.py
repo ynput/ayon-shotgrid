@@ -29,8 +29,8 @@ class ShotgridAddon(BaseServerAddon):
     frontend_scopes: dict[str, Any] = {"settings": {}}
 
     services = {
-        "ShotgridProcessor": {"image": "ynput/ayon-shotgrid-processor:0.1.0"},
-        "ShotgridLeecher": {"image": "ynput/ayon-shotgrid-leecher:0.1.0"}
+        "ShotgridProcessor": {"image": "ynput/ayon-shotgrid-processor:0.1.1"},
+        "ShotgridLeecher": {"image": "ynput/ayon-shotgrid-leecher:0.1.1"}
     }
 
     def initialize(self):
