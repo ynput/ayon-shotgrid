@@ -1,4 +1,4 @@
-image := ynput/ayon-shotgrid-leecher:0.0.1
+image := ynput/ayon-shotgrid-leecher:0.1.0
 
 build:
 	docker build -t $(image) . 
