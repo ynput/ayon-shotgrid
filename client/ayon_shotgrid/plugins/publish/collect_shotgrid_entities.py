@@ -9,7 +9,7 @@ class CollectShotgridEntities(pyblish.api.ContextPlugin):
     """Collect shotgrid entities according to the current context."""
 
     order = pyblish.api.CollectorOrder + 0.499
-    label = "Collect Shotgrid Assets and Tasks."
+    label = "Collect Shotgrid Assets and Tasks"
 
     def process(self, context):
         if not context.data.get("shotgridSession"):
