@@ -168,7 +168,7 @@ class ShotgridAddon(BaseServerAddon):
 
 
         shotgrid_credentials_token = requests.post(
-            f"{addon_settings.shotgrid_server}/api/v1/auth/access_token",
+            f"{shotgrid_url}/api/v1/auth/access_token",
             data={
                 "client_id": f"{addon_settings.shotgrid_script_name}",
                 "client_secret": f"{addon_settings.shotgrid_api_key}",
