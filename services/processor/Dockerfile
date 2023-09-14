@@ -1,19 +1,25 @@
-FROM python:alpine3.17
+FROM python:alpine3.18
 ENV PYTHONUNBUFFERED=1
 
 # Install python/pip
-RUN apk add --update --no-cache python3 git curl build-base libffi-dev && ln -sf python3 /usr/bin/python
-RUN python3 -m ensurepip
-RUN pip3 install --no-cache --upgrade pip setuptools poetry && ln -sf pip3 /usr/bin/pip
+RUN apk add --update --no-cache git curl build-base libffi-dev
+RUN python -m ensurepip
+RUN python -m pip install --no-cache --upgrade pip setuptools poetry pip-autoremove && ln -sf pip3 /usr/bin/pip
 
+# Create Working directory `/service` and copy `processor`
 RUN mkdir /service
 COPY pyproject.toml /service/pyproject.toml
 WORKDIR /service
-RUN cat pyproject.toml
 
+# Install dependencies with poetry
+RUN poetry config virtualenvs.create false
+RUN poetry install --no-interaction --no-ansi --only main
 
-RUN poetry config virtualenvs.create false \
- && poetry install --no-interaction --no-ansi
+# Remove unnecessary packages to make the image smaller
+RUN apk del git curl build-base libffi-dev
+RUN python -m pip cache purge
+RUN pip-autoremove -y setuptools poetry
+RUN python -m pip uninstall -y pip pip-autoremove
 
 # Create a group and user: ayonuser
 RUN addgroup -S ayonuser && adduser -SH ayonuser -G ayonuser
