@@ -1,6 +1,6 @@
 """ Influenced by the `ayon_api.EntityHub` the `AyonShotgridHub` is a class
 that provided a valid Project name and code, will perform all the necessary
-checks and methods to keep an Ayon and Shotgrid project in sync.
+checks and provide methods to keep an Ayon and Shotgrid project in sync.
 """
 import re
 
@@ -174,7 +174,6 @@ class AyonShotgridHub:
                     self._sg_project,
                     self._sg
                 )
-
 
             case "shotgrid":
                 create_sg_entities_in_ay(
