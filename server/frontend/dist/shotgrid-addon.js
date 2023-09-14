@@ -201,6 +201,7 @@ const syncShotgridToAyon = async (projectName, projectCode) => {
       "payload": {
         "action": "sync-from-shotgrid",
         "project_name": projectName,
+        "project_code": projectCode,
         "project_code_field": addonSettings.shotgrid_project_code_field,
       },
       "finished": true,
