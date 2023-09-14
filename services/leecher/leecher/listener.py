@@ -243,13 +243,17 @@ class ShotgridListener:
         payload["created_at"] = payload["created_at"].isoformat()
 
         logging.info(description)
-        project_name = payload.get("project", {})
+        project_name = payload.get("project", {}).get("name", "Undefined")
+        project_id = payload.get("project", {}).get("id", "Undefined")
 
-        if project_name:
-            project_name = project_name.get("name")
+        logging.info(f"Event is from Project {project_name} ({project_id})")
 
-        logging.info(f"Event is from Project {project_name}")
-
+        sg_project = self.shotgrid_session.find_one(
+            "Project",
+            [["id", "is", project_id]],
+            fields=[self.shotgrid_project_code_field]
+        )
+        
         ayon_api.dispatch_event(
             "shotgrid.event",
             sender=socket.gethostname(),
@@ -262,6 +266,7 @@ class ShotgridListener:
                 "action": "shotgrid-event",
                 "user_name": user_name,
                 "project_name": project_name,
+                "project_code": sg_project.get(self.shotgrid_project_code_field),
                 "sg_payload": payload,
             }
         )
