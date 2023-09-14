@@ -240,4 +240,3 @@ def remove_ayon_entity_from_sg_event(sg_event, sg_session, ayon_entity_hub):
 
     ayon_entity_hub.commit_changes()
 
-
