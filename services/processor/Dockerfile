@@ -1,3 +1,4 @@
+# In order for this Dockerfile to work it needs to be built from the `services` directory
 FROM python:alpine3.18
 ENV PYTHONUNBUFFERED=1
 
@@ -8,7 +9,7 @@ RUN python -m pip install --no-cache --upgrade pip setuptools poetry pip-autorem
 
 # Create Working directory `/service` and copy `processor`
 RUN mkdir /service
-COPY pyproject.toml /service/pyproject.toml
+COPY processor/pyproject.toml /service/pyproject.toml
 WORKDIR /service
 
 # Install dependencies with poetry
@@ -27,7 +28,8 @@ RUN addgroup -S ayonuser && adduser -SH ayonuser -G ayonuser
 RUN chown ayonuser:ayonuser -R /service
 RUN chmod 777 -R /service
 
-COPY . /service
+COPY processor/processor /service/processor
+COPY shotgrid_common /service
 
 # Tell docker that all future commands should run as the appuser user
 USER ayonuser
