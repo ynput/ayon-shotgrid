@@ -1,7 +1,7 @@
 import collections
 from typing import Dict, Optional
 
-from .constants import (
+from constants import (
     AYON_SHOTGRID_ENTITY_TYPE_MAP,
     CUST_FIELD_CODE_ID,
     CUST_FIELD_CODE_SYNC,
@@ -26,7 +26,7 @@ def _sg_to_ay_dict(sg_entity: dict, project_code_field=None) -> dict:
     Args:
         sg_entity (dict): Shotgun Entity dict representation.
     """
-
+    logging.info(f"Converting {sg_entity} into an Ayon dict.")
     if not project_code_field:
         project_code_field = "code"
 
