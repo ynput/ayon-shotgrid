@@ -38,6 +38,7 @@ class ShotgridProcessor:
         self.handlers_map = None
 
         try:
+            ayon_api.init_service()
             self.settings = ayon_api.get_service_addon_settings()
 
             self.sg_url = self.settings["shotgrid_server"]

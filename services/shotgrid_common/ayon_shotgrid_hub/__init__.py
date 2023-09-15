@@ -16,6 +16,11 @@ from .update_from_shotgrid import (
     update_ayon_entity_from_sg_event,
     remove_ayon_entity_from_sg_event
 )
+from .update_from_ayon import (
+    create_sg_entity_from_ayon_event,
+    update_sg_entity_from_ayon_event,
+    remove_sg_entity_from_ayon_event
+)
 
 from utils import (
     create_ay_fields_in_sg_project,
@@ -294,13 +299,25 @@ class AyonShotgridHub:
 
         match ayon_event["topic"]:
             case "entity.task.created" | "entity.folder.created":
-                create_sg_entity_from_ayon_event()
+                create_sg_entity_from_ayon_event(
+                    ayon_event,
+                    self._sg,
+                    self._ay_project
+                )
 
             case "entity.task.deleted" | "entity.folder.deleted":
-                remove_sg_entity_from_ayon_event()
+                remove_sg_entity_from_ayon_event(
+                    ayon_event,
+                    self._sg,
+                    self._ay_project
+                )
 
             case "entity.task.renamed" | "entity.folder.renamed":
-                update_sg_entity_from_ayon_event()
+                update_sg_entity_from_ayon_event(
+                    ayon_event,
+                    self._sg,
+                    self._ay_project
+                )
 
             case _:
                 msg = f"Unable to process event {ayon_event['topic']}."
