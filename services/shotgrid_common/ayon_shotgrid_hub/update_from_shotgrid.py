@@ -22,11 +22,11 @@ At most time it fetches the SG entiy as an Ayon dict:
 
 """
 
-from ..utils import (
+from utils import (
     get_sg_entity_as_ay_dict,
     get_sg_entity_parent_field
 )
-from ..constants import (
+from constants import (
     CUST_FIELD_CODE_ID,  # Shotgrid Field for the Ayon ID.
     SHOTGRID_ID_ATTRIB,  # Ayon Entity Attribute.
     SHOTGRID_TYPE_ATTRIB,  # Ayon Entity Attribute.

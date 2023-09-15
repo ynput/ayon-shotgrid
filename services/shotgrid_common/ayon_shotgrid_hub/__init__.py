@@ -4,7 +4,7 @@ checks and provide methods to keep an Ayon and Shotgrid project in sync.
 """
 import re
 
-from ..constants import (
+from constants import (
     CUST_FIELD_CODE_ID,
     CUST_FIELD_CODE_CODE,
     CUST_FIELD_CODE_URL
@@ -17,7 +17,7 @@ from .update_from_shotgrid import (
     remove_ayon_entity_from_sg_event
 )
 
-from ..utils import (
+from utils import (
     create_ay_fields_in_sg_project,
     create_ay_fields_in_sg_entities,
     create_sg_entities_in_ay,
@@ -273,6 +273,37 @@ class AyonShotgridHub:
                 raise ValueError(msg)
 
     def react_to_ayon_event(self, ayon_event):
-        pass
+        """React to events incoming from AYON
 
+        Whenever there's a `entity.<entity-type>.<action>` in AYON, where we create,
+        update or delete an entity, we attempt to replicate the action in Shotgrid.
+
+        The current scope of what changes and what attributes we care is limited,
+        this is to be expanded.
+
+        Args:
+            ayon_event (dict): A dictionary describing what
+                the change encompases, i.e. a new shot, new asset, etc.
+        """
+        ay_id = ayon_event["summary"]["entityId"]
+        ay_entity = self._ay_project.query_entities_from_server(ay_id)
+
+        if not ay_entity:
+            logging.error(f"Event has a non existant entity? {ay_id}")
+            return
+
+        match ayon_event["topic"]:
+            case "entity.task.created" | "entity.folder.created":
+                create_sg_entity_from_ayon_event()
+
+            case "entity.task.deleted" | "entity.folder.deleted":
+                remove_sg_entity_from_ayon_event()
+
+            case "entity.task.renamed" | "entity.folder.renamed":
+                update_sg_entity_from_ayon_event()
+
+            case _:
+                msg = f"Unable to process event {ayon_event['topic']}."
+                logging.error(msg)
+                raise ValueError(msg)
 

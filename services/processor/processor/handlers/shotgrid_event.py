@@ -1,7 +1,7 @@
 """
 Handle Events originated from Shotgrid.
 """
-from processor.ayon_shotgrid_hub import AyonShotgridHub
+from ayon_shotgrid_hub import AyonShotgridHub
 
 from nxtools import logging
 

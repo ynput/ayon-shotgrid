@@ -1,13 +1,13 @@
 import collections
 
-from ..constants import (
+from constants import (
     CUST_FIELD_CODE_ID,
     CUST_FIELD_CODE_SYNC,
     SHOTGRID_ID_ATTRIB,
     SHOTGRID_TYPE_ATTRIB,
 )
 
-from ..utils import get_sg_entities
+from utils import get_sg_entities
 
 from nxtools import logging
 
