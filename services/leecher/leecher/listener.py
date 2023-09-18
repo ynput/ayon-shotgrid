@@ -64,10 +64,8 @@ class ShotgridListener:
         logging.debug(f"Callback method is {self.func}.")
 
         try:
-            self.settings = ayon_api.get_addon_settings(
-                os.environ["AYON_ADDON_NAME"],
-                os.environ["AYON_ADDON_VERSION"]
-            )
+            ayon_api.init_service()
+            self.settings = ayon_api.get_service_addon_settings()
             self.shotgird_url = self.settings["shotgrid_server"]
             self.shotgrid_script_name = self.settings["shotgrid_script_name"]
             self.shotgrid_api_key = self.settings["shotgrid_api_key"]
