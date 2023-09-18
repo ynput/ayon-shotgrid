@@ -46,7 +46,7 @@ dev:
 		--attach=stdout \
 		--attach=stderr \
 		--network=host \
-		$(IMAGE) python -m processor
+		$(IMAGE) python -m $(SERVICE)
 
 	find $(CURDIR)/$(SERVICE) -type l -delete
 
