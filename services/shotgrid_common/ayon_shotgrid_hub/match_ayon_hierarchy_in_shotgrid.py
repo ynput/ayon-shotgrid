@@ -9,7 +9,7 @@ from constants import (
 
 from utils import get_sg_entities
 
-from nxtools import logging
+from nxtools import logging, log_traceback
 
 
 def match_ayon_hierarchy_in_shotgrid(entity_hub, sg_project, sg_session):
@@ -52,21 +52,27 @@ def match_ayon_hierarchy_in_shotgrid(entity_hub, sg_project, sg_session):
         ):
             sg_entity_id = ay_entity.attribs.get(SHOTGRID_ID_ATTRIB, None)
 
-            if sg_entity_id and sg_entity_id in sg_entities_by_id:
-                sg_entity = sg_entities_by_id[sg_entity_id]
-                logging.info(f"Entity already exists in Shotgrid {sg_entity}")
+            if sg_entity_id:
+                sg_entity_id = int(sg_entity_id)
 
-                if sg_entity[CUST_FIELD_CODE_ID] != ay_entity.id:
-                    logging.error("Shotgrid record for AYON id does not match...")
-                    sg_session.update(
-                        sg_entity["type"],
-                        sg_entity["id"],
-                        {
-                            CUST_FIELD_CODE_ID: "",
-                            CUST_FIELD_CODE_SYNC: "Failed"
-                        }
-                    )
-                    sg_project_sync_status = "Failed"
+                if sg_entity_id in sg_entities_by_id:
+                    sg_entity = sg_entities_by_id[sg_entity_id]
+                    logging.info(f"Entity already exists in Shotgrid {sg_entity}")
+
+                    if sg_entity[CUST_FIELD_CODE_ID] != ay_entity.id:
+                        logging.error("Shotgrid record for AYON id does not match...")
+                        try:
+                            sg_session.update(
+                                sg_entity["shotgridType"],
+                                sg_entity["shotgridId"],
+                                {
+                                    CUST_FIELD_CODE_ID: "",
+                                    CUST_FIELD_CODE_SYNC: "Failed"
+                                }
+                            )
+                        except Exception as e:
+                            log_traceback(e)
+                            sg_project_sync_status = "Failed"
 
             if sg_entity is None:
                 sg_entity = _create_new_entity(
@@ -119,7 +125,8 @@ def _create_new_entity(ay_entity, sg_session, sg_project, sg_parent_entity):
                 "project": sg_project,
                 "content": ay_entity.name,
                 CUST_FIELD_CODE_ID: ay_entity.id,
-                CUST_FIELD_CODE_SYNC: "Synced"
+                CUST_FIELD_CODE_SYNC: "Synced",
+                "entity": sg_parent_entity,
             }
         )
     else:
