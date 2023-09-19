@@ -111,6 +111,16 @@ def match_shotgrid_hierarchy_in_ayon(entity_hub, sg_project, sg_session):
         ):
             sg_entities_deck.append((ay_entity, sg_child))
 
+    entity_hub.project_entity.attribs.set(
+        SHOTGRID_ID_ATTRIB,
+        sg_project["id"]
+    )
+
+    entity_hub.project_entity.attribs.set(
+        SHOTGRID_TYPE_ATTRIB,
+        "Project"
+    )
+
     entity_hub.commit_changes()
 
     sg_session.update(

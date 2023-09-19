@@ -11,6 +11,8 @@ from constants import (
 )
 
 from .match_shotgrid_hierarchy_in_ayon import match_shotgrid_hierarchy_in_ayon
+from .match_ayon_hierarchy_in_shotgrid import match_ayon_hierarchy_in_shotgrid
+
 from .update_from_shotgrid import (
     create_ay_entity_from_sg_event,
     update_ayon_entity_from_sg_event,
@@ -26,6 +28,7 @@ from utils import (
     create_ay_fields_in_sg_project,
     create_ay_fields_in_sg_entities,
     create_sg_entities_in_ay,
+    create_ay_entities_in_sg,
     get_sg_project_by_name,
     get_sg_missing_ay_attributes,
 )
@@ -61,6 +64,7 @@ class AyonShotgridHub:
         sg_url,
         sg_api_key,
         sg_script_name,
+        sg_project_code_field=None,
     ):
 
         self._sg = None
@@ -78,9 +82,13 @@ class AyonShotgridHub:
         self._ay_project = None
         self._sg_project = None
 
+        if sg_project_code_field:
+            self.sg_project_code_field = sg_project_code_field
+        else:
+            self.sg_project_code_field = "code"
+
         self.project_name = project_name
         self.project_code = project_code
-
 
     def _initialize_apis(self, sg_url=None, sg_api_key=None, sg_script_name=None):
         """ Ensure we can talk to AYON and Shotgrid.
@@ -159,6 +167,7 @@ class AyonShotgridHub:
         try:
             self._ay_project = EntityHub(project_name)
             self._ay_project.project_entity
+            logging.info(f"Project {self._ay_project} <self._ay_project.id> already exist in AYON.")
         except Exception:
             logging.warning(f"Project {project_name} does not exist in AYON.")
             self._ay_project = None
@@ -166,10 +175,13 @@ class AyonShotgridHub:
         try:
             self._sg_project = get_sg_project_by_name(
                 self._sg,
-                self.project_name
+                self.project_name,
+                custom_fields=[self.sg_project_code_field]
             )
-        except Exception:
-            logging.warning(f"Project {project_name} does not exist in Shotgrid.")
+            logging.info(f"Project {project_name} ({self._sg_project[self.sg_project_code_field]}) <{self._sg_project['id']}> already exist in Shotgrid.")
+        except Exception as e:
+            logging.warning(f"Project {project_name} does not exist in Shotgrid. ")
+            log_traceback(e)
             self._sg_project = None
 
     def create_project(self):
@@ -194,6 +206,7 @@ class AyonShotgridHub:
                 "Project",
                 {
                     "name": self.project_name,
+                    self.sg_project_code_field: self.project_code,
                     CUST_FIELD_CODE_ID: self.project_name,
                     CUST_FIELD_CODE_CODE: self.project_code,
                     CUST_FIELD_CODE_URL: ayon_api.get_base_url(),
@@ -216,6 +229,18 @@ class AyonShotgridHub:
             )
 
         match source:
+            case "ayon":
+                create_ay_entities_in_sg(
+                    self._ay_project.project_entity,
+                    self._sg,
+                    self._sg_project,
+                )
+                match_ayon_hierarchy_in_shotgrid(
+                    self._ay_project,
+                    self._sg_project,
+                    self._sg
+                )
+
             case "shotgrid":
                 create_sg_entities_in_ay(
                     self._ay_project.project_entity,
@@ -291,7 +316,7 @@ class AyonShotgridHub:
                 the change encompases, i.e. a new shot, new asset, etc.
         """
         ay_id = ayon_event["summary"]["entityId"]
-        ay_entity = self._ay_project.query_entities_from_server(ay_id)
+        ay_entity = self._ay_project.get_or_query_entity_by_id(ay_id, ["folder", "task"])
 
         if not ay_entity:
             logging.error(f"Event has a non existant entity? {ay_id}")
@@ -302,21 +327,24 @@ class AyonShotgridHub:
                 create_sg_entity_from_ayon_event(
                     ayon_event,
                     self._sg,
-                    self._ay_project
+                    self._ay_project,
+                    self._sg_project,
                 )
 
             case "entity.task.deleted" | "entity.folder.deleted":
                 remove_sg_entity_from_ayon_event(
                     ayon_event,
                     self._sg,
-                    self._ay_project
+                    self._ay_project,
+                    self._sg_project,
                 )
 
             case "entity.task.renamed" | "entity.folder.renamed":
                 update_sg_entity_from_ayon_event(
                     ayon_event,
                     self._sg,
-                    self._ay_project
+                    self._ay_project,
+                    self._sg_project,
                 )
 
             case _:

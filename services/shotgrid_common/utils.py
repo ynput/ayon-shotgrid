@@ -26,7 +26,6 @@ def _sg_to_ay_dict(sg_entity: dict, project_code_field=None) -> dict:
     Args:
         sg_entity (dict): Shotgun Entity dict representation.
     """
-    logging.info(f"Converting {sg_entity} into an Ayon dict.")
     if not project_code_field:
         project_code_field = "code"
 
@@ -109,6 +108,19 @@ def create_ay_fields_in_sg_project(sg_session: shotgun_api3.Shotgun):
             field_properties=sg_field_properties
         )
 
+def create_ay_entities_in_sg(
+    project_entity: ProjectEntity,
+    sg_session: shotgun_api3.Shotgun,
+    shotgrid_project: dict
+):
+    """Ensure Shotgrid has all the Ayon Task and Folder types.
+
+    Args:
+        project_entity (ProjectEntity): The ProjectEntity for a given project.
+        sg_session (shotgun_api3.Shotgun): Shotgun Session object.
+        shotgrid_project (dict): The project owning the Tasks.
+    """
+    pass
 
 def create_sg_entities_in_ay(
     project_entity: ProjectEntity,
@@ -366,7 +378,6 @@ def get_sg_entity_as_ay_dict(
 
     return new_entity
 
-
 def get_sg_entity_parent_field(
     sg_session: shotgun_api3.Shotgun,
     sg_project: dict,
@@ -523,6 +534,8 @@ def get_sg_project_enabled_entities(
     for sg_entity_type in AYON_SHOTGRID_ENTITY_TYPE_MAP:
         if sg_entity_type == "Project":
             continue
+        elif sg_entity_type == "__flat__":
+            continue
 
         is_entity_enabled = sg_project_schema.get(
             sg_entity_type, {}
@@ -539,6 +552,7 @@ def get_sg_project_enabled_entities(
             else:
                 project_entities.append((sg_entity_type, "project"))
 
+    logging.debug(f"Project {sg_project} enabled entities: {project_entities}")
     return project_entities
 
 
