@@ -85,11 +85,15 @@ const populateTable = async () => {
     }
     syncCell.appendChild(sgSyncButton)
 
-    // TODO: Enable when AYON sync is ready
-    // var ayonSyncButton = document.createElement('button')
-    // ayonSyncButton.innerText = `AYON -> Shotgrid`
-    // ayonSyncButton.disabled = true
-    // syncCell.appendChild(ayonSyncButton)
+    var ayonSyncButton = document.createElement('button')
+    ayonSyncButton.innerText = `AYON -> Shotgrid`
+    ayonSyncButton.disabled = project.ayonId ? false : true;
+    ayonSyncButton.setAttribute("data-ayon-name", project.name);
+    ayonSyncButton.setAttribute("data-ayon-code", project.code);
+    ayonSyncButton.addEventListener('click', function () {
+          syncAyonToShotgrid(this.attributes["data-ayon-name"].value, this.attributes["data-ayon-code"].value)
+        }, false);
+    syncCell.appendChild(ayonSyncButton)
 
     tableRow.appendChild(syncCell)
 
@@ -200,6 +204,37 @@ const syncShotgridToAyon = async (projectName, projectCode) => {
       "description": `Synchronize Project ${projectName} from Shotgrid.`,
       "payload": {
         "action": "sync-from-shotgrid",
+        "project_name": projectName,
+        "project_code": projectCode,
+        "project_code_field": addonSettings.shotgrid_project_code_field,
+      },
+      "finished": true,
+      "store": true
+    })
+    .then((result) => result)
+    .catch((error) => {
+      console.log("Unable to submit event to AYON!")
+      console.log(error)
+      call_result_paragraph.innerHTML = `Unable to submit event to AYON! ${error}`
+    });
+
+  if (dispatch_event) {
+    call_result_paragraph.innerHTML = `Succesfully Spawned Event! ${dispatch_event.data.id}`
+  }
+}
+
+const syncAyonToShotgrid = async (projectName, projectCode) => {
+  /* Spawn an AYON Event of topic "shotgrid.event" to synchcronize a project
+  from AYON into Shotgrid. */
+  call_result_paragraph = document.getElementById("call-result");
+
+  dispatch_event = await ayonAPI
+    .post("/api/events", {
+      "topic": "shotgrid.event",
+      "project": projectName,
+      "description": `Synchronize Project ${projectName} from AYON.`,
+      "payload": {
+        "action": "sync-from-ayon",
         "project_name": projectName,
         "project_code": projectCode,
         "project_code_field": addonSettings.shotgrid_project_code_field,
