@@ -42,7 +42,22 @@ const populateTable = async () => {
   and a button to Syncronize if they pass the requirements */
   ayonProjects = await getAyonProjects();
   sgProjects = await getShotgridProjects();
-  allProjects = ayonProjects.concat(sgProjects);
+
+  var allProjects = ayonProjects
+
+  sgProjects.forEach((sg_project) => {
+    let already_exists = false
+    allProjects.forEach((project) => {
+      if (sg_project.name == project.ayonId) {
+          already_exists = true
+          project.shotgridId = sg_project.shotgridId
+      }
+    })
+    if (!already_exists) {
+      allProjects.push(sg_project)
+    }
+  })
+
   allProjects.sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
 
   const ProjectsTable = document.getElementById("sg-addon-projects-table")
