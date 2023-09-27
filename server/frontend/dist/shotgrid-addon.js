@@ -28,9 +28,14 @@ const init = () => {
       .get(`/api/addons/${addonName}/${addonVersion}/settings`)
       .then((result) => result.data);
 
+    addonSecrets = await ayonAPI
+      .get(`/api/secrets/${addonSettings.shotgrid_api_key}`)
+      .then((result) => result.data);
+
+    addonSettings.shotgrid_script_name = addonSecrets.name
+    addonSettings.shotgrid_api_key = addonSecrets.value
   } // end of window.onmessage
 } // end of init
-
 
 const populateTable = async () => {
   /* Get all the projects from AYON and Shotgird, then populate the table with their info
