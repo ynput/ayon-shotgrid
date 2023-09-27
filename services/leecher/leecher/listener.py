@@ -67,10 +67,12 @@ class ShotgridListener:
             ayon_api.init_service()
             self.settings = ayon_api.get_service_addon_settings()
             self.shotgird_url = self.settings["shotgrid_server"]
-            self.shotgrid_script_name = self.settings["shotgrid_script_name"]
-            self.shotgrid_api_key = self.settings["shotgrid_api_key"]
             self.shotgrid_leechable_projects = self.settings["service_settings"]["projects_to_leech"]
             self.shotgrid_project_code_field = self.settings["shotgrid_project_code_field"]
+
+            shotgrid_secret = ayon_api.get_secret(self.settings["shotgrid_script_name"])
+            self.shotgrid_script_name = shotgrid_secret.get("name")
+            self.shotgrid_api_key = shotgrid_secret.get("value")
 
             try:
                 self.shotgrid_polling_frequency = int(

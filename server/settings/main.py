@@ -1,6 +1,7 @@
 from pydantic import Field
 
 from ayon_server.settings import BaseSettingsModel
+from ayon_server.settings.enum import secrets_enum
 
 
 class ShotgridServiceSettings(BaseSettingsModel):
@@ -30,11 +31,11 @@ class ShotgridSettings(BaseSettingsModel):
         title="Shotgrid server url ",
     )
     shotgrid_script_name: str = Field(
-        "",
+        enum_resolver=secrets_enum,
         title="Shotgrid Script Name",
     )
     shotgrid_api_key: str = Field(
-        "",
+        enum_resolver=secrets_enum,
         title="Shotgrid API Key"
     )
     shotgrid_project_code_field: str = Field(
@@ -49,7 +50,8 @@ class ShotgridSettings(BaseSettingsModel):
 
 DEFAULT_VALUES = {
     "shotgrid_server": "",
-    "shotgrid_script_name": "ayon_connector",
+    "shotgrid_script_name": "",
+    "shotgrid_api_key": "",
     "shotgrid_project_code_field": "code",
 }
 
