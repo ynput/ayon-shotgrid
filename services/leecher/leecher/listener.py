@@ -66,13 +66,13 @@ class ShotgridListener:
         try:
             ayon_api.init_service()
             self.settings = ayon_api.get_service_addon_settings()
-            self.shotgird_url = self.settings["shotgrid_server"]
-            self.shotgrid_leechable_projects = self.settings["service_settings"]["projects_to_leech"]
-            self.shotgrid_project_code_field = self.settings["shotgrid_project_code_field"]
+            self.sg_url = self.settings["shotgrid_server"]
+            self.sg_leechable_projects = self.settings["service_settings"]["projects_to_leech"]
+            self.sg_project_code_field = self.settings["shotgrid_project_code_field"]
 
             shotgrid_secret = ayon_api.get_secret(self.settings["shotgrid_script_name"])
-            self.shotgrid_script_name = shotgrid_secret.get("name")
-            self.shotgrid_api_key = shotgrid_secret.get("value")
+            self.sg_script_name = shotgrid_secret.get("name")
+            self.sg_api_key = shotgrid_secret.get("value")
 
             try:
                 self.shotgrid_polling_frequency = int(
@@ -88,12 +88,12 @@ class ShotgridListener:
             raise e
 
         try:
-            self.shotgrid_session = shotgun_api3.Shotgun(
-                self.shotgird_url,
-                script_name=self.shotgrid_script_name,
-                api_key=self.shotgrid_api_key
+            self.sg_session = shotgun_api3.Shotgun(
+                self.sg_url,
+                script_name=self.sg_script_name,
+                api_key=self.sg_api_key
             )
-            self.shotgrid_session.connect()
+            self.sg_session.connect()
         except Exception as e:
             logging.error("Unable to connect to Shotgrid Instance:")
             logging.error(e)
@@ -104,7 +104,7 @@ class ShotgridListener:
 
     def _signal_teardown_handler(self, signalnum, frame):
         logging.warning("Process stop requested. Terminating process.")
-        self.shotgrid_session.close()
+        self.sg_session.close()
         logging.warning("Termination finished.")
         sys.exit(0)
 
@@ -154,13 +154,13 @@ class ShotgridListener:
             for event_type in self._get_valid_events()
         ]
 
-        sg_projects = self.shotgrid_session.find(
+        sg_projects = self.sg_session.find(
             "Project",
             filters=[{
                 "filter_operator": "any",
                 "filters": [
-                    [f"{self.shotgrid_project_code_field}", "is", project_code.strip()]
-                    for project_code in self.shotgrid_leechable_projects.split(",")
+                    [f"{self.sg_project_code_field}", "is", project_code.strip()]
+                    for project_code in self.sg_leechable_projects.split(",")
                 ]
             }]
         )
@@ -176,7 +176,7 @@ class ShotgridListener:
         }
 
         if not last_event_id:
-            last_event_id = self.shotgrid_session.find_one(
+            last_event_id = self.sg_session.find_one(
                 "EventLogEntry",
                 filters=[shotgrid_events_filter],
                 fields=["id"],
@@ -193,7 +193,7 @@ class ShotgridListener:
             ]
 
             try:
-                events = self.shotgrid_session.find(
+                events = self.sg_session.find(
                     "EventLogEntry",
                     filters,
                     fields,
@@ -248,10 +248,10 @@ class ShotgridListener:
 
         logging.info(f"Event is from Project {project_name} ({project_id})")
 
-        sg_project = self.shotgrid_session.find_one(
+        sg_project = self.sg_session.find_one(
             "Project",
             [["id", "is", project_id]],
-            fields=[self.shotgrid_project_code_field]
+            fields=[self.sg_project_code_field]
         )
         
         ayon_api.dispatch_event(
@@ -266,7 +266,7 @@ class ShotgridListener:
                 "action": "shotgrid-event",
                 "user_name": user_name,
                 "project_name": project_name,
-                "project_code": sg_project.get(self.shotgrid_project_code_field),
+                "project_code": sg_project.get(self.sg_project_code_field),
                 "sg_payload": payload,
             }
         )
