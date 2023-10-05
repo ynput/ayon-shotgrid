@@ -135,8 +135,8 @@ def create_sg_entities_in_ay(
         shotgrid_project (dict): The project owning the Tasks.
     """
     sg_tasks = [
-        {"name": task, "shortName": task.lower()[:4]}
-        for task in get_sg_tasks(
+        {"name": task[0], "shortName": task[1]}
+        for task in get_sg_tasks_entities(
             sg_session,
             shotgrid_project
         )
@@ -583,7 +583,7 @@ def get_sg_statuses(
     return sg_statuses
 
 
-def get_sg_tasks(
+def get_sg_tasks_entities(
     sg_session: shotgun_api3.Shotgun,
     shotgrid_project: dict
 ) -> list:
@@ -597,13 +597,25 @@ def get_sg_tasks(
     """
     sg_tasks = []
 
-    for task in sg_session.find(
-        "Task",
-        [["project", "is", shotgrid_project]],
-        fields=["content", "step", "sg_status", "tags"],
-    ):
-        if task["content"] not in sg_tasks:
-            sg_tasks.append(task["content"])
+    enabled_entities = get_sg_project_enabled_entities(
+        sg_session,
+        shotgrid_project
+    )
 
-    return sg_tasks
+    pipeline_steps = sg_session.find(
+        "Step",
+        filters=[{
+                "filter_operator": "any",
+                "filters": [
+                    ["entity_type", "is", entity]
+                    for entity, _ in enabled_entities
+                ]
+            }],
+        fields=["code", "short_name", "entity_type"]
+    )
+
+    for step in pipeline_steps:
+        sg_tasks.append((step["code"], step["short_name"].lower()))
+
+    return list(set(sg_tasks))
 

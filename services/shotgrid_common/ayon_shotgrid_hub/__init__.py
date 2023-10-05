@@ -199,6 +199,7 @@ class AyonShotgridHub:
             logging.info(f"Project {self.project_name} ({self.project_code}) already exists in AYON.")
 
         self.create_sg_attributes()
+        self._ay_project.commit_changes()
 
         if self._sg_project is None:
             logging.info(f"Creating Shotgrid project {self.project_name} (self.project_code).")
@@ -247,6 +248,8 @@ class AyonShotgridHub:
                     self._sg,
                     self._sg_project,
                 )
+                self._ay_project.commit_changes()
+
                 match_shotgrid_hierarchy_in_ayon(
                     self._ay_project,
                     self._sg_project,
