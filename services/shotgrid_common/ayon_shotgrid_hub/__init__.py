@@ -5,8 +5,9 @@ checks and provide methods to keep an Ayon and Shotgrid project in sync.
 import re
 
 from constants import (
-    CUST_FIELD_CODE_ID,
+    CUST_FIELD_CODE_AUTO_SYNC,
     CUST_FIELD_CODE_CODE,
+    CUST_FIELD_CODE_ID,
     CUST_FIELD_CODE_URL
 )
 
@@ -176,7 +177,10 @@ class AyonShotgridHub:
             self._sg_project = get_sg_project_by_name(
                 self._sg,
                 self.project_name,
-                custom_fields=[self.sg_project_code_field]
+                custom_fields=[
+                    self.sg_project_code_field,
+                    CUST_FIELD_CODE_AUTO_SYNC
+                ]
             )
             logging.info(f"Project {project_name} ({self._sg_project[self.sg_project_code_field]}) <{self._sg_project['id']}> already exist in Shotgrid.")
         except Exception as e:
@@ -321,8 +325,13 @@ class AyonShotgridHub:
         ay_id = ayon_event["summary"]["entityId"]
         ay_entity = self._ay_project.get_or_query_entity_by_id(ay_id, ["folder", "task"])
 
+
         if not ay_entity:
             logging.error(f"Event has a non existant entity? {ay_id}")
+            return
+
+        if not self._sg_project[CUST_FIELD_CODE_AUTO_SYNC]:
+            logging.info(f"Ignoring event, Shotgirid field 'Ayon Auto Sync' is disabled.")
             return
 
         match ayon_event["topic"]:
