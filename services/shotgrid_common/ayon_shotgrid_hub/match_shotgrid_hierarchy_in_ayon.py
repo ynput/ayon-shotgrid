@@ -105,6 +105,12 @@ def match_shotgrid_hierarchy_in_ayon(entity_hub, sg_project, sg_session):
             # If the entity has children, add it to the deck
             entity_id = sg_entity[SHOTGRID_ID_ATTRIB]
 
+        try:
+            entity_hub.commit_changes()
+        except Exception as e:
+            logging.error(f"Unable to create entity {sg_entity} in AYON!")
+            log_traceback(e)
+
         # If the entity has children, add it to the deck
         for sg_child in sg_entities_by_parent_id.get(
             entity_id, []
