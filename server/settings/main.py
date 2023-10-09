@@ -17,11 +17,6 @@ class ShotgridServiceSettings(BaseSettingsModel):
         validate_default=False,
     )
 
-    projects_to_leech: str = Field(
-        "",
-        title="Project Codes we want to leech (Comma separated list).",
-    )
-
 
 class ShotgridSettings(BaseSettingsModel):
     """Shotgrid addon settings."""
