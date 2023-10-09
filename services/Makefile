@@ -42,6 +42,8 @@ dev:
 		-v $(CURDIR)/shotgrid_common:$(CURDIR)/shotgrid_common:Z \
 		-v $(CURDIR)/$(SERVICE):/service:Z \
 		--env-file $(CURDIR)/$(SERVICE)/.env \
+		--env AYON_ADDON_NAME=shotgrid \
+		--env AYON_ADDON_VERSION=$(ADDON_VERSION) \
 		--attach=stdin \
 		--attach=stdout \
 		--attach=stderr \
