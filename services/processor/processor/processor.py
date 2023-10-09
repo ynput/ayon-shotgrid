@@ -126,7 +126,7 @@ class ShotgridProcessor:
                     "shotgrid.event",
                     "shotgrid.proc",
                     socket.gethostname(),
-                    description="Shotgrid Event processing",
+                    description="Enrolling to any `shotgrid.event` Event...",
                 )
 
                 if not event:
@@ -139,7 +139,11 @@ class ShotgridProcessor:
 
                 if not payload:
                     time.sleep(self.sg_polling_frequency)
-                    ayon_api.update_event(event["id"], status="finished")
+                    ayon_api.update_event(
+                        event["id"],
+                        description=f"Unable to process the event <{source_event['id']}> since it has no Shotgrid Payload!",
+                        status="finished"
+                    )
                     ayon_api.update_event(source_event["id"], status="finished")
                     continue
 
@@ -147,6 +151,11 @@ class ShotgridProcessor:
                     # If theres any handler "subscirbed" to this event type..
                     try:
                         logging.info(f"Running the Handler {handler}")
+                        ayon_api.update_event(
+                            event["id"],
+                            description=f"Procesing event with Handler {payload['action']}...",
+                            status="finished"
+                        )
                         handler.process_event(
                             self.sg_url,
                             self.sg_script_name,
@@ -157,11 +166,24 @@ class ShotgridProcessor:
                     except Exception as e:
                         logging.error(f"Unable to process handler {handler.__name__}")
                         log_traceback(e)
-                        ayon_api.update_event(event["id"], status="finished")
-                        ayon_api.update_event(source_event["id"], status="finished")
+                        ayon_api.update_event(
+                            event["id"],
+                            status="failed",
+                            description=f"An error ocurred while processing the Event: {e}",
+                            summary="Feiled procesing the event Handler..."
+                        )
+                        ayon_api.update_event(
+                            source_event["id"],
+                            status="failed",
+                            summary=f"The service `processor` was unable to process this event. Check the `shotgrid.proc` <{event['id']}> event for more info."
+                        )
 
                 logging.info("Event has been processed... setting to finished!")
-                ayon_api.update_event(event["id"], status="finished")
+                ayon_api.update_event(
+                    event["id"],
+                    description="Event processed succsefully.",
+                    status="finished"
+                )
                 ayon_api.update_event(source_event["id"], status="finished")
 
             except Exception as err:
