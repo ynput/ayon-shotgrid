@@ -270,7 +270,7 @@ const syncAyonToShotgrid = async (projectName, projectCode) => {
     });
 
   if (dispatch_event) {
-    call_result_paragraph.innerHTML = `Succesfully Spawned Event! ${dispatch_event.data.id}`
+    call_result_paragraph.innerHTML = `Succesfully Spawned Event! ${dispatch_event.data.id} Make sure there's a processor <a target="_parent" href="/services">Service running</a>`
   }
 }
 
