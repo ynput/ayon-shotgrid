@@ -4,14 +4,14 @@
     <meta charset="utf-8">
     <title>Shotgrid Integration</title>
     <link rel="stylesheet" type="text/css" href="shotgrid-addon.css">
-    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <script src="axios.min.js"></script>
   </head>
 
   <body>
     <h1>Shotgrid Sync</h1>
     <p>
         From this page you can Import projects from Shotgrid or trigger a project Sync!<br>
-        In order for the Syncronization to work, a <b><code>ShotgridProcessor</code> <a href="/services">service</a> must be running</b>, this page will only create <a href="/events"> events (with the topic: "shotgrid.event") </a> for the processor to handle.
+        In order for the Syncronization to work, a <b><code>ShotgridProcessor</code> <a target="_parent" href="/services">service</a> must be running</b>, this page will only create <a target="_parent" href="/events"> events (with the topic: "shotgrid.event") </a> for the processor to handle.
     </p>
     <p>To be able to import a project from Shotgrid, there are two minimum requirements on Shotgrid:</p>
         <ul>
