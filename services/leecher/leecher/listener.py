@@ -67,7 +67,6 @@ class ShotgridListener:
             ayon_api.init_service()
             self.settings = ayon_api.get_service_addon_settings()
             self.sg_url = self.settings["shotgrid_server"]
-            self.sg_leechable_projects = self.settings["service_settings"]["projects_to_leech"]
             self.sg_project_code_field = self.settings["shotgrid_project_code_field"]
 
             shotgrid_secret = ayon_api.get_secret(self.settings["shotgrid_script_name"])
@@ -156,13 +155,7 @@ class ShotgridListener:
 
         sg_projects = self.sg_session.find(
             "Project",
-            filters=[{
-                "filter_operator": "any",
-                "filters": [
-                    [f"{self.sg_project_code_field}", "is", project_code.strip()]
-                    for project_code in self.sg_leechable_projects.split(",")
-                ]
-            }]
+            filters=[["sg_ayon_auto_sync", "is", True]]
         )
 
         projects_filters = [
