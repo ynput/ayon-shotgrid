@@ -5,45 +5,55 @@ This project provides three elements for the Ayon pipeline:
  * client/ - The Ayon (currently OpenPype) desktop integration.
  * services/ - Standalone dockerized daemons that act based on events (aka `leecher` and `processors`).
 
-In order to use this integrations you'll need to run the `python create_package.py` script which will create a folder with the current version (the number is defined in `version.py`) in `ayon-shotgrid/package/shotgrid/{addon version}`, you then have to upload the `shotgrid` directory (included) into your Ayon instance, in the `/<server root>/addons/shotgrid` path, this should trigger a restart of the server, otherwise do so manually.
+In order to use this integrations you'll need to run the `python create_package.py` script which will create a `zip` file with the current version (the number is defined in `version.py`) in `ayon-shotgrid/package/shotgrid-{addon version}.zip`, you can then upload this zip file in your AYON instance, on the Bundles (`/settings/bundles`) section, make sure you restart the server, AYON should prompt you to do so after uploading.
 
 ## Server
-Once the instance has restarted, you should be able to enable the addon by going into the `Settings > Addon Version > Shotgrid Sync` and choosing the version number of the addon you uploaded in the `Production` dropdown.
+Once the instance has restarted, you should be able to enable the addon by going into the `Settings > Bundles` and create (or duplicate an existing) bundle, where you can now choose `shotgrid` and the `version` you installed; make sure you set the bundle as `Production`.
 If the Addon loaded succesfully you should be able to see a new tab in your `Settings > Shotgrid Sync`.
 
-Before proceeding some information has to be provided in the `Settings > Studio settings > Shotgrid Sync` page:
- * Shotgrid URL
- * Shotgrid Script Name
- * Shotgrid API Key
+For the Shotgrid integration to work, we need to provide several information, firstly we'll a Shotgrid Script and it's API key, refer to the [Shotgrid Documentation](https://developer.shotgridsoftware.com/99105475/?title=Create+and+manage+API+scripts) to create one; take note of the info and in AYON, navigate to the `Settings > Secrets` page, create a new secret with the `script_name` as the "Secret Name" and the `script_api_key` as the "Secret Value".
 
-Refer to the [Shotgrid Documentation](https://developer.shotgridsoftware.com/99105475/?title=Create+and+manage+API+scripts) to set these up.
+We can now go into the `Settings > Studio settings > Shotgrid Sync` page in AYON and fill up the following fields:
+ * Shotgrid URL - This will be the URL to your Shotgrid instance.
+ * Shotgrid Script Name - Select the secret you created in the previous step.
+ * Shotgrid API Key - Select the secret you created in the previous step.
+ * Shotgrid field for the Project Code - A field in the `Project` entity that hold the project code, can be an existing one or a new one, default is `code`.
+ * Service Settings > How often (in seconds) to query the Shotgrid Database  - Defaults to 10 seconds, time between `leeching`, `processing` and `transmitting` operations.
+
 
 ## Desktop application
 When launching Ayon for the first time you'll be asked to provide a login (only the username) for Shotgrid, this is the user that will be used for publishing.
 After providing a login people can publish normally, the integartion will ensure that the user can connect to Shotgrid, that has the correct permissions and will create the Version and PublishedFile in Shotgrid if the publish is succesful.
 
 ## Services
-There are two services that the Addon requires to perform any activity:
- * `processor` - This has a set of handlers for different `shotgrid.event` and act on those.
- * `leecher` - Periodically queries the `EventLogEntry` table on Shotgrid and ingests any event that interests us dispatching it as a `shotgird.event`.
+The services are a way to handle operations between AYON and Shotgrid in the background, these have been developed around the AYON Events system, we replicate Shotgrid events (the ones we care) as AYON `shotgrid.event`; which then the `processor` will pick up and process them acordingly; lastly the `transmitter` will look for changes in AYON and attempt to replicate them in Shotgrid.
+In any case, the Shotgird project has to have the field "Ayon Auto Sync" enabled for the `leecher` and the `transmitter` to work.
+They share code, which is found in `shotgrid_common`, most importantly the `AyonShotgridHub` a class that bootstraps common action when working with AYON and Shotgrid.
 
-To get any of these two running, navigate to their respective folder, we'll use `make` to build a `Docker` image that will run our services.
-```sh
-cd services/processor
-make build # This will create the Container image
-```
+The three provided services are:
+ * `processor` - This has a set of handlers for different `shotgrid.event` and act on.
+ * `leecher` - Periodically queries the `EventLogEntry` table on Shotgrid and ingests any event that interests us dispatching it as a `shotgird.event`, this will only query projects that have the "Ayon Auto Sync" field enabled.
+ * `transmitter` - Periodically check for new events in AYON of topic `entity.*`, and push any changes to Shotgrid, only affects to projects that have the "Ayon Auto Sync" field enabled.
 
-We need a file called `.env` to pass to the `docker run` command, a `sample_env` has been included, copy and rename to `.env` and fill the fields acordingly:
+The most straighforward way to get this up and running is by using ASH (Ayon Service Host), after loading the Addon on the server, you should be able to spawn services in the "Services" page.
+
+### Development
+There's a single `Makefile` at the root of the `services` folder, which is used to `build` the docker images and to run the services locally with the `dev` target, this is UNIX only for the time being, running `make` without argument will print information as to how to run use it.
+
+#### Building Docker Images
+To build the docker images you can run `make SERVICE=<service-name> build`, so for example, to build the `processor` you'd do `make SERVICE=processor build`, this will build and tag the local image, with the version found in `version.py` at the root of the addon.
+
+#### Running the Service locally
+In order to run the service locally we need to specify certain environment variables, to do so, copy the `sample_env` file, rename to `.env` and fill the fields acordingly:
 ```
 AYON_API_KEY=<AYON_API_KEY> # You can create a `service` user in Ayon, and then get the Key from there.
 AYON_SERVER_URL=<YOUR_AYON_URL>
-AY_ADDON_NAME=<addon_name>
-AY_ADDON_VERSION=<addon_version>
+PYTHONDONTWRITEBYTECODE=1
 ```
 
-We are ready to spin up the service, for convinience we got a `make` command for this:
+We are ready to spin up the service, for convinience we got a `make` target for this:
 ```sh
-make dev
+make SERVICE=<service-name> dev
 ```
 
 You should now see something similar to:
@@ -55,7 +65,29 @@ INFO       Querying for new `shotgrid.event` events...
 INFO       No event of origin `shotgrid.event` is pending. 
 ```
 
-That means all is good, same instructions apply for the `leecher` service.
+### Makefile commands
+For those who cannot use `Makefiles` here are the commands that are required to perfomr the same action as with `make`, using the `processor` version `0.2.` as example, from the `services` folder:
+
+Building the docker image:
+ ```sh
+ docker build -t ynput/ayon-shotgrid-processor:0.2.1 -f processor/Dockerfile .
+```
+
+Running a service locally:
+```sh
+docker run --rm -u ayonuser -ti \
+  -v services/shotgrid_common:services/shotgrid_common:Z \
+  -v services/processor:/service:Z \
+  --env-file services/processor/.env \
+  --env AYON_ADDON_NAME=shotgrid \
+  --env AYON_ADDON_VERSION=0.2.1 \
+  --attach=stdin \
+  --attach=stdout \
+  --attach=stderr \
+  --network=host \
+  ynput/ayon-shotgrid-processor:0.2.1 python -m processor
+```
+This one is trickier since the make file will symlink the `shotgrid_common` inside the `service/processor` folder.
 
 ### Running it without docker or make
 You don't need to run these as dockerized scripts, for that you'll need either [Poetry](https://python-poetry.org/) installed and create an environment specified by the `pyproject.toml` or using `virtualenv` and install the packages specified in the `[tool.poetry.dependencies]` section of the `pyproject.toml`; once in that environment you'll need to load the contents of the `.env` file and finally:
@@ -64,16 +96,19 @@ python -m processor
 ```
 
 # Usage
-With this Integration you can perform the following actions:
+With this Integration you can perform the following actions by navigating to `AYON >Settings > Shotgrid Sync`, and loading all projects by clicking `Populate Data`:
 
 ## Import a New Shotgrid Project
-With the `processor` service running, you can go to the `Settings > Shotgrid Sync` page, and after waiting some seconds, the dropdown under `Choose a Shotgrid Project:` should change from `Fetching Shotgrid projects...` to `Choose a Project to Import and Sync...` you'll then be able to choose any Shotgrid project that matches the specified requirements.
+With the `processor` service running, synchronize `Shotgrid --> AYON` will replicate the Shotgrid structure in AYON.
 
-## Manage Existing Shotgrid Projects
-With the `processor` service running, you can go to the `Settings > Shotgrid Sync` page, and after waiting some seconds, the dropdown under `Already imported Projects` at the right side of the page will be loaded with existing projects, select it and press `Sync Shotgrid Project`; this will trigger a full syncronization for projects we already imported (it already exists in Ayon), only adding any missing entity from Shotgrid to Ayon.
+## Export an AYON project into Shotgrid
+With the `processor` service running, synchronize `AYON --> Shotgrid` will replicate the AYON structure in Shotgrid.
 
 ## Update based on Shotgrid Events
 With the `leecher` **and** the `processor` services running, and the `Ayon Auto Sync` field **enabled** in Shotgrid, whenever an event on `Episodes`, `Sequences`, `Shots`` or `Tasks` occurs, an event will be dispatched in Ayon `shotgrid.event` this event will be then processed in another event `shotgrid.proc` dispatched by the `processor` service; this currently creates and removes entities, and updates the name of entities so they are in sync between Shotgrid and Ayon.
 
-In all instances you'll want to keep an eye on the terminal where you launched the `processor` where you can track the progress of any of the handlers.
+## Update based on AYON Events
+With the `transmitter` **and** the `processor` services running, and the `Ayon Auto Sync` field **enabled** in Shotgrid, whenever an event on `entity.*` occurs in AYON, an event will be dispatched in Ayon `shotgrid.push` this event will attempt to replicate the changes made in AYON in Shotgrid.
+
+In all instances you'll want to keep an eye on the terminal where you launched the services, where you can track the progress of any of the handlers. This will be imporved in teh future so it can be tracked from AYON.
 
