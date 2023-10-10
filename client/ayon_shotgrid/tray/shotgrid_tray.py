@@ -3,7 +3,7 @@ import os
 from qtpy import QtWidgets
 
 from ayon_shotgrid.lib import credentials
-from ayon_shotgrid.tray.change_sg_username_dialog import ChangeSgUsername
+from ayon_shotgrid.tray.sg_login_dialog import SgLoginDialog
 
 
 class ShotgridTrayWrapper:
@@ -31,7 +31,7 @@ class ShotgridTrayWrapper:
         self.sg_username_label = QtWidgets.QAction("")
         self.sg_username_label.triggered.connect(self.show_sg_username_dialog)
 
-        self.sg_username_dialog = ChangeSgUsername(self.module)
+        self.sg_username_dialog = SgLoginDialog(self.module)
         self.sg_username_dialog.dialog_closed.connect(self.set_username_label)
 
     def show_sg_username_dialog(self):
@@ -65,7 +65,7 @@ class ShotgridTrayWrapper:
         Depending on the login credentiasl we want to display one message or
         another in the Shotgrid submenu action.
         """
-        sg_username = credentials.get_local_login()
+        sg_username, _ = credentials.get_local_login()
 
         if sg_username:
             self.sg_username_label.setText(
