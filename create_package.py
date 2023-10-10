@@ -186,9 +186,7 @@ def zip_client_side(addon_package_dir, current_dir, log):
     """
 
     client_dir = os.path.join(current_dir, "client")
-    if not os.path.isdir(client_dir):
-        log.info("Client directory was not found. Skipping")
-        return
+    addon_subdir_path = os.path.join(client_dir, ADDON_CLIENT_DIR)
 
     log.info("Preparing client code zip")
     private_dir = os.path.join(addon_package_dir, "private")
@@ -202,8 +200,9 @@ def zip_client_side(addon_package_dir, current_dir, log):
     zip_filepath = os.path.join(os.path.join(private_dir, "client.zip"))
     with ZipFileLongPaths(zip_filepath, "w", zipfile.ZIP_DEFLATED) as zipf:
         # Add client code content to zip
-        for path, sub_path in find_files_in_subdir(client_dir):
-            zipf.write(path, sub_path)
+        for path, sub_path in find_files_in_subdir(addon_subdir_path):
+            dst_path = "/".join((ADDON_CLIENT_DIR, sub_path))
+            zipf.write(path, dst_path)
 
         # Add 'version.py' to client code
         zipf.write(src_version_path, dst_version_path)
