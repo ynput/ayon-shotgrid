@@ -207,6 +207,7 @@ def zip_client_side(addon_package_dir, current_dir, log):
 
         # Add 'version.py' to client code
         zipf.write(src_version_path, dst_version_path)
+    shutil.copy(os.path.join(client_dir, "pyproject.toml"), private_dir)
 
 
 def create_server_package(output_dir, addon_output_dir, addon_version, log):
