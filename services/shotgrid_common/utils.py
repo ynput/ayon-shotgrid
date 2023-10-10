@@ -134,19 +134,8 @@ def create_sg_entities_in_ay(
         sg_session (shotgun_api3.Shotgun): Shotgun Session object.
         shotgrid_project (dict): The project owning the Tasks.
     """
-    sg_tasks = [
-        {"name": task[0], "shortName": task[1]}
-        for task in get_sg_tasks_entities(
-            sg_session,
-            shotgrid_project
-        )
-    ]
-    new_tasks = sg_tasks + project_entity.task_types
-    new_tasks = list({
-        task['name']: task
-        for task in new_tasks
-    }.values())
 
+    # Add Shotgrid Entities to Project Entity
     sg_entities = [
         {"name": entity_type}
         for entity_type, _ in get_sg_project_enabled_entities(
@@ -159,6 +148,25 @@ def create_sg_entities_in_ay(
     new_entities = list({
         entity['name']: entity
         for entity in new_entities
+    }.values())
+
+    # Create Shotgrid Statuses
+    for status in get_sg_statuses(sg_session):
+        status_short_name, status_name = status
+        project_entity.statuses.create(status_name, short_name=status_short_name)
+
+    # Create Shotgrid Entities in Project Entity
+    sg_tasks = [
+        {"name": task[0], "shortName": task[1]}
+        for task in get_sg_tasks_entities(
+            sg_session,
+            shotgrid_project
+        )
+    ]
+    new_tasks = sg_tasks + project_entity.task_types
+    new_tasks = list({
+        task['name']: task
+        for task in new_tasks
     }.values())
     project_entity.folder_types = new_entities
     project_entity.task_types = new_tasks
@@ -556,29 +564,20 @@ def get_sg_project_enabled_entities(
     return project_entities
 
 
-def get_sg_statuses(
-    sg_session: shotgun_api3.Shotgun,
-    shotgrid_project: dict
-) -> dict:
+def get_sg_statuses(sg_session: shotgun_api3.Shotgun) -> dict:
     """ Get all Statuses on a Shotgrid project.
 
     Args:
         sg_session (shotgun_api3.Shotgun): Shotgun Session object.
-        shotgrid_project (dict): The project owning the Tasks.
 
     Returns:
-        sg_statuses (dict): Shotgrid Project Statuses list.
+        sg_statuses (list[tuple()]): Shotgrid Project Statuses list of tuples.
     """
-    sg_statuses: Dict[str, str] = {}
 
-    # These are the entities that have statuses in SG
-    for entity in ["Episode", "Sequence", "Shot", "Asset", "Task"]:
-        for status_schema in sg_session.schema_field_read(
-            entity, "sg_status_list"
-        ):
-            statuses = status_schema["sg_status_list"]["properties"]["display_values"]["value"]
-            for short_name, display_name in statuses.items():
-                sg_statuses.setdefault(short_name, display_name)
+    sg_statuses = [
+        (status["code"], status["name"])
+        for status in sg_session.find("Status", [], fields=["name", "code"])
+    ]
 
     return sg_statuses
 
