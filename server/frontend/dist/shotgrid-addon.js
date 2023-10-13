@@ -9,7 +9,7 @@ var ayonAPI = null
 
 const init = () => {
  /* When the addon page is loaded, it receive a message with context and
-  additional data (accessToken, addon version...). When the context is changed, 
+  additional data (accessToken, addon version...). When the context is changed,
   a message is re-broadcasted, so the page can react to changes in selection etc.  */
 
   window.onmessage = async (e) => {
@@ -146,7 +146,7 @@ const getShotgridProjects = async () => {
     .get(`${sgBaseUrl}/entity/projects?fields=*`, {
       headers: {
         'Authorization': `Bearer ${sgAuthToken}`,
-        'Accept': 'application/vnd+shotgun.api3_array+json'
+        'Accept': 'application/json'
       }
     })
     .then((result) => result.data.data)
