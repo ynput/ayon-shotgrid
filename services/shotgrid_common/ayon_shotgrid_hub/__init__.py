@@ -5,6 +5,7 @@ checks and provide methods to keep an Ayon and Shotgrid project in sync.
 import re
 
 from constants import (
+    AYON_SHOTGRID_ENTITY_TYPE_MAP,
     CUST_FIELD_CODE_AUTO_SYNC,
     CUST_FIELD_CODE_CODE,
     CUST_FIELD_CODE_ID,
@@ -29,7 +30,7 @@ from utils import (
     create_ay_fields_in_sg_project,
     create_ay_fields_in_sg_entities,
     create_sg_entities_in_ay,
-    create_ay_entities_in_sg,
+    get_sg_project_enabled_entities,
     get_sg_project_by_name,
     get_sg_missing_ay_attributes,
 )
@@ -168,9 +169,10 @@ class AyonShotgridHub:
         try:
             self._ay_project = EntityHub(project_name)
             self._ay_project.project_entity
-            logging.info(f"Project {self._ay_project} <self._ay_project.id> already exist in AYON.")
-        except Exception:
+            logging.info(f"Project {project_name} <{self._ay_project.project_entity.id}> already exist in AYON.")
+        except Exception as err:
             logging.warning(f"Project {project_name} does not exist in AYON.")
+            log_traceback(err)
             self._ay_project = None
 
         try:
@@ -235,11 +237,32 @@ class AyonShotgridHub:
 
         match source:
             case "ayon":
-                create_ay_entities_in_sg(
-                    self._ay_project.project_entity,
-                    self._sg,
-                    self._sg_project,
-                )
+                disabled_entities = []
+                ay_entities = [
+                    folder["name"]
+                    for folder in self._ay_project.project_entity.folder_types
+                    if folder["name"] in AYON_SHOTGRID_ENTITY_TYPE_MAP.keys()
+                ]
+
+                sg_entities = [
+                    entity_name
+                    for entity_name, _ in get_sg_project_enabled_entities(
+                        self._sg,
+                        self._sg_project
+                    )
+                ]
+
+                disabled_entities = [
+                    ay_entity
+                    for ay_entity in ay_entities
+                    if ay_entity not in sg_entities
+                ]
+
+                if disabled_entities:
+                    raise ValueError(
+                        f"Unable to sync project {self.project_name} <{self.project_code}> from AYON to Shotgird, you need to enable the following entities in the Shotgrid Project > Project Actions > Tracking Settings: {disabled_entities}"
+                    )
+
                 match_ayon_hierarchy_in_shotgrid(
                     self._ay_project,
                     self._sg_project,
