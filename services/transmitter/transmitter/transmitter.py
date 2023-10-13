@@ -40,8 +40,8 @@ class ShotgridTransmitter:
             self.sg_url = self.settings["shotgrid_server"]
 
             sg_secret = ayon_api.get_secret(self.settings["shotgrid_script_name"])
-            self.sg_script_name = shotgrid_secret.get("name")
-            self.sg_api_key = shotgrid_secret.get("value")
+            self.sg_script_name = sg_secret.get("name")
+            self.sg_api_key = sg_secret.get("value")
 
         except Exception as e:
             logging.error("Unable to get Addon settings from the server.")
