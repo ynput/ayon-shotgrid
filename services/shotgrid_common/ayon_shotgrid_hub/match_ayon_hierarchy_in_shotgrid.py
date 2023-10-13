@@ -7,7 +7,7 @@ from constants import (
     SHOTGRID_TYPE_ATTRIB,
 )
 
-from utils import get_sg_entities
+from utils import get_sg_entities, get_sg_entity_parent_field, get_sg_entity_as_ay_dict
 
 from nxtools import logging, log_traceback
 
@@ -39,10 +39,13 @@ def match_ayon_hierarchy_in_shotgrid(entity_hub, sg_project, sg_session):
 
     # Append the project's direct children.
     for ay_project_child in entity_hub._entities_by_parent_id[entity_hub.project_name]:
-        ay_entities_deck.append((sg_project, ay_project_child))
+        ay_entities_deck.append((
+            get_sg_entity_as_ay_dict(sg_session, "Project", sg_project["id"]),
+            ay_project_child
+        ))
 
     while ay_entities_deck:
-        (sg_parent_entity, ay_entity) = ay_entities_deck.popleft()
+        (ay_parent_entity, ay_entity) = ay_entities_deck.popleft()
         logging.debug(f"Processing {ay_entity})")
 
         sg_entity = None
@@ -75,18 +78,23 @@ def match_ayon_hierarchy_in_shotgrid(entity_hub, sg_project, sg_session):
                             sg_project_sync_status = "Failed"
 
             if sg_entity is None:
+                sg_parent_entity = sg_session.find_one(
+                    ay_parent_entity["shotgridType"],
+                    filters=[["id", "is", ay_parent_entity["shotgridId"]]]
+                )
                 sg_entity = _create_new_entity(
                     ay_entity,
                     sg_session,
                     sg_project,
                     sg_parent_entity
                 )
-                sg_entities_by_id[sg_entity["id"]] = sg_entity
+                sg_entity_id = sg_entity["shotgridId"]
+                sg_entities_by_id[sg_entity_id] = sg_entity
                 sg_entities_by_parent_id[sg_parent_entity["id"]].append(sg_entity)
 
             ay_entity.attribs.set(
                 SHOTGRID_ID_ATTRIB,
-                sg_entity["id"]
+                sg_entity_id
             )
             ay_entity.attribs.set(
                 SHOTGRID_TYPE_ATTRIB,
@@ -96,9 +104,10 @@ def match_ayon_hierarchy_in_shotgrid(entity_hub, sg_project, sg_session):
 
         if sg_entity is None:
             # Shotgrid doesn't have the concept of "Folders"
-            sg_entity = sg_parent_entity
+            sg_entity = ay_parent_entity
 
         for ay_entity_child in entity_hub._entities_by_parent_id.get(ay_entity.id, []):
+            print(f"APPENDING {sg_entity} and {ay_entity_child}")
             ay_entities_deck.append((sg_entity, ay_entity_child))
 
     sg_session.update(
@@ -130,19 +139,37 @@ def _create_new_entity(ay_entity, sg_session, sg_project, sg_parent_entity):
             }
         )
     else:
-        sg_parent_field = sg_parent_entity["type"].lower()
-        new_entity = sg_session.create(
-            ay_entity.folder_type,
-            {
-                "code": ay_entity.name,
-                CUST_FIELD_CODE_ID: ay_entity.id,
-                CUST_FIELD_CODE_SYNC: "Synced",
-                sg_parent_field: sg_parent_entity,
-            }
-        )
+        sg_parent_field = get_sg_entity_parent_field(sg_session, sg_project, ay_entity.folder_type)
+
+        if sg_parent_field == "project":
+            new_entity = sg_session.create(
+                ay_entity.folder_type,
+                {
+                    "project": sg_project,
+                    "code": ay_entity.name,
+                    CUST_FIELD_CODE_ID: ay_entity.id,
+                    CUST_FIELD_CODE_SYNC: "Synced",
+                }
+            )
+        else:
+            new_entity = sg_session.create(
+                ay_entity.folder_type,
+                {
+                    "project": sg_project,
+                    "code": ay_entity.name,
+                    CUST_FIELD_CODE_ID: ay_entity.id,
+                    CUST_FIELD_CODE_SYNC: "Synced",
+                    sg_parent_field: sg_parent_entity,
+                }
+            )
 
     logging.debug(f"Created new entity: {new_entity}")
     logging.debug(f"Parent is: {sg_parent_entity}")
+    new_entity = get_sg_entity_as_ay_dict(
+        sg_session,
+        new_entity["type"],
+        new_entity["id"]
+    )
     return new_entity
 
 
