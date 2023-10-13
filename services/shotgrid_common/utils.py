@@ -108,20 +108,6 @@ def create_ay_fields_in_sg_project(sg_session: shotgun_api3.Shotgun):
             field_properties=sg_field_properties
         )
 
-def create_ay_entities_in_sg(
-    project_entity: ProjectEntity,
-    sg_session: shotgun_api3.Shotgun,
-    shotgrid_project: dict
-):
-    """Ensure Shotgrid has all the Ayon Task and Folder types.
-
-    Args:
-        project_entity (ProjectEntity): The ProjectEntity for a given project.
-        sg_session (shotgun_api3.Shotgun): Shotgun Session object.
-        shotgrid_project (dict): The project owning the Tasks.
-    """
-    pass
-
 def create_sg_entities_in_ay(
     project_entity: ProjectEntity,
     sg_session: shotgun_api3.Shotgun,
