@@ -13,7 +13,7 @@ import socket
 from typing import Any, Callable, Union
 
 import ayon_api
-from nxtools import logging
+from nxtools import logging, log_traceback
 import shotgun_api3
 
 
@@ -82,8 +82,7 @@ class ShotgridListener:
 
         except Exception as e:
             logging.error("Unable to get Addon settings from the server.")
-            logging.error(e)
-
+            log_traceback(e)
             raise e
 
         try:
@@ -95,7 +94,7 @@ class ShotgridListener:
             self.sg_session.connect()
         except Exception as e:
             logging.error("Unable to connect to Shotgrid Instance:")
-            logging.error(e)
+            log_traceback(e)
             raise e
 
         signal.signal(signal.SIGINT, self._signal_teardown_handler)
@@ -194,7 +193,7 @@ class ShotgridListener:
                     limit=50,
                 )
                 if events:
-                    logging.info(f"Query returned {len(events)} events.")
+                    logging.info(f"Parsing returned {len(events)} events.")
 
                     for event in events:
                         if not event:
@@ -209,6 +208,7 @@ class ShotgridListener:
 
             except Exception as err:
                 logging.error(err)
+                log_traceback(err)
 
             logging.info(
                 f"Waiting {self.shotgrid_polling_frequency} seconds..."
@@ -246,7 +246,8 @@ class ShotgridListener:
             [["id", "is", project_id]],
             fields=[self.sg_project_code_field]
         )
-        
+        logging.debug(f"Found Shotgrid Project {sg_project}")
+
         ayon_api.dispatch_event(
             "shotgrid.event",
             sender=socket.gethostname(),
