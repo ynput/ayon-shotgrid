@@ -67,7 +67,8 @@ def create_ay_entity_from_sg_event(sg_event, sg_project, sg_session, ayon_entity
     if sg_entity_dict.get(CUST_FIELD_CODE_ID):
         # Revived entity, check if it still in the Server
         ay_entity = ayon_entity_hub.get_or_query_entity_by_id(
-            sg_entity_dict.get(CUST_FIELD_CODE_ID)
+            sg_entity_dict.get(CUST_FIELD_CODE_ID),
+            ["task" if sg_entity_dict.get(SHOTGRID_TYPE_ATTRIB).lower() == "task" else "folder"]
         )
 
         if ay_entity:
@@ -93,7 +94,8 @@ def create_ay_entity_from_sg_event(sg_event, sg_project, sg_session, ayon_entity
     )
 
     ay_parent_entity = ayon_entity_hub.get_or_query_entity_by_id(
-        sg_parent_entity_dict.get(CUST_FIELD_CODE_ID)
+        sg_parent_entity_dict.get(CUST_FIELD_CODE_ID),
+        ["task" if sg_parent_entity_dict.get(CUST_FIELD_CODE_ID).lower() == "task" else "folder"]
     )
 
     if not ay_parent_entity:
@@ -163,9 +165,10 @@ def update_ayon_entity_from_sg_event(sg_event, sg_session, ayon_entity_hub):
 
     if not sg_entity_dict.get(CUST_FIELD_CODE_ID):
         logging.warning("Shotgrid Missing Ayon ID")
-
+    
     ay_entity = ayon_entity_hub.get_or_query_entity_by_id(
-        sg_entity_dict.get(CUST_FIELD_CODE_ID)
+        sg_entity_dict.get(CUST_FIELD_CODE_ID),
+        ["task" if sg_entity_dict.get(CUST_FIELD_CODE_ID).lower() == "task" else "folder"]
     )
 
     if not ay_entity:
@@ -221,7 +224,8 @@ def remove_ayon_entity_from_sg_event(sg_event, sg_session, ayon_entity_hub):
         raise ValueError("Shotgrid Missing Ayon ID")
 
     ay_entity = ayon_entity_hub.get_or_query_entity_by_id(
-        sg_entity_dict.get(CUST_FIELD_CODE_ID)
+        sg_entity_dict.get(CUST_FIELD_CODE_ID),
+        ["task" if sg_entity_dict.get(CUST_FIELD_CODE_ID).lower() == "task" else "folder"]
     )
 
     if not ay_entity:
