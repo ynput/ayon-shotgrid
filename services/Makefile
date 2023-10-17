@@ -23,7 +23,7 @@ default:
 	
 
 build:
-	docker build -t $(IMAGE) -f $(SERVICE)/Dockerfile .
+	docker build --network=host -t $(IMAGE) -f $(SERVICE)/Dockerfile .
 
 build-all:
 	$(foreach service,leecher processor transmitter, docker build -t ynput/ayon-shotgrid-$(service):$(ADDON_VERSION) -f $(service)/Dockerfile . &)
@@ -34,7 +34,7 @@ clean:
 	fi
 
 clean-build: clean
-	docker build --no-cache -t $(IMAGE) -f $(SERVICE)/Dockerfile .
+	docker build --network=host --no-cache -t $(IMAGE) -f $(SERVICE)/Dockerfile .
 
 dev:
 	-ln -s $(CURDIR)/shotgrid_common/* $(CURDIR)/$(SERVICE)
