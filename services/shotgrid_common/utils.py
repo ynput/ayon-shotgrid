@@ -528,8 +528,6 @@ def get_sg_project_enabled_entities(
     for sg_entity_type in AYON_SHOTGRID_ENTITY_TYPE_MAP:
         if sg_entity_type == "Project":
             continue
-        elif sg_entity_type == "__flat__":
-            continue
 
         is_entity_enabled = sg_project_schema.get(
             sg_entity_type, {}
@@ -538,7 +536,7 @@ def get_sg_project_enabled_entities(
         if is_entity_enabled:
             parent_field = project_navigation.get(sg_entity_type, None)
 
-            if parent_field:
+            if parent_field and parent_field != "__flat__":
                 project_entities.append((
                     sg_entity_type,
                     parent_field.replace(f"{sg_entity_type}.", "")
