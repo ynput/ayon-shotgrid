@@ -107,7 +107,6 @@ def match_ayon_hierarchy_in_shotgrid(entity_hub, sg_project, sg_session):
             sg_entity = ay_parent_entity
 
         for ay_entity_child in entity_hub._entities_by_parent_id.get(ay_entity.id, []):
-            print(f"APPENDING {sg_entity} and {ay_entity_child}")
             ay_entities_deck.append((sg_entity, ay_entity_child))
 
     sg_session.update(
@@ -117,6 +116,16 @@ def match_ayon_hierarchy_in_shotgrid(entity_hub, sg_project, sg_session):
             CUST_FIELD_CODE_ID: entity_hub.project_name,
             CUST_FIELD_CODE_SYNC: sg_project_sync_status
         }
+    )
+
+    entity_hub.project_entity.attribs.set(
+        SHOTGRID_ID_ATTRIB,
+        sg_project["id"]
+    )
+
+    entity_hub.project_entity.attribs.set(
+        SHOTGRID_TYPE_ATTRIB,
+        "Project"
     )
 
 def _create_new_entity(ay_entity, sg_session, sg_project, sg_parent_entity):
