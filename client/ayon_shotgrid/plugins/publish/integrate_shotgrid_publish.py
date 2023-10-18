@@ -1,4 +1,6 @@
 import os
+import platform
+
 import pyblish.api
 
 from openpype.pipeline.publish import get_publish_repre_path
@@ -49,6 +51,9 @@ class IntegrateShotgridPublish(pyblish.api.InstancePlugin):
                 "PublishedFile",
                 query_filters
             )
+
+            if platform.system() == "Windows":
+                local_path = local_path.replace("\\", "/")
 
             published_file_data = {
                 "project": sg_project,
