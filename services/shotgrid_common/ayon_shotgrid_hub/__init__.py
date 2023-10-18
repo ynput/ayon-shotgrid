@@ -9,7 +9,9 @@ from constants import (
     CUST_FIELD_CODE_AUTO_SYNC,
     CUST_FIELD_CODE_CODE,
     CUST_FIELD_CODE_ID,
-    CUST_FIELD_CODE_URL
+    CUST_FIELD_CODE_URL,
+    SHOTGRID_ID_ATTRIB,
+    SHOTGRID_TYPE_ATTRIB
 )
 
 from .match_shotgrid_hierarchy_in_ayon import match_shotgrid_hierarchy_in_ayon
@@ -219,6 +221,16 @@ class AyonShotgridHub:
                     CUST_FIELD_CODE_URL: ayon_api.get_base_url(),
                 }
             )
+            self._ay_project.project_entity.attribs.set(
+                SHOTGRID_ID_ATTRIB,
+                self._sg_project["id"]
+            )
+
+            self._ay_project.project_entity.attribs.set(
+                SHOTGRID_TYPE_ATTRIB,
+                "Project"
+            )
+            self._ay_project.commit_changes()
         else:
             logging.info(f"Project {self.project_name} ({self.project_code}) already exists in SG.")
 
