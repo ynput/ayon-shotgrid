@@ -236,8 +236,13 @@ class ShotgridListener:
         payload["created_at"] = payload["created_at"].isoformat()
 
         logging.info(description)
-        project_name = payload.get("project", {}).get("name", "Undefined")
-        project_id = payload.get("project", {}).get("id", "Undefined")
+
+        if payload.get("meta", {}).get("entity_type", "Undefined") == "Project":
+            project_name = payload.get("entity", {}).get("name", "Undefined")
+            project_id = payload.get("entity", {}).get("id", "Undefined")
+        else:
+            project_name = payload.get("project", {}).get("name", "Undefined")
+            project_id = payload.get("project", {}).get("id", "Undefined")
 
         logging.info(f"Event is from Project {project_name} ({project_id})")
 
