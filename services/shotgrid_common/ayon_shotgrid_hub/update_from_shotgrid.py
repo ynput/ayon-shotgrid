@@ -72,6 +72,7 @@ def create_ay_entity_from_sg_event(sg_event, sg_project, sg_session, ayon_entity
         )
 
         if ay_entity:
+            logging.debug(f"SG Entity exists in AYON.")
             # Ensure Ay Entity has the correct Shotgird ID
             ay_shotgrid_id = sg_entity_dict.get(SHOTGRID_ID_ATTRIB, "")
             if ay_entity.attribs.get_attribute(SHOTGRID_ID_ATTRIB).value != str(ay_shotgrid_id):
@@ -93,6 +94,7 @@ def create_ay_entity_from_sg_event(sg_event, sg_project, sg_session, ayon_entity
         sg_entity_dict[sg_parent_field]["id"],
     )
 
+    logging.debug(f"SG Parent entity: {sg_parent_entity_dict}")
     ay_parent_entity = ayon_entity_hub.get_or_query_entity_by_id(
         sg_parent_entity_dict.get(CUST_FIELD_CODE_ID),
         ["task" if sg_parent_entity_dict.get(CUST_FIELD_CODE_ID).lower() == "task" else "folder"]
@@ -120,6 +122,7 @@ def create_ay_entity_from_sg_event(sg_event, sg_project, sg_session, ayon_entity
             parent_id=ay_parent_entity.id
         )
 
+    logging.debug(f"Created new AYON entity: {ay_entity}")
     ay_entity.attribs.set(
         SHOTGRID_ID_ATTRIB,
         sg_entity_dict.get(SHOTGRID_ID_ATTRIB, "")
