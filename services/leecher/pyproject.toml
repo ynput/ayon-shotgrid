@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "shotgrid-leecher"
-version = "0.2.3"
+version = "0.2.4"
 description = "Shotgrid Integration for Ayon"
 authors = ["Oscar Domingo <oscar.domingo@ynput.com>"]
 
@@ -10,7 +10,7 @@ python = ">=3.9,<4.0"
 pydantic = "^1.10.2"
 nxtools = "^1.6"
 ayon-python-api = "^0.4"
-shotgun-api3 = { git = "https://github.com/shotgunsoftware/python-api.git", tag = "v3.3.6" }
+shotgun-api3 = { git = "https://github.com/shotgunsoftware/python-api.git", tag = "v3.4.0" }
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"
