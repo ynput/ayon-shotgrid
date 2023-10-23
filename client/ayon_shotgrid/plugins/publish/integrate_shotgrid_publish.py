@@ -3,6 +3,7 @@ import platform
 
 import pyblish.api
 
+from openpype.pipeline import KnownPublishError
 from openpype.pipeline.publish import get_publish_repre_path
 
 
@@ -52,15 +53,51 @@ class IntegrateShotgridPublish(pyblish.api.InstancePlugin):
                 query_filters
             )
 
-            if platform.system() == "Windows":
-                local_path = local_path.replace("\\", "/")
+            sg_local_store = sg_session.find_one(
+                "LocalStorage",
+                filters=[],
+                fields=["mac_path","windows_path", "linux_path"]
+            )
+
+            if not sg_local_store:
+                KnownPublishError(
+                    "Unable to find a Local Store in Shotgrid."
+                    "Enable them in Site Preferences > Local Management:"
+                    "https://help.autodesk.com/view/SGSUB/ENU/?guid=SG_Administrator_ar_data_management_ar_linking_local_files_html"
+                )
+
+            self.log.debug("Using the Local Store: {sg_local_store}")
+
+            try:
+                if platform.system() == "Windows":
+                    _, file_partial_path = local_path.split(
+                        sg_local_store["windows_path"]
+                    )
+                elif platform.system() == "Linux":
+                    _, file_partial_path = local_path.split(
+                        sg_local_store["linux_path"]
+                    )
+                elif platform.system() == "Darwin":
+                    _, file_partial_path = local_path.split(
+                        sg_local_store["mac_path"]
+                    )
+            except ValueError:
+                raise KnownPublishError(
+                    f"Filepath {local_path} doesn't match the "
+                    f"Shotgrid Local Store {sg_local_store}"
+                    "Enable them in Site Preferences > Local Management:"
+                    "https://help.autodesk.com/view/SGSUB/ENU/?guid=SG_Administrator_ar_data_management_ar_linking_local_files_html"
+                )
 
             published_file_data = {
                 "project": sg_project,
                 "code": code,
                 "entity": sg_entity,
                 "version": sg_version,
-                "path": {"local_path": local_path},
+                "path": {
+                    "local_storage": sg_local_store,
+                    "relative_path": file_partial_path
+                },
             }
 
             if sg_task:
