@@ -1,5 +1,5 @@
 # In order for this Dockerfile to work it needs to be built from the `services` directory
-FROM python:alpine3.18
+FROM python:3.11-alpine3.18
 ENV PYTHONUNBUFFERED=1
 
 # Install python/pip
