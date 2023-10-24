@@ -29,7 +29,7 @@ build-all:
 	$(foreach service,leecher processor transmitter, docker build -t ynput/ayon-shotgrid-$(service):$(ADDON_VERSION) -f $(service)/Dockerfile . &)
 
 clean:
-	if docker images | grep $(IMAGE); then \
+	if docker images "$(IMAGE)"; then \
 		docker rmi $(IMAGE); \
 	fi
 
