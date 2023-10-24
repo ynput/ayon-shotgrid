@@ -37,7 +37,6 @@ clean-build: clean
 	docker build --network=host --no-cache -t $(IMAGE) -f $(SERVICE)/Dockerfile .
 
 dev:
-	-ln -s $(CURDIR)/shotgrid_common/* $(CURDIR)/$(SERVICE)
 	-docker run --rm -u ayonuser -ti \
 		-v $(CURDIR)/shotgrid_common:$(CURDIR)/shotgrid_common:Z \
 		-v $(CURDIR)/$(SERVICE):/service:Z \

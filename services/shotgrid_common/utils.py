@@ -1,7 +1,7 @@
 import collections
 from typing import Dict, Optional
 
-from constants import (
+from .constants import (
     AYON_SHOTGRID_ENTITY_TYPE_MAP,
     CUST_FIELD_CODE_ID,
     CUST_FIELD_CODE_SYNC,

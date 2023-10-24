@@ -13,7 +13,7 @@ import time
 import signal
 import socket
 
-from ayon_shotgrid_hub import AyonShotgridHub
+from shotgrid_common.ayon_shotgrid_hub import AyonShotgridHub
 
 import ayon_api
 from ayon_api.entity_hub import EntityHub

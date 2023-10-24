@@ -4,7 +4,7 @@ checks and provide methods to keep an Ayon and Shotgrid project in sync.
 """
 import re
 
-from constants import (
+from ..constants import (
     AYON_SHOTGRID_ENTITY_TYPE_MAP,
     CUST_FIELD_CODE_AUTO_SYNC,
     CUST_FIELD_CODE_CODE,
@@ -28,7 +28,7 @@ from .update_from_ayon import (
     remove_sg_entity_from_ayon_event
 )
 
-from utils import (
+from ..utils import (
     create_ay_fields_in_sg_project,
     create_ay_fields_in_sg_entities,
     create_sg_entities_in_ay,
@@ -398,4 +398,3 @@ class AyonShotgridHub:
                 msg = f"Unable to process event {ayon_event['topic']}."
                 logging.error(msg)
                 raise ValueError(msg)
-
