@@ -1,9 +1,10 @@
 # In order for this Dockerfile to work it needs to be built from the `services` directory
-FROM python:alpine3.18
+FROM python:alpine3.16
 ENV PYTHONUNBUFFERED=1
+ENV CRYPTOGRAPHY_DONT_BUILD_RUST=1
 
 # Install python/pip
-RUN apk add --update --no-cache git curl build-base libffi-dev
+RUN apk add --update --no-cache git curl build-base libffi-dev py3-pip
 RUN python -m ensurepip
 RUN python -m pip install --no-cache --upgrade pip setuptools poetry pip-autoremove && ln -sf pip3 /usr/bin/pip
 
@@ -25,11 +26,10 @@ RUN python -m pip uninstall -y pip pip-autoremove
 # Create a group and user: ayonuser
 RUN addgroup -S ayonuser && adduser -SH ayonuser -G ayonuser
 
-RUN chown ayonuser:ayonuser -R /service
-RUN chmod 777 -R /service
-
 COPY processor/processor /service/processor
 COPY shotgrid_common /service
+
+RUN chown ayonuser:ayonuser -R /service
 
 # Tell docker that all future commands should run as the appuser user
 USER ayonuser
