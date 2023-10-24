@@ -1,7 +1,7 @@
 """Sync Projects - A `processor.handler` to ensure two Projects
 are in sync between AYON and Shotgrid, uses the `AyonShotgridHub`.
 """
-from ayon_shotgrid_hub import AyonShotgridHub
+from shotgrid_common.ayon_shotgrid_hub import AyonShotgridHub
 
 
 from nxtools import logging, log_traceback
