@@ -4,7 +4,7 @@ ENV PYTHONUNBUFFERED=1
 ENV CRYPTOGRAPHY_DONT_BUILD_RUST=1
 
 # Install python/pip
-RUN apk add --update --no-cache git curl build-base libffi-dev py3-pip
+RUN apk add --update --no-cache git curl build-base libffi-dev
 RUN python -m ensurepip
 RUN python -m pip install --no-cache --upgrade pip setuptools poetry pip-autoremove && ln -sf pip3 /usr/bin/pip
 
