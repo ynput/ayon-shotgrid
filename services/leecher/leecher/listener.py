@@ -224,7 +224,7 @@ class ShotgridListener:
         Returns:
             int: The Shotgrid Event ID.
         """
-        logging.info("Processing Shotgrid Event")
+        logging.info(f"Processing Shotgrid Event {payload}")
 
         description = f"Leeched {payload['event_type']}"
         user_name = payload.get("user", {}).get("name", "Undefined")

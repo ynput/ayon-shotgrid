@@ -123,7 +123,6 @@ class ShotgridTransmitter:
                     self.sg_script_name
                 )
 
-                logging.warning(source_event)
                 hub.react_to_ayon_event(source_event)
 
                 logging.info("Event has been processed... setting to finished!")
