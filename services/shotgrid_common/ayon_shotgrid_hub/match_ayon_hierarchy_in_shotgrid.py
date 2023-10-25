@@ -137,6 +137,16 @@ def _create_new_entity(ay_entity, sg_session, sg_project, sg_parent_entity):
     """
 
     if ay_entity.entity_type == "task":
+        task_step = sg_session.find_one(
+            "Step",
+            filters=[["code", "is", ay_entity.name]],
+        )
+        if not task_step:
+            raise ValueError(
+                f"Unable to create Task {ay_entity.name} {ay_entity}\n"
+                f"    -> Shotgrid is missng Pipeline Step {ay_entity.name}"
+            )
+
         new_entity = sg_session.create(
             "Task",
             {
@@ -145,6 +155,7 @@ def _create_new_entity(ay_entity, sg_session, sg_project, sg_parent_entity):
                 CUST_FIELD_CODE_ID: ay_entity.id,
                 CUST_FIELD_CODE_SYNC: "Synced",
                 "entity": sg_parent_entity,
+                "step": task_step,
             }
         )
     else:
