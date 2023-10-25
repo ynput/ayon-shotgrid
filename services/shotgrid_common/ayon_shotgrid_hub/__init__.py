@@ -357,14 +357,6 @@ class AyonShotgridHub:
             ayon_event (dict): A dictionary describing what
                 the change encompases, i.e. a new shot, new asset, etc.
         """
-        ay_id = ayon_event["summary"]["entityId"]
-        ay_entity = self._ay_project.get_or_query_entity_by_id(ay_id, ["folder", "task"])
-
-
-        if not ay_entity:
-            logging.error(f"Event has a non existant entity? {ay_id}")
-            return
-
         if not self._sg_project[CUST_FIELD_CODE_AUTO_SYNC]:
             logging.info(f"Ignoring event, Shotgirid field 'Ayon Auto Sync' is disabled.")
             return
@@ -383,7 +375,6 @@ class AyonShotgridHub:
                     ayon_event,
                     self._sg,
                     self._ay_project,
-                    self._sg_project,
                 )
 
             case "entity.task.renamed" | "entity.folder.renamed":
@@ -391,7 +382,6 @@ class AyonShotgridHub:
                     ayon_event,
                     self._sg,
                     self._ay_project,
-                    self._sg_project,
                 )
 
             case _:

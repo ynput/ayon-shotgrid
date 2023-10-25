@@ -87,18 +87,23 @@ def create_ay_entity_from_sg_event(sg_event, sg_project, sg_session, ayon_entity
 
             return ay_entity
 
-    # Find parent entity ID
-    sg_parent_entity_dict = get_sg_entity_as_ay_dict(
-        sg_session,
-        sg_entity_dict[sg_parent_field]["type"],
-        sg_entity_dict[sg_parent_field]["id"],
-    )
+    if sg_entity_dict[sg_parent_field] is None:
+        # Parent is the project
+        logging.debug(f"SG Parent is the Project: {sg_project}")
+        ay_parent_entity = ayon_entity_hub.project_entity
+    else:
+        # Find parent entity ID
+        sg_parent_entity_dict = get_sg_entity_as_ay_dict(
+            sg_session,
+            sg_entity_dict[sg_parent_field]["type"],
+            sg_entity_dict[sg_parent_field]["id"],
+        )
 
-    logging.debug(f"SG Parent entity: {sg_parent_entity_dict}")
-    ay_parent_entity = ayon_entity_hub.get_or_query_entity_by_id(
-        sg_parent_entity_dict.get(CUST_FIELD_CODE_ID),
-        ["task" if sg_parent_entity_dict.get(CUST_FIELD_CODE_ID).lower() == "task" else "folder"]
-    )
+        logging.debug(f"SG Parent entity: {sg_parent_entity_dict}")
+        ay_parent_entity = ayon_entity_hub.get_or_query_entity_by_id(
+            sg_parent_entity_dict.get(CUST_FIELD_CODE_ID),
+            ["task" if sg_parent_entity_dict.get(CUST_FIELD_CODE_ID).lower() == "task" else "folder"]
+        )
 
     if not ay_parent_entity:
         # This really should be an edge  ase, since any parent event would
@@ -107,8 +112,8 @@ def create_ay_entity_from_sg_event(sg_event, sg_project, sg_session, ayon_entity
 
     if sg_entity_dict["type"].lower() == "task":
         ay_entity = ayon_entity_hub.add_new_task(
-            sg_entity_dict["label"],
-            name=sg_entity_dict["name"],
+            sg_entity_dict["name"],
+            name=sg_entity_dict["label"],
             label=sg_entity_dict["label"],
             entity_id=sg_entity_dict[CUST_FIELD_CODE_ID],
             parent_id=ay_parent_entity.id
@@ -228,7 +233,7 @@ def remove_ayon_entity_from_sg_event(sg_event, sg_session, ayon_entity_hub):
 
     ay_entity = ayon_entity_hub.get_or_query_entity_by_id(
         sg_entity_dict.get(CUST_FIELD_CODE_ID),
-        ["task" if sg_entity_dict.get(CUST_FIELD_CODE_ID).lower() == "task" else "folder"]
+        ["task" if sg_entity_dict.get("type").lower() == "task" else "folder"]
     )
 
     if not ay_entity:
@@ -240,6 +245,7 @@ def remove_ayon_entity_from_sg_event(sg_event, sg_session, ayon_entity_hub):
         raise ValueError("Missmatching Shotgrid IDs, aborting...")
 
     if not ay_entity.immutable_for_hierarchy:
+        logging.info(f"Deleting AYON entity: {ay_entity}")
         ayon_entity_hub.delete_entity(ay_entity)
     else:
         logging.info("Entity is immutable.")

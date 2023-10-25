@@ -161,7 +161,7 @@ def _create_new_entity(ay_entity, sg_session, sg_project, sg_parent_entity):
     else:
         sg_parent_field = get_sg_entity_parent_field(sg_session, sg_project, ay_entity.folder_type)
 
-        if sg_parent_field == "project":
+        if sg_parent_field == "project" or sg_parent_entity["type"] == "Project":
             new_entity = sg_session.create(
                 ay_entity.folder_type,
                 {
