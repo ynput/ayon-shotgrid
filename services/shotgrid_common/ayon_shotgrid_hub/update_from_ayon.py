@@ -35,6 +35,8 @@ def create_sg_entity_from_ayon_event(
     Returns:
         ay_entity (ayon_api.entity_hub.EntityHub.Entity): The newly created entity.
     """
+    logging.debug(f"Processing event {ayon_event}")
+
     ay_id = ayon_event["summary"]["entityId"]
     ay_entity = ayon_entity_hub.get_or_query_entity_by_id(ay_id, ["folder", "task"])
 
@@ -48,7 +50,10 @@ def create_sg_entity_from_ayon_event(
     sg_type = ay_entity.attribs.get("shotgridType")
 
     if not sg_type:
-        sg_type = ay_entity.folder_type
+        if ay_entity.entity_type == "task":
+            sg_type = "Task"
+        else:
+            sg_type = ay_entity.folder_type
 
     sg_entity = None
 
@@ -96,6 +101,7 @@ def update_sg_entity_from_ayon_event(ayon_event, sg_session, ayon_entity_hub):
         sg_entity (dict): The modified Shotgrid entity.
 
     """
+    logging.debug(f"Processing event {ayon_event}")
     ay_id = ayon_event["summary"]["entityId"]
     ay_entity = ayon_entity_hub.get_or_query_entity_by_id(ay_id, ["folder", "task"])
 
@@ -131,6 +137,7 @@ def remove_sg_entity_from_ayon_event(ayon_event, sg_session, ayon_entity_hub):
         sg_session (shotgun_api3.Shotgun): The Shotgrid API session.
         ayon_entity_hub (ayon_api.entity_hub.EntityHub): The AYON EntityHub.
     """
+    logging.debug(f"Processing event {ayon_event}")
     ay_id = ayon_event["payload"]["entityData"]["id"]
     sg_id = ayon_event["payload"]["entityData"]["attrib"]["shotgridId"]
     sg_type = ayon_event["payload"]["entityData"]["attrib"]["shotgridType"]
@@ -177,16 +184,28 @@ def _create_sg_entity(
         sg_type (str): The Shotgrid type of the new entity.
     """
     sg_field_name = "code"
+    sg_step = None
 
     if ay_entity.entity_type == "task":
         sg_field_name = "content"
+        sg_step = sg_session.find_one(
+            "Step",
+            filters=[["code", "is", ay_entity.name]],
+        )
+
+        if not sg_step:
+            raise ValueError(
+                f"Shotgrid does not have Pipeline Step {ay_entity.name}"
+            )
 
     sg_parent_id = ay_entity.parent.attribs.get(SHOTGRID_ID_ATTRIB)
     sg_parent_type = ay_entity.parent.attribs.get(SHOTGRID_TYPE_ATTRIB)
 
     if not (sg_parent_id and sg_parent_type):
-        logging.error("Parent does not exist in Shotgird!")
-        return
+        raise ValueError(
+                "Parent does not exist in Shotgrid!"
+                f"{sg_parent_type} <{sg_parent_id}>"
+            )
 
     parent_field = get_sg_entity_parent_field(
         sg_session,

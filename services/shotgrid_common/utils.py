@@ -30,7 +30,7 @@ def _sg_to_ay_dict(sg_entity: dict, project_code_field=None) -> dict:
         project_code_field = "code"
 
     if sg_entity["type"] == "Task":
-        name = slugify_string(sg_entity["content"])
+        name = sg_entity["step"]["name"]
         label = sg_entity["content"]
     elif sg_entity["type"] == "Project":
         name = slugify_string(sg_entity[project_code_field])
@@ -113,7 +113,7 @@ def create_sg_entities_in_ay(
     sg_session: shotgun_api3.Shotgun,
     shotgrid_project: dict
 ):
-    """Ensure Ayon has all the Shotgrid Taks and Folder types.
+    """Ensure Ayon has all the Shotgrid Tasks and Folder types.
 
     Args:
         project_entity (ProjectEntity): The ProjectEntity for a given project.
@@ -154,6 +154,7 @@ def create_sg_entities_in_ay(
         task['name']: task
         for task in new_tasks
     }.values())
+
     project_entity.folder_types = new_entities
     project_entity.task_types = new_tasks
 
@@ -297,7 +298,6 @@ def get_sg_entities(
             filters=[["project", "is", sg_project]],
             fields=common_fields,
         )
-
         if sg_entities:
             for entity in sg_entities:
                 parent_id = sg_project["id"]
@@ -566,7 +566,7 @@ def get_sg_statuses(sg_session: shotgun_api3.Shotgun) -> dict:
         (status["code"], status["name"])
         for status in sg_session.find("Status", [], fields=["name", "code"])
     ]
-
+    logging.debug(f"Shotgrid Statuses: {sg_statuses}")
     return sg_statuses
 
 
@@ -604,5 +604,7 @@ def get_sg_tasks_entities(
     for step in pipeline_steps:
         sg_tasks.append((step["code"], step["short_name"].lower()))
 
-    return list(set(sg_tasks))
+    sg_tasks = list(set(sg_tasks))
+    logging.debug(f"Shotgrid Tasks: {sg_tasks}")
+    return sg_tasks
 

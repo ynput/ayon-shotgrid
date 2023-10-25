@@ -126,6 +126,7 @@ SG_COMMON_ENTITY_FIELDS = [
     "sg_asset_type",
     "content",
     "entity",
+    "step",
     CUST_FIELD_CODE_ID,
     CUST_FIELD_CODE_SYNC,
 ]
