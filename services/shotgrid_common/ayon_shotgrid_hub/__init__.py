@@ -47,8 +47,19 @@ PROJECT_NAME_REGEX = re.compile("^[a-zA-Z0-9_]+$")
 
 def get_shotgrid_connection(
         sg_url: str,
-        sg_api_key: str,
-        sg_script_name: str) -> shotgun_api3.Shotgun:
+        sg_script_name: str,
+        sg_api_key: str) -> shotgun_api3.Shotgun:
+    """Create a Shotgrid Session.
+
+    Args:
+        sg_url (str): The URL of the Shotgrid instance.
+        sg_script_name (str): The name of the Script to use.
+        sg_api_key (str): The API Key of the Script to use.
+
+    Returns:
+        shotgun_api3.Shotgun: A Shotgun session.
+
+    """
     try:
         _sg = shotgun_api3.Shotgun(
             sg_url,
