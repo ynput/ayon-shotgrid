@@ -1,7 +1,7 @@
 """
 Handle Events originated from Shotgrid.
 """
-from ayon_shotgrid_hub import AyonShotgridHub
+from ayon_shotgrid_hub import AyonShotgridHub, get_shotgrid_connection
 
 from nxtools import logging
 
@@ -35,10 +35,8 @@ def process_event(
     hub = AyonShotgridHub(
         project_name,
         project_code,
-        sg_url,
-        sg_api_key,
-        sg_script_name,
+        sg_connection=get_shotgrid_connection(
+            sg_url, sg_script_name, sg_api_key)
     )
 
     hub.react_to_shotgrid_event(sg_payload["meta"])
-

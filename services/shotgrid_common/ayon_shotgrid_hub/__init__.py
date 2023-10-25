@@ -45,6 +45,31 @@ import shotgun_api3
 PROJECT_NAME_REGEX = re.compile("^[a-zA-Z0-9_]+$")
 
 
+def get_shotgrid_connection(
+        sg_url: str,
+        sg_api_key: str,
+        sg_script_name: str) -> shotgun_api3.Shotgun:
+    try:
+        _sg = shotgun_api3.Shotgun(
+            sg_url,
+            script_name=sg_script_name,
+            api_key=sg_api_key
+        )
+    except Exception as e:
+        logging.error("Unable to create Shotgrid Session.")
+        log_traceback(e)
+        raise Exception from e
+
+    try:
+        _sg.connect()
+    except Exception as e:
+        logging.error("Unable to connect to Shotgrid.")
+        raise Exception from e
+
+    logging.debug("Succesfully connected to Shotgrid.")
+    return _sg
+
+
 class AyonShotgridHub:
     """A Hub to manage a Project in both AYON and Shotgrid
 
@@ -57,31 +82,22 @@ class AyonShotgridHub:
 
     Args:
         project_name (str):The project name, cannot contain spaces.
-        project_code (str): The project code (3 letter code).
-        sg_url (str): The URL of the Shotgrid instance.
-        sg_api_key (str): The API key of the Shotgrid instance.
-        sg_script_name (str): The Script Name of the Shotgrid instance.
+        project_code (str): The project code (3-letter code).
+        sg_connection (Shotgun): A Shotgun session.
+        sg_project_code_field (str): The name of the field in Shotgrid that
+            contains the project code, defaults to "code".
+
     """
-    def __init__(self,
-        project_name,
-        project_code,
-        sg_url,
-        sg_api_key,
-        sg_script_name,
-        sg_project_code_field=None,
-    ):
+    def __init__(
+            self, project_name, project_code,
+            sg_connection, sg_project_code_field=None):
 
-        self._sg = None
-
-        if not all([sg_url, sg_api_key, sg_script_name]):
-            msg = (
-                "AyonShotgridHub requires `sg_url`, `sg_api_key`" \
-                "and `sg_script_name` as arguments."
-            )
-            logging.error(msg)
-            raise ValueError(msg)
-
-        self._initialize_apis(sg_url, sg_api_key, sg_script_name)
+        self._sg = sg_connection
+                
+        try:
+            self._check_for_missing_sg_attributes()
+        except ValueError as e:
+            logging.warning(e)
 
         self._ay_project = None
         self._sg_project = None
@@ -94,58 +110,17 @@ class AyonShotgridHub:
         self.project_name = project_name
         self.project_code = project_code
 
-    def _initialize_apis(self, sg_url=None, sg_api_key=None, sg_script_name=None):
-        """ Ensure we can talk to AYON and Shotgrid.
-
-        Start connections to the APIs and catch any possible error, we abort if
-        this steps fails for any reason.
-        """
-        try:
-            ayon_api.init_service()
-        except Exception as e:
-            logging.error("Unable to connect to AYON.")
-            log_traceback(e)
-            raise(e)
-
-        if self._sg is None:
-            try:
-                self._sg = shotgun_api3.Shotgun(
-                    sg_url,
-                    script_name=sg_script_name,
-                    api_key=sg_api_key
-                )
-            except Exception as e:
-                logging.error("Unable to create Shotgrid Session.")
-                log_traceback(e)
-                raise(e)
-
-        try:
-            self._sg.connect()
-            logging.debug("Succesfully connected to Shotgrid.")
-
-            try:
-                self._check_for_missing_sg_attributes()
-            except ValueError as e:
-                logging.warning(e)
-
-        except Exception as e:
-            logging.error("Unable to connect to Shotgrid.")
-            log_traceback(e)
-            raise(e)
-
     def _check_for_missing_sg_attributes(self):
         """Check if Shotgrid has all the fields.
 
         In order to sync to work, Shotgrid needs to have certain fields in both
         the Project and the entities within it, if any is missing this will raise.
         """
-        missing_attributes = get_sg_missing_ay_attributes(self._sg)
-
-        if missing_attributes:
-            raise ValueError("""Shotgrid Project is missing the following attributes: {0}
-            Use `AyonShotgridHub.create_sg_attributes()` to create them.""".format(
-                "\n".join(missing_attributes)
-            ))
+        if missing_attributes := get_sg_missing_ay_attributes(self._sg):
+            raise ValueError("""
+                Shotgrid Project is missing the following attributes: {0}
+                Use `AyonShotgridHub.create_sg_attributes()` to create them.
+            """.format("\n".join(missing_attributes)))
 
     def create_sg_attributes(self):
         """Create all AYON needed attributes in Shotgrid."""

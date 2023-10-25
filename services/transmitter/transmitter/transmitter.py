@@ -13,7 +13,7 @@ import time
 import signal
 import socket
 
-from ayon_shotgrid_hub import AyonShotgridHub
+from ayon_shotgrid_hub import AyonShotgridHub, get_shotgrid_connection
 
 import ayon_api
 from ayon_api.entity_hub import EntityHub
@@ -47,6 +47,10 @@ class ShotgridTransmitter:
             logging.error("Unable to get Addon settings from the server.")
             log_traceback(e)
             raise e
+
+        self.sg_connection = get_shotgrid_connection(
+            self.sg_url, self.sg_script_name, self.sg_api_key
+        )
 
     def start_processing(self):
         """ Main loop querying AYON for `entity.*` events.
@@ -109,7 +113,6 @@ class ShotgridTransmitter:
                         project_name=project_name,
                         status="finished"
                     )
-                    time.sleep(1.5)
                     continue
 
                 project_code = ay_project.get("code")
@@ -117,9 +120,7 @@ class ShotgridTransmitter:
                 hub = AyonShotgridHub(
                     project_name,
                     project_code,
-                    self.sg_url,
-                    self.sg_api_key,
-                    self.sg_script_name
+                    sg_connection=self.sg_connection
                 )
 
                 logging.warning(source_event)
@@ -130,6 +131,3 @@ class ShotgridTransmitter:
             except Exception as err:
                 log_traceback(err)
                 ayon_api.update_event(event["id"], project_name=project_name, status="finished")
-
-            time.sleep(1.5)
-
