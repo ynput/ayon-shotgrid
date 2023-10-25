@@ -89,7 +89,8 @@ class ShotgridTransmitter:
                             },
                         ],
                         "operator": "and",
-                    }
+                    },
+                    max_retries=2
                 )
 
                 if not event:
