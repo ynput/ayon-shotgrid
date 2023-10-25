@@ -30,6 +30,11 @@ def _sg_to_ay_dict(sg_entity: dict, project_code_field=None) -> dict:
         project_code_field = "code"
 
     if sg_entity["type"] == "Task":
+        if not sg_entity["step"]:
+            raise ValueError(
+                f"Task {sg_entity} has not Pipeline Step assigned."
+            )
+
         name = sg_entity["step"]["name"]
         label = sg_entity["content"]
     elif sg_entity["type"] == "Project":

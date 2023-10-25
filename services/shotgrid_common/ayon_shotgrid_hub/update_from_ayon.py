@@ -41,10 +41,9 @@ def create_sg_entity_from_ayon_event(
     ay_entity = ayon_entity_hub.get_or_query_entity_by_id(ay_id, ["folder", "task"])
 
     if not ay_entity:
-        logging.error(
+        raise ValueError(
             f"Event has a non existant entity? {ayon_event['summary']['entityId']}"
         )
-        return
 
     sg_id = ay_entity.attribs.get("shotgridId")
     sg_type = ay_entity.attribs.get("shotgridType")
@@ -105,6 +104,11 @@ def update_sg_entity_from_ayon_event(ayon_event, sg_session, ayon_entity_hub):
     ay_id = ayon_event["summary"]["entityId"]
     ay_entity = ayon_entity_hub.get_or_query_entity_by_id(ay_id, ["folder", "task"])
 
+    if not ay_entity:
+        raise ValueError(
+            f"Event has a non existant entity? {ayon_event['summary']['entityId']}"
+        )
+
     sg_id = ay_entity.attribs.get("shotgridId")
     sg_type = ay_entity.attribs.get("shotgridType")
 
@@ -148,7 +152,7 @@ def remove_sg_entity_from_ayon_event(ayon_event, sg_session, ayon_entity_hub):
     if sg_id and sg_type:
         sg_entity = sg_session.find_one(
             sg_type,
-            filters=[[id, "is", sg_id]]
+            filters=[["id", "is", int(sg_id)]]
         )
     else:
         sg_entity = sg_session.find_one(
@@ -163,7 +167,7 @@ def remove_sg_entity_from_ayon_event(ayon_event, sg_session, ayon_entity_hub):
     sg_id = sg_entity["id"]
 
     try:
-        sg_session.delete(sg_type, sg_id)
+        sg_session.delete(sg_type, int(sg_id))
         logging.info(f"Retired Shotgrid entity: {sg_type} <{sg_id}>")
     except Exception as e:
         logging.error(f"Unable to delete {sg_type} <{sg_id}> in Shotgrid!")
@@ -227,6 +231,7 @@ def _create_sg_entity(
                 "entity": {"type": sg_parent_type, "id": int(sg_parent_id)},
                 sg_field_name: ay_entity.name,
                 CUST_FIELD_CODE_ID: ay_entity.id,
+                "step": sg_step
             }
         else:
             data = {
