@@ -1,4 +1,4 @@
 [tool.poetry.dependencies]
 python = "^3.9"
-ayon-python-api = "^0.4"
+ayon-python-api = "^0.5"
 shotgun_api3 = { git = "https://github.com/shotgunsoftware/python-api.git", tag = "v3.4.0" }
