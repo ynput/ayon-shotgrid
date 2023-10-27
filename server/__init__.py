@@ -85,8 +85,8 @@ class ShotgridAddon(BaseServerAddon):
             {
                 "type": "string",
                 "title": "Shotgrid ID",
-                "description": "The ID in the Shotgrid Instance.",
-                "inherit": "False"
+                "description": "The Shotgrid ID of this entity.",
+                "inherit": False
             }
         )
 
@@ -98,8 +98,8 @@ class ShotgridAddon(BaseServerAddon):
             {
                 "type": "string",
                 "title": "Shotgrid Type",
-                "decription": "The Type of the Shotgrid entity.",
-                "inherit": "False"
+                "description": "The Shotgrid Type of this entity.",
+                "inherit": False
             }
         )
 
