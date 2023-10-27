@@ -73,6 +73,7 @@ class IntegrateShotgridPublish(pyblish.api.InstancePlugin):
                     _, file_partial_path = local_path.split(
                         sg_local_store["windows_path"]
                     )
+                    file_partial_path = file_partial_path.replace("\\", "/")
                 elif platform.system() == "Linux":
                     _, file_partial_path = local_path.split(
                         sg_local_store["linux_path"]
@@ -81,6 +82,8 @@ class IntegrateShotgridPublish(pyblish.api.InstancePlugin):
                     _, file_partial_path = local_path.split(
                         sg_local_store["mac_path"]
                     )
+
+                file_partial_path = file_partial_path.lstrip("/")
             except ValueError:
                 raise KnownPublishError(
                     f"Filepath {local_path} doesn't match the "
