@@ -190,18 +190,6 @@ def _create_sg_entity(
     sg_field_name = "code"
     sg_step = None
 
-    if ay_entity.entity_type == "task":
-        sg_field_name = "content"
-        sg_step = sg_session.find_one(
-            "Step",
-            filters=[["code", "is", ay_entity.name]],
-        )
-
-        if not sg_step:
-            raise ValueError(
-                f"Shotgrid does not have Pipeline Step {ay_entity.name}"
-            )
-
     sg_parent_id = ay_entity.parent.attribs.get(SHOTGRID_ID_ATTRIB)
     sg_parent_type = ay_entity.parent.attribs.get(SHOTGRID_TYPE_ATTRIB)
 
@@ -209,6 +197,27 @@ def _create_sg_entity(
         raise ValueError(
                 "Parent does not exist in Shotgrid!"
                 f"{sg_parent_type} <{sg_parent_id}>"
+            )
+
+    if ay_entity.entity_type == "task":
+        sg_field_name = "content"
+
+        step_query_filters = [["code", "is", ay_entity.task_type]]
+
+        if sg_parent_type in ["Asset", "Shot"]:
+            step_query_filters.append(
+                ["entity_type", "is", sg_parent_type]
+            )
+
+        sg_step = sg_session.find_one(
+            "Step",
+            filters=step_query_filters,
+        )
+
+        if not sg_step:
+            raise ValueError(
+                f"Unable to create Task {ay_entity.task_type} {ay_entity}\n"
+                f"    -> Shotgrid is missng Pipeline Step {ay_entity.task_type}"
             )
 
     parent_field = get_sg_entity_parent_field(
@@ -229,7 +238,7 @@ def _create_sg_entity(
             data = {
                 "project": sg_project,
                 "entity": {"type": sg_parent_type, "id": int(sg_parent_id)},
-                sg_field_name: ay_entity.name,
+                sg_field_name: ay_entity.label,
                 CUST_FIELD_CODE_ID: ay_entity.id,
                 "step": sg_step
             }
