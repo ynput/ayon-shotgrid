@@ -23,6 +23,7 @@ At most time it fetches the SG entiy as an Ayon dict:
 """
 
 from utils import (
+    get_asset_category,
     get_sg_entity_as_ay_dict,
     get_sg_entity_parent_field
 )
@@ -55,12 +56,17 @@ def create_ay_entity_from_sg_event(sg_event, sg_project, sg_session, ayon_entity
         sg_project,
         sg_event["entity_type"],
     )
+    extra_fields = [sg_parent_field]
+
+    if sg_event["entity_type"] == "Asset":
+        extra_fields.append("sg_asset_type")
+        sg_parent_field = "sg_asset_type"
 
     sg_entity_dict = get_sg_entity_as_ay_dict(
         sg_session,
         sg_event["entity_type"],
         sg_event["entity_id"],
-        extra_fields=[sg_parent_field],
+        extra_fields=extra_fields,
     )
     logging.debug(f"SG Entity as Ay dict: {sg_entity_dict}")
 
@@ -92,23 +98,33 @@ def create_ay_entity_from_sg_event(sg_event, sg_project, sg_session, ayon_entity
         logging.debug(f"SG Parent is the Project: {sg_project}")
         ay_parent_entity = ayon_entity_hub.project_entity
     else:
-        # Find parent entity ID
-        sg_parent_entity_dict = get_sg_entity_as_ay_dict(
-            sg_session,
-            sg_entity_dict[sg_parent_field]["type"],
-            sg_entity_dict[sg_parent_field]["id"],
-        )
+        if sg_entity_dict["type"] == "Asset" and sg_entity_dict.get("sg_asset_type"):
+            logging.debug(f"SG Parent is an Asset category.")
 
-        logging.debug(f"SG Parent entity: {sg_parent_entity_dict}")
-        ay_parent_entity = ayon_entity_hub.get_or_query_entity_by_id(
-            sg_parent_entity_dict.get(CUST_FIELD_CODE_ID),
-            ["task" if sg_parent_entity_dict.get(CUST_FIELD_CODE_ID).lower() == "task" else "folder"]
-        )
+            ay_parent_entity = get_asset_category(
+                ayon_entity_hub,
+                ayon_entity_hub.project_entity,
+                sg_entity_dict.get("sg_asset_type").lower()
+            )
+
+        else:
+            # Find parent entity ID
+            sg_parent_entity_dict = get_sg_entity_as_ay_dict(
+                sg_session,
+                sg_entity_dict[sg_parent_field]["type"],
+                sg_entity_dict[sg_parent_field]["id"],
+            )
+
+            logging.debug(f"SG Parent entity: {sg_parent_entity_dict}")
+            ay_parent_entity = ayon_entity_hub.get_or_query_entity_by_id(
+                sg_parent_entity_dict.get(CUST_FIELD_CODE_ID),
+                ["task" if sg_parent_entity_dict.get(CUST_FIELD_CODE_ID).lower() == "task" else "folder"]
+            )
 
     if not ay_parent_entity:
         # This really should be an edge  ase, since any parent event would
         # happen before this... but hey
-        raise ValueError("Parent does not exist in Ayon.")
+        raise ValueError("Parent does not exist in Ayon, try doing a Project Sync.")
 
     if sg_entity_dict["type"].lower() == "task":
         ay_entity = ayon_entity_hub.add_new_task(

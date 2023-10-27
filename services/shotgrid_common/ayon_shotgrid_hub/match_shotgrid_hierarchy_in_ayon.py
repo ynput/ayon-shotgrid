@@ -7,7 +7,7 @@ from constants import (
     SHOTGRID_TYPE_ATTRIB,
 )
 
-from utils import get_sg_entities
+from utils import get_sg_entities, get_asset_category
 
 from nxtools import logging, log_traceback
 
@@ -54,11 +54,19 @@ def match_shotgrid_hierarchy_in_ayon(entity_hub, sg_project, sg_session):
 
         # If we couldn't find it we create it.
         if ay_entity is None:
-            ay_entity = _create_new_entity(
-                entity_hub,
-                ay_parent_entity,
-                sg_entity,
-            )
+            if sg_entity.get("shotgridType") == "AssetCategory":
+                ay_entity = get_asset_category(
+                    entity_hub,
+                    ay_parent_entity,
+                    sg_entity["name"]
+                )
+
+            if not ay_entity:
+                ay_entity = _create_new_entity(
+                    entity_hub,
+                    ay_parent_entity,
+                    sg_entity,
+                )
         else:
             logging.debug(
                 f"Entity {ay_entity.name} <{ay_entity.id}> exists in AYON. "
@@ -85,7 +93,7 @@ def match_shotgrid_hierarchy_in_ayon(entity_hub, sg_project, sg_session):
 
         entity_id = sg_entity["name"]
 
-        if sg_entity["type"] != "Folder":
+        if sg_entity["type"] not in ["Folder", "AssetCategory"]:
             if (
                 sg_entity[CUST_FIELD_CODE_ID] != ay_entity.id
                 or sg_entity[CUST_FIELD_CODE_SYNC] != sg_entity_sync_status
@@ -136,10 +144,12 @@ def match_shotgrid_hierarchy_in_ayon(entity_hub, sg_project, sg_session):
         }
     )
 
+
 def _create_new_entity(entity_hub, parent_entity, sg_entity):
     """Helper method to create entities in the EntityHub.
 
     Args:
+        entity_hub (ayon_api.EntityHub): The project's entity hub.
         parent_entity: Ayon parent entity.
         sg_entity (dict): Shotgrid entity to create.
     """

@@ -136,6 +136,9 @@ def create_sg_entities_in_ay(
     ]
 
     new_entities = sg_entities + project_entity.folder_types
+    # So we can have a specific folder for AssetCategory
+    new_entities.append({"name": "AssetCategory"})
+
     new_entities = list({
         entity['name']: entity
         for entity in new_entities
@@ -164,6 +167,43 @@ def create_sg_entities_in_ay(
     project_entity.task_types = new_tasks
 
     return sg_entities, sg_tasks
+
+
+def get_asset_category(entity_hub, parent_entity, asset_category_name):
+    """ Look for existing "AssetCategory" folders in AYON.
+
+        Asset categoried are not entities per se in Shotgrid, they are a "string"
+        field in the `Asset` type, which is then used to visually group `Asset`s;
+        here we attempt to find any `AssetCatgory` folder type that alread matches
+        the one in Shotgrid.
+
+    Args:
+        entity_hub (ayon_api.EntityHub): The project's entity hub.
+        parent_entity: Ayon parent entity.
+        asset_category_name (str): The Asset Category name.
+    """
+    logging.debug(
+        "It's an AssetCategory, checking if it exists already."
+    )
+    entity_hub.query_entities_from_server()
+    asset_categories = [
+        entity
+        for entity in entity_hub.entities
+        if entity.entity_type.lower() == "folder" and entity.folder_type == "AssetCategory"
+    ]
+
+    logging.debug(f"Found existing 'AssetCategory'(s)\n{asset_categories}")
+
+    for asset_category in asset_categories:
+        if (
+            asset_category.name == asset_category_name
+            and asset_category.parent.id == parent_entity.id
+        ):
+            logging.debug(f"AssetCategory already exists: {asset_category}")
+            return asset_category
+
+    logging.debug(f"Unable to find AssetCategory.")
+    return None
 
 
 def get_or_create_sg_field(
@@ -321,7 +361,7 @@ def get_sg_entities(
                         SHOTGRID_TYPE_ATTRIB: "AssetCategory",
                         CUST_FIELD_CODE_ID: None,
                         CUST_FIELD_CODE_SYNC: None,
-                        "type": "Folder",
+                        "type": "AssetCategory",
                     }
 
                     if not entities_by_id.get(asset_category_entity["name"]):
