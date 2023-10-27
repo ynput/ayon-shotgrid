@@ -54,6 +54,7 @@ const populateTable = async () => {
       }
     })
     if (!already_exists) {
+      sg_project.ayonId = null
       allProjects.push(sg_project)
     }
   })
