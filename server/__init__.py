@@ -10,6 +10,7 @@ from nxtools import logging
 
 SG_ID_ATTRIB = "shotgridId"
 SG_TYPE_ATTRIB = "shotgridType"
+SG_PUSH_ATTRIB = "shotgridPush"
 
 
 class ShotgridAddon(BaseServerAddon):
@@ -45,63 +46,76 @@ class ShotgridAddon(BaseServerAddon):
             bool: 'True' if an attribute was created or updated.
         """
 
-        query = (
-            "SELECT name, position, scope, data from public.attributes "
-            f"WHERE (name = '{SG_ID_ATTRIB}' OR name = '{SG_TYPE_ATTRIB}') "
-            "AND (scope = '{project, folder, task}')"
-        )
-
         if Postgres.pool is None:
             await Postgres.connect()
 
-        shotgrid_attributes = await Postgres.fetch(query)
         all_attributes = await Postgres.fetch(
             "SELECT name from public.attributes"
         )
-        logging.debug("Querying database for existing attributes...")
-        logging.debug(shotgrid_attributes)
 
-        if shotgrid_attributes:
-            logging.debug("Shotgrid Attributes already exist in database!")
+        num_of_attributes = len(all_attributes)
+
+        shotgrid_attributes = await Postgres.fetch(
+            "SELECT name from public.attributes "
+            f"WHERE (name = '{SG_ID_ATTRIB}' OR name = '{SG_TYPE_ATTRIB}' OR name = '{SG_PUSH_ATTRIB}') "
+        )
+
+        if not shotgrid_attributes or len(shotgrid_attributes) < 3:
+            postgres_query = "\n".join((
+                "INSERT INTO public.attributes",
+                "    (name, position, scope, data)",
+                "VALUES",
+                "    ($1, $2, $3, $4)",
+                "ON CONFLICT (name)",
+                "DO UPDATE SET",
+                "    scope = $3,",
+                "    data = $4",
+            ))
+
+            logging.debug("Creating Shotgrid Attributes...")
+
+            await Postgres.execute(
+                postgres_query,
+                SG_ID_ATTRIB,  # name
+                num_of_attributes + 1,  # Add Attributes at the end of the list
+                ["project", "folder", "task"],  # scope
+                {
+                    "type": "string",
+                    "title": "Shotgrid ID",
+                    "description": "The Shotgrid ID of this entity.",
+                    "inherit": False
+                }
+            )
+
+            await Postgres.execute(
+                postgres_query,
+                SG_TYPE_ATTRIB,  # name
+                num_of_attributes + 2,  # Add Attributes at the end of the list
+                ["project", "folder", "task"],  # scope
+                {
+                    "type": "string",
+                    "title": "Shotgrid Type",
+                    "description": "The Shotgrid Type of this entity.",
+                    "inherit": False
+                }
+            )
+
+            await Postgres.execute(
+                postgres_query,
+                SG_PUSH_ATTRIB,  # name
+                num_of_attributes + 3,  # Add Attributes at the end of the list
+                ["project"],  # scope
+                {
+                    "type": "boolean",
+                    "title": "Shotgrid Push",
+                    "description": "Push changes done to this project to Shotgird. Requires the transmitter service.",
+                    "inherit": False,
+                    "value": False,
+                }
+            )
+
+            return True
+
+        else:
+            logging.debug("Shotgrid Attributes already exist.")
             return False
-
-        postgres_query = "\n".join((
-            "INSERT INTO public.attributes",
-            "    (name, position, scope, data)",
-            "VALUES",
-            "    ($1, $2, $3, $4)",
-            "ON CONFLICT (name)",
-            "DO UPDATE SET",
-            "    scope = $3,",
-            "    data = $4",
-        ))
-        logging.debug("Creating Shotgrid Attributes...")
-
-        await Postgres.execute(
-            postgres_query,
-            SG_ID_ATTRIB,  # name
-            len(all_attributes) + 1,  # Add Attributes at the end of the list
-            ["project", "folder", "task"],  # scope
-            {
-                "type": "string",
-                "title": "Shotgrid ID",
-                "description": "The Shotgrid ID of this entity.",
-                "inherit": False
-            }
-        )
-
-        await Postgres.execute(
-            postgres_query,
-            SG_TYPE_ATTRIB,  # name
-            len(all_attributes) + 2,  # Add Attributes at the end of the list
-            ["project", "folder", "task"],  # scope
-            {
-                "type": "string",
-                "title": "Shotgrid Type",
-                "description": "The Shotgrid Type of this entity.",
-                "inherit": False
-            }
-        )
-
-        return True
-
