@@ -66,8 +66,21 @@ class ShotgridTransmitter:
             "entity.folder.attrib_changed",
         ]
 
+
         while True:
-            logging.info("Querying for new `entity` events...")
+            projects_we_care = [
+                project["name"]
+                for project in ayon_api.get_projects()
+                if project.get("attrib", {}).get("shotgridPush", False) is True
+            ]
+
+            if not projects_we_care:
+                logging.warning("No project with 'shotgridPush' attribute enabled found.")
+                time.sleep(60)
+                continue
+
+            logging.info(f"Querying for new `entity` events on projects: {' ,'.join(projects_we_care)}")
+
             try:
                 # TODO: Enroll with a "events_filter" to narrow down the query
                 event = ayon_api.enroll_event_job(
@@ -87,6 +100,11 @@ class ShotgridTransmitter:
                                 "value": "ayon_service",
                                 "operator": "ne",
                             },
+                            {
+                                "key": "project",
+                                "value": projects_we_care,
+                                "operator": "in"
+                            }
                         ],
                         "operator": "and",
                     },
