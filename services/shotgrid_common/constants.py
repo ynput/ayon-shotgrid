@@ -132,3 +132,27 @@ SG_COMMON_ENTITY_FIELDS = [
     CUST_FIELD_CODE_ID,
     CUST_FIELD_CODE_SYNC,
 ]
+
+SG_EVENT_CHANGE_ATTR_FIELDS = [
+    "code",
+    "name"
+]
+
+SG_EVENT_TYPES = [
+    "Shotgun_{0}_New",  # a new entity was created.
+    "Shotgun_{0}_Change",  # an entity was modified.
+    "Shotgun_{0}_Retirement",  # an entity was deleted.
+    "Shotgun_{0}_Revival",  # an entity was revived.
+]
+
+SG_EVENT_QUERY_FIELDS =  [
+    "id",
+    "event_type",
+    "attribute_name",
+    "meta",
+    "entity",
+    "user",
+    "project",
+    "session_uuid",
+    "created_at",
+]
