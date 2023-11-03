@@ -12,36 +12,16 @@ import signal
 import socket
 from typing import Any, Callable, Union
 
+from constants import (
+    AYON_SHOTGRID_ENTITY_TYPE_MAP,
+    SG_EVENT_CHANGE_ATTR_FIELDS,
+    SG_EVENT_TYPES,
+    SG_EVENT_QUERY_FIELDS
+)
+
 import ayon_api
 from nxtools import logging, log_traceback
 import shotgun_api3
-
-
-# Probably could allow this to be configured via the Addon settings
-# And do a query where we alread filter these out.
-# Clearly not working, since these are ftrack specific ones.
-ENTITIES_TO_TRACK = [
-    "Project",
-    "Sequence",
-    "Shot",
-    "Task",
-    "Asset",
-]
-
-EVENT_TYPES = [
-    "Shotgun_{0}_New",  # a new entity was created.
-    "Shotgun_{0}_Change",  # an entity was modified.
-    "Shotgun_{0}_Retirement",  # an entity was deleted.
-    "Shotgun_{0}_Revival",  # an entity was revived.
-]
-
-# To be revised once we usin links
-IGNORE_ATTRIBUTE_NAMES = [
-    "assets",
-    "parent_shots",
-    "retirement_date",
-    "shots"
-]
 
 
 class ShotgridListener:
@@ -106,105 +86,121 @@ class ShotgridListener:
         logging.warning("Termination finished.")
         sys.exit(0)
 
-    def _get_valid_events(self):
-        """Helper method to create the Shotgird Query filter.
+    def _build_shotgrid_filters(self):
+        """Build SG filters for Events query.
 
-        Iterate over the allowed entities types and event types and return
-        a list of all premutations.
+        We want to filter out all the Events in the SG database that do not meet
+        our needs:
+            1) Events of Projects with "AYON Auto Sync" enabled.
+            2) Events on entities and type for entities we track.
+
+        Returns:
+            filters (list): Filter to apply to the SG query.
         """
-        valid_events = []
+        filters = []
 
-        for entity_type in ENTITIES_TO_TRACK:
-            for event_name in EVENT_TYPES:
-                valid_events.append(event_name.format(entity_type))
+        sg_projects = self.sg_session.find(
+            "Project",
+            filters=[["sg_ayon_auto_sync", "is", True]]
+        )
+        logging.debug(f"Projects with the autosync enabled {sg_projects}")
 
-        return valid_events
+        filters.append(["project", "in", sg_projects])
 
-    def start_listening(self):
-        """ Main loop querying the Shotgrid database for new events
+        sg_event_types = []
 
-        Since Shotgrid does not have an event hub per se, we need to query
-        the "EventLogEntry table and send these as Ayon events for processing.
+        # TODO: Create a complex filter so skip event types "_Change" that
+        # we don't handle.
+        for entity_type in AYON_SHOTGRID_ENTITY_TYPE_MAP.keys():
+            for event_name in SG_EVENT_TYPES:
+                sg_event_types.append(event_name.format(entity_type))
+
+        filters.append(["event_type", "in", sg_event_types])
+
+        return filters
+
+    def _get_last_event_processed(self, sg_filters):
+        """Find the Event ID for the last SG processed event.
+
+        First attempt to find it via AYON, if none is found we get the last
+        matching event from Shotgrid.
+
+        Returns:
+            last_event_id (int): The last known Event id.
         """
-        logging.info("Start listening for Shotgrid Events...")
-        fields = [
-            "id",
-            "event_type",
-            "attribute_name",
-            "meta",
-            "entity",
-            "user",
-            "project",
-            "session_uuid",
-            "created_at",
-        ]
-        order = [{"column": "id", "direction": "asc"}]
-
         last_event_id = None
+
         for last_event_id in ayon_api.get_events(
             topics=["shotgrid.leech"],
             fields=["hash"]
         ):
             last_event_id = int(last_event_id["hash"])
 
-        event_type_filters = [
-            ["event_type", "is", event_type]
-            for event_type in self._get_valid_events()
-        ]
-
-        sg_projects = self.sg_session.find(
-            "Project",
-            filters=[["sg_ayon_auto_sync", "is", True]]
-        )
-
-        projects_filters = [
-            ["project", "is", project]
-            for project in sg_projects
-        ]
-
-        shotgrid_events_filter = {
-            "filter_operator": "any",
-            "filters": event_type_filters + projects_filters
-        }
-
         if not last_event_id:
-            last_event_id = self.sg_session.find_one(
+            last_event = self.sg_session.find_one(
                 "EventLogEntry",
-                filters=[shotgrid_events_filter],
-                fields=["id"],
+                filters=sg_filters,
+                fields=["id", "project"],
                 order=[{"column": "id", "direction": "desc"}]
-            )["id"]
+            )
+            last_event_id = last_event["id"]
+
+        logging.debug(f"Last non-processed SG Event is {last_event}")
+
+        return last_event_id
+
+    def start_listening(self):
+        """ Main loop querying the Shotgrid database for new events
+
+        Since Shotgrid does not have an event hub per se, we need to query
+        the "EventLogEntry table and send these as Ayon events for processing.
+
+        We try to continue from the last Event processed by the leecher, if none
+        is found we start at the moment in time.
+        """
+        logging.info("Start listening for Shotgrid Events...")
+
+        sg_filters = self._build_shotgrid_filters()
+        last_event_id = self._get_last_event_processed(sg_filters)
 
         while True:
-            logging.info(f"Last Event ID is {last_event_id}")
-            logging.info("Querying for new events since the last one...")
-            filters = None
-            filters = [
-                ["id", "greater_than", last_event_id],
-                shotgrid_events_filter
-            ]
+            sg_filters = self._build_shotgrid_filters()
+            sg_filters.append(
+                ["id", "greater_than", last_event_id]
+            )
 
             try:
                 events = self.sg_session.find(
                     "EventLogEntry",
-                    filters,
-                    fields,
-                    order,
+                    sg_filters,
+                    SG_EVENT_QUERY_FIELDS,
+                    order=[{"column": "id", "direction": "asc"}],
                     limit=50,
                 )
-                if events:
-                    logging.info(f"Parsing returned {len(events)} events.")
 
-                    for event in events:
-                        if not event:
-                            continue
-
-                        if event.get("attribute_name") in IGNORE_ATTRIBUTE_NAMES:
-                            continue
-
-                        last_event_id = self.func(event)
-                else:
+                if not events:
                     logging.info("No new events found.")
+                    logging.info(
+                        f"Waiting {self.shotgrid_polling_frequency} seconds..."
+                    )
+                    time.sleep(self.shotgrid_polling_frequency)
+                    continue
+
+
+                logging.info(f"Found {len(events)} events in Shotgrid.")
+
+                for event in events:
+                    if not event:
+                        continue
+
+                    if (
+                        event["event_type"].endswith("_Change") and
+                        event["attribute_name"] not in SG_EVENT_CHANGE_ATTR_FIELDS
+                    ):
+                        # Skip change events we cannot handle yet...
+                        continue
+
+                    last_event_id = self.func(event)
 
             except Exception as err:
                 logging.error(err)
@@ -225,7 +221,6 @@ class ShotgridListener:
             int: The Shotgrid Event ID.
         """
         logging.info(f"Processing Shotgrid Event {payload}")
-
         description = f"Leeched {payload['event_type']}"
         user_name = payload.get("user", {}).get("name", "Undefined")
 
