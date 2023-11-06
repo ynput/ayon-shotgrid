@@ -261,6 +261,7 @@ class ShotgridListener:
                 "user_name": user_name,
                 "project_name": project_name,
                 "project_code": sg_project.get(self.sg_project_code_field),
+                "project_code_field": self.sg_project_code_field,
                 "sg_payload": payload,
             }
         )
