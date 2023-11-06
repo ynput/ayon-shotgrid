@@ -29,7 +29,7 @@ const init = () => {
       .then((result) => result.data);
 
     addonSecrets = await ayonAPI
-      .get(`/api/secrets/${addonSettings.shotgrid_api_key}`)
+      .get(`/api/secrets/${addonSettings.shotgrid_api_secret}`)
       .then((result) => result.data);
 
     addonSettings.shotgrid_script_name = addonSecrets.name
