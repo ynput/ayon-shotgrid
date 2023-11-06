@@ -9,14 +9,13 @@ In order to use this integrations you'll need to run the `python create_package.
 
 ## Server
 Once the instance has restarted, you should be able to enable the addon by going into the `Settings > Bundles` and create (or duplicate an existing) bundle, where you can now choose `shotgrid` and the `version` you installed; make sure you set the bundle as `Production`.
-If the Addon loaded succesfully you should be able to see a new tab in your `Settings > Shotgrid Sync`.
+If the Addon loaded succesfully you should be able to see a new tab in your `Settings > Shotgrid`.
 
 For the Shotgrid integration to work, we need to provide several information, firstly we'll a Shotgrid Script and it's API key, refer to the [Shotgrid Documentation](https://developer.shotgridsoftware.com/99105475/?title=Create+and+manage+API+scripts) to create one; take note of the info and in AYON, navigate to the `Settings > Secrets` page, create a new secret with the `script_name` as the "Secret Name" and the `script_api_key` as the "Secret Value".
 
-We can now go into the `Settings > Studio settings > Shotgrid Sync` page in AYON and fill up the following fields:
+We can now go into the `Settings > Studio settings > Shotgrid` page in AYON and fill up the following fields:
  * Shotgrid URL - This will be the URL to your Shotgrid instance.
- * Shotgrid Script Name - Select the secret you created in the previous step.
- * Shotgrid API Key - Select the secret you created in the previous step.
+ * Shotgrid API Secret - Select the secret you created in the previous step.
  * Shotgrid field for the Project Code - A field in the `Project` entity that hold the project code, can be an existing one or a new one, default is `code`.
  * Service Settings > How often (in seconds) to query the Shotgrid Database  - Defaults to 10 seconds, time between `leeching`, `processing` and `transmitting` operations.
 
@@ -96,7 +95,7 @@ python -m processor
 ```
 
 # Usage
-With this Integration you can perform the following actions by navigating to `AYON >Settings > Shotgrid Sync`, and loading all projects by clicking `Populate Data`:
+With this Integration you can perform the following actions by navigating to `AYON >Settings > Shotgrid`, and loading all projects by clicking `Populate Data`:
 
 ## Import a New Shotgrid Project
 With the `processor` service running, synchronize `Shotgrid --> AYON` will replicate the Shotgrid structure in AYON.
