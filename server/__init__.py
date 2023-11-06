@@ -2,7 +2,7 @@ from typing import Any, Type
 
 from ayon_server.addons import BaseServerAddon
 from ayon_server.lib.postgres import Postgres
-from .settings import ShotgridSettings, DEFAULT_VALUES
+from .settings import ShotgridSettings
 from .version import __version__
 
 from nxtools import logging
@@ -15,7 +15,7 @@ SG_PUSH_ATTRIB = "shotgridPush"
 
 class ShotgridAddon(BaseServerAddon):
     name = "shotgrid"
-    title = "Shotgrid Sync"
+    title = "Shotgrid"
     version = __version__
     settings_model: Type[ShotgridSettings] = ShotgridSettings
 
@@ -27,16 +27,11 @@ class ShotgridAddon(BaseServerAddon):
         "ShotgridTransmitter": {"image": f"ynput/ayon-shotgrid-transmitter:{__version__}"},
     }
 
-    async def get_default_settings(self):
-        logging.info(f"Loading default Settings for {self.name} addon.")
-        settings_model_cls = self.get_settings_model()
-        return settings_model_cls(**DEFAULT_VALUES)
-
     async def setup(self):
         logging.info(f"Performing {self.name} addon setup.")
         need_restart = await self.create_shotgrid_attributes()
         if need_restart:
-            logging.info("Created new attributes in database, requesting server to restart.")
+            logging.info("Created or updated attributes in database, requesting a server restart.")
             self.request_server_restart()
 
     async def create_shotgrid_attributes(self) -> bool:
