@@ -38,6 +38,7 @@ class ShotgridTransmitter:
             ayon_api.init_service()
             self.settings = ayon_api.get_service_addon_settings()
             self.sg_url = self.settings["shotgrid_server"]
+            self.sg_project_code_field = self.settings["shotgrid_project_code_field"]
 
             sg_secret = ayon_api.get_secret(self.settings["shotgrid_api_secret"])
             self.sg_script_name = sg_secret.get("name")
@@ -138,7 +139,8 @@ class ShotgridTransmitter:
                     project_code,
                     self.sg_url,
                     self.sg_api_key,
-                    self.sg_script_name
+                    self.sg_script_name,
+                    sg_project_code_field=self.sg_project_code_field,
                 )
 
                 hub.react_to_ayon_event(source_event)
