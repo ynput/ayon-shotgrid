@@ -586,6 +586,13 @@ def get_sg_project_enabled_entities(
             parent_field = project_navigation.get(sg_entity_type, None)
 
             if parent_field and parent_field != "__flat__":
+                if "," in parent_field:
+                    # This catches instances where the Hirearchy is set to 
+                    # something like "Seq > Secene > Shot" which returns a string
+                    # like so: 'sg_scene,Scene.sg_sequence' and confusing enough
+                    # we want the first element to be the parent.
+                    parent_field = parent_field.split(",")[0]
+
                 project_entities.append((
                     sg_entity_type,
                     parent_field.replace(f"{sg_entity_type}.", "")
