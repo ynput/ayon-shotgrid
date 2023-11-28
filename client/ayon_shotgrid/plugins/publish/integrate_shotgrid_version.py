@@ -60,7 +60,7 @@ class IntegrateShotgridVersion(pyblish.api.InstancePlugin):
                         local_path, sg_version.get("id")
                     )
                 )
-                self.sg_session.upload(
+                sg_session.upload(
                     "Version",
                     sg_version.get("id"),
                     local_path,
