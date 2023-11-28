@@ -44,6 +44,18 @@ class IntegrateShotgridVersion(pyblish.api.InstancePlugin):
             )
 
             if representation["ext"] in ["mov", "avi"]:
+                self.log.info(
+                    "Upload review: {} for version shotgrid {}".format(
+                        local_path, sg_version.get("id")
+                    )
+                )
+                sg_session.upload(
+                    "Version",
+                    sg_version.get("id"),
+                    local_path,
+                    field_name="sg_uploaded_movie",
+                )
+
                 data_to_update["sg_path_to_movie"] = local_path
                 if (
                     "slate" in instance.data["families"]
