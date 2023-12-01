@@ -1,27 +1,34 @@
 import os
 
+import ayon_api
+
 from openpype.modules import (
     OpenPypeModule,
-    ITrayModule,
     IPluginPaths,
 )
 
 SHOTGRID_MODULE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
-class ShotgridAddon(OpenPypeModule, ITrayModule, IPluginPaths):
+class ShotgridAddon(OpenPypeModule, IPluginPaths):
     name = "shotgrid"
     enabled = True
-    tray_wrapper = None
 
     def initialize(self, modules_settings):
         module_settings = modules_settings.get(self.name, dict())
         self._shotgrid_server_url = module_settings.get("shotgrid_server")
-        self._shotgrid_script_name = None
-        self._shotgrid_api_key = None
+        sg_secret = ayon_api.get_secret(module_settings["shotgrid_api_secret"])
+        self._shotgrid_script_name = sg_secret.get("name")
+        self._shotgrid_api_key = sg_secret.get("value")
 
     def get_sg_url(self):
         return self._shotgrid_server_url if self._shotgrid_server_url else None
+
+    def get_sg_script_name(self):
+        return self._shotgrid_script_name if self._shotgrid_script_name else None
+    
+    def get_sg_api_key(self):
+        return self._shotgrid_api_key if self._shotgrid_api_key else None
 
     def get_plugin_paths(self):
         return {
@@ -33,26 +40,13 @@ class ShotgridAddon(OpenPypeModule, ITrayModule, IPluginPaths):
     def create_shotgrid_session(self):
         from .lib import credentials
 
-        sg_username, sg_password = credentials.get_local_login()
-
-        if not sg_username or not sg_password:
-            return None
+        sg_username = os.getenv("AYON_SG_USERNAME")
+        proxy = os.environ.get("HTTPS_PROXY", "").lstrip("https://")
 
         return credentials.create_sg_session(
             self._shotgrid_server_url,
             sg_username,
-            sg_password
+            self._shotgrid_script_name,
+            self._shotgrid_api_key,
+            proxy,
         )
-
-    def tray_init(self):
-        from .tray.shotgrid_tray import ShotgridTrayWrapper
-        self.tray_wrapper = ShotgridTrayWrapper(self)
-
-    def tray_start(self):
-        return self.tray_wrapper.set_username_label()
-
-    def tray_exit(self, *args, **kwargs):
-        return self.tray_wrapper
-
-    def tray_menu(self, tray_menu):
-        return self.tray_wrapper.tray_menu(tray_menu)
