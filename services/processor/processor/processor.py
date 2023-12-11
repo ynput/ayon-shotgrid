@@ -162,6 +162,7 @@ class ShotgridProcessor:
                             self.sg_url,
                             self.sg_script_name,
                             self.sg_api_key,
+                            project_field_code=self.sg_project_code_field,
                             **payload,
                         )
 
@@ -172,12 +173,11 @@ class ShotgridProcessor:
                             event["id"],
                             status="failed",
                             description=f"An error ocurred while processing the Event: {e}",
-                            summary="Feiled procesing the event Handler..."
                         )
                         ayon_api.update_event(
                             source_event["id"],
                             status="failed",
-                            summary=f"The service `processor` was unable to process this event. Check the `shotgrid.proc` <{event['id']}> event for more info."
+                            description=f"The service `processor` was unable to process this event. Check the `shotgrid.proc` <{event['id']}> event for more info."
                         )
 
                 logging.info("Event has been processed... setting to finished!")
