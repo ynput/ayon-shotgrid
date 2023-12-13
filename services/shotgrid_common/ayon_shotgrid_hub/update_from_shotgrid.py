@@ -1,5 +1,6 @@
-"""Class that will create, update or remove an Ayon entity based on the `meta`
-dictionary of a Shotgrid Event Payload, for example:
+"""Module that handles creation, update or removal of AYON entities based on SG Events.
+
+The updates come through `meta` dictionaries such as:
 "meta": {
     "id": 1274,
     "type": "entity_retirement",
@@ -10,7 +11,7 @@ dictionary of a Shotgrid Event Payload, for example:
     "retirement_date": "2023-03-31 15:26:16 UTC"
 }
 
-At most time it fetches the SG entiy as an Ayon dict:
+And most of the times it fetches the SG entity as an Ayon dict like:
 {
     "label": label,
     "name": name,
@@ -68,10 +69,10 @@ def create_ay_entity_from_sg_event(sg_event, sg_project, sg_session, ayon_entity
         sg_event["entity_id"],
         extra_fields=extra_fields,
     )
-    logging.debug(f"SG Entity as Ay dict: {sg_entity_dict}")
+    logging.debug(f"SG Entity as Ayon dict: {sg_entity_dict}")
 
     if sg_entity_dict.get(CUST_FIELD_CODE_ID):
-        # Revived entity, check if it still in the Server
+        # Revived entity, check if it's still in the Server
         ay_entity = ayon_entity_hub.get_or_query_entity_by_id(
             sg_entity_dict.get(CUST_FIELD_CODE_ID),
             ["task" if sg_entity_dict.get(SHOTGRID_TYPE_ATTRIB).lower() == "task" else "folder"]
@@ -79,7 +80,7 @@ def create_ay_entity_from_sg_event(sg_event, sg_project, sg_session, ayon_entity
 
         if ay_entity:
             logging.debug(f"SG Entity exists in AYON.")
-            # Ensure Ay Entity has the correct Shotgird ID
+            # Ensure Ayon Entity has the correct Shotgrid ID
             ay_shotgrid_id = sg_entity_dict.get(SHOTGRID_ID_ATTRIB, "")
             if ay_entity.attribs.get_attribute(SHOTGRID_ID_ATTRIB).value != str(ay_shotgrid_id):
                 ay_entity.attribs.set(
@@ -169,6 +170,7 @@ def create_ay_entity_from_sg_event(sg_event, sg_project, sg_session, ayon_entity
 
     return ay_entity
 
+
 def update_ayon_entity_from_sg_event(sg_event, sg_session, ayon_entity_hub):
     """Try to update an entity in Ayon.
 
@@ -222,6 +224,7 @@ def update_ayon_entity_from_sg_event(sg_event, sg_session, ayon_entity_hub):
         )
 
     return ay_entity
+
 
 def remove_ayon_entity_from_sg_event(sg_event, sg_session, ayon_entity_hub):
     """Try to remove an entity in Ayon.

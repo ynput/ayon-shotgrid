@@ -1,5 +1,5 @@
 """
-A Shotgird Events listener processor for Ayon.
+A Shotgrid Events listener processor for Ayon.
 
 This service will continually run and query the Ayon Events Server in orther to
 entroll the events of topic `shotgrid.leech` to perform processing of Shotgrid
