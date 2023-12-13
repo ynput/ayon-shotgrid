@@ -159,8 +159,8 @@ def _create_new_entity(entity_hub, parent_entity, sg_entity):
     """
     if sg_entity["type"].lower() == "task":
         new_entity = entity_hub.add_new_task(
-            sg_entity["name"],
-            name=sg_entity["label"],
+            sg_entity["task_type"],
+            name=sg_entity["name"],
             label=sg_entity["label"],
             entity_id=sg_entity[CUST_FIELD_CODE_ID],
             parent_id=parent_entity.id

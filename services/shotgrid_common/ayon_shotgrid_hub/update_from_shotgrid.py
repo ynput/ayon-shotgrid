@@ -129,8 +129,8 @@ def create_ay_entity_from_sg_event(sg_event, sg_project, sg_session, ayon_entity
 
     if sg_entity_dict["type"].lower() == "task":
         ay_entity = ayon_entity_hub.add_new_task(
-            sg_entity_dict["name"],
-            name=sg_entity_dict["label"],
+            sg_entity_dict["task_type"],
+            name=sg_entity_dict["name"],
             label=sg_entity_dict["label"],
             entity_id=sg_entity_dict[CUST_FIELD_CODE_ID],
             parent_id=ay_parent_entity.id
