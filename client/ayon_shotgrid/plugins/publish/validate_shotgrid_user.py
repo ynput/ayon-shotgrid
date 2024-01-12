@@ -24,12 +24,31 @@ class ValidateShotgridUser(pyblish.api.ContextPlugin):
 
         sg_user = sg_session.find_one(
             "HumanUser",
-            [
-                ["login", "is", user_login],
-                ["projects", "name_contains", project_name]
-            ],
-            ["projects", "permission_rule_set"]
+            [["login", "is", user_login]],
+            ["projects", "permission_rule_set"],
         )
+
+        sg_user_has_permission = False
+
+        if sg_user:
+            sg_user_has_permission = sg_user["permission_rule_set"]["name"] == "Admin"
+
+        # It's not an admin, but it might still have permissions
+        if not sg_user_has_permission:
+            for project in sg_user["projects"]:
+                if project["name"] == project_name:
+                    sg_user_has_permission = True
+                    break
+
+        if not sg_user_has_permission:
+            raise PublishValidationError(
+                "Login {0} doesn't have access to the project {1} <{2}>".format(
+                    user_login, project_name, sg_project
+                )
+            )
+
+        self.log.info("Found User in Shotgrid: {}".format(sg_user))
+
         admin = sg_user["permission_rule_set"]["name"] == "Admin"
 
         self.log.info("Found User in Shotgrid: {}".format(sg_user))
