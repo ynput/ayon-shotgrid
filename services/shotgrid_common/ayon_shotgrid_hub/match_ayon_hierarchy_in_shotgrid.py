@@ -128,6 +128,7 @@ def match_ayon_hierarchy_in_shotgrid(entity_hub, sg_project, sg_session):
         "Project"
     )
 
+
 def _create_new_entity(ay_entity, sg_session, sg_project, sg_parent_entity):
     """Helper method to create entities in Shotgrid.
 
@@ -140,7 +141,7 @@ def _create_new_entity(ay_entity, sg_session, sg_project, sg_parent_entity):
 
         step_query_filters = [["code", "is", ay_entity.task_type]]
 
-        if sg_parent_entity["type"] in ["Asset", "Shot"]:
+        if sg_parent_entity["type"] in ["Asset", "Shot", "Episode", "Sequence"]:
             step_query_filters.append(
                 ["entity_type", "is", sg_parent_entity["type"]]
             )

@@ -1,4 +1,4 @@
-"""Class that will create, update or remove an Shotgrid entity based on an AYON event.
+"""Module that handles creation, update or removal of SG entities based on AYON events.
 """
 
 from utils import (
@@ -24,7 +24,7 @@ def create_sg_entity_from_ayon_event(
     ayon_entity_hub,
     sg_project
 ):
-    """Create a Shotgird entity from an AYON event.
+    """Create a Shotgrid entity from an AYON event.
 
     Args:
         sg_event (dict): AYON event.
@@ -89,7 +89,7 @@ def create_sg_entity_from_ayon_event(
 
 
 def update_sg_entity_from_ayon_event(ayon_event, sg_session, ayon_entity_hub):
-    """Try to update a Shotgird entity from an AYON event.
+    """Try to update a Shotgrid entity from an AYON event.
 
     Args:
         sg_event (dict): The `meta` key from a Shotgrid Event.
@@ -134,7 +134,7 @@ def update_sg_entity_from_ayon_event(ayon_event, sg_session, ayon_entity_hub):
 
 
 def remove_sg_entity_from_ayon_event(ayon_event, sg_session, ayon_entity_hub):
-    """Try to remove a Shotgird entity from an AYON event.
+    """Try to remove a Shotgrid entity from an AYON event.
 
     Args:
         ayon_event (dict): The `meta` key from a Shotgrid Event.

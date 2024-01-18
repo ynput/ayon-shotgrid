@@ -1,5 +1,5 @@
 """
-A Shotgird Events listener leecher for Ayon.
+A Shotgrid Events listener leecher for Ayon.
 
 This service will continually run and query the EventLogEntry table from
 Shotgrid and converts them to Ayon events, and can be configured from the Ayon

@@ -272,7 +272,10 @@ class AyonShotgridHub:
 
                 if disabled_entities:
                     raise ValueError(
-                        f"Unable to sync project {self.project_name} <{self.project_code}> from AYON to Shotgird, you need to enable the following entities in the Shotgrid Project > Project Actions > Tracking Settings: {disabled_entities}"
+                        f"Unable to sync project {self.project_name} "
+                        f"<{self.project_code}> from AYON to Shotgrid, you need "
+                        "to enable the following entities in the Shotgrid Project "
+                        f"> Project Actions > Tracking Settings: {disabled_entities}"
                     )
 
                 match_ayon_hierarchy_in_shotgrid(
