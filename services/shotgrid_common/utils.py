@@ -37,8 +37,15 @@ def _sg_to_ay_dict(sg_entity: dict, project_code_field=None) -> dict:
             )
 
         label = sg_entity["content"]
-        name = slugify_string(sg_entity["content"])
         task_type = sg_entity["step"]["name"]
+
+        if not label and not task_type:
+            raise ValueError(f"Unable to parse Task {sg_entity}")
+        else:
+            label = sg_entity["step"]["name"]
+
+        name = slugify_string(label)
+
     elif sg_entity["type"] == "Project":
         name = slugify_string(sg_entity[project_code_field])
         label = sg_entity[project_code_field]
