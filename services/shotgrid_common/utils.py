@@ -29,6 +29,8 @@ def _sg_to_ay_dict(sg_entity: dict, project_code_field=None) -> dict:
     if not project_code_field:
         project_code_field = "code"
 
+    logging.debug(f"Transforming sg_entity '{sg_entity}' to ayon dict.")
+    
     task_type = None
     if sg_entity["type"] == "Task":
         if not sg_entity["step"]:
