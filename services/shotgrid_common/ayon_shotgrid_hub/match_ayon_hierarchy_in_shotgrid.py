@@ -12,7 +12,7 @@ from utils import get_sg_entities, get_sg_entity_parent_field, get_sg_entity_as_
 from nxtools import logging, log_traceback
 
 
-def match_ayon_hierarchy_in_shotgrid(entity_hub, sg_project, sg_session):
+def match_ayon_hierarchy_in_shotgrid(entity_hub, sg_project, sg_session, project_field_code):
     """Replicate an AYON project into Shotgrid.
 
     This function creates a "deck" which we keep increasing while traversing
@@ -24,6 +24,7 @@ def match_ayon_hierarchy_in_shotgrid(entity_hub, sg_project, sg_session):
         entity_hub (ayon_api.entity_hub.EntityHub): The AYON EntityHub.
         sg_project (dict): The Shotgrid project.
         sg_session (shotgun_api3.Shotgun): The Shotgrid session.
+        project_code_field (str): The Shotgrid project code field.
     """
     logging.info("Getting AYON entities.")
     entity_hub.query_entities_from_server()
@@ -31,7 +32,8 @@ def match_ayon_hierarchy_in_shotgrid(entity_hub, sg_project, sg_session):
     logging.info("Getting Shotgrid entities.")
     sg_entities_by_id, sg_entities_by_parent_id = get_sg_entities(
         sg_session,
-        sg_project
+        sg_project,
+        project_code_field=project_field_code
     )
 
     ay_entities_deck = collections.deque()
