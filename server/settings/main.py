@@ -19,7 +19,7 @@ class ShotgridServiceSettings(BaseSettingsModel):
 
     ayon_service_user: str = Field(
         default="service",
-        title="The AYON Shotgird user",
+        title="AYON service user",
         description="The AYON user used in the services (the user corresponding to the `AYON_API_KEY` set in the service)",
     )
 
