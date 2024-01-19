@@ -43,6 +43,7 @@ class ShotgridTransmitter:
             sg_secret = ayon_api.get_secret(self.settings["shotgrid_api_secret"])
             self.sg_script_name = sg_secret.get("name")
             self.sg_api_key = sg_secret.get("value")
+            self.ayon_service_user = self.settings["service_settings"]["ayon_service_user"]
 
             try:
                 self.sg_polling_frequency = int(
@@ -107,7 +108,7 @@ class ShotgridTransmitter:
                             },
                             {
                                 "key": "user",
-                                "value": "ayon_service",
+                                "value": self.ayon_service_user,
                                 "operator": "ne",
                             },
                             {
