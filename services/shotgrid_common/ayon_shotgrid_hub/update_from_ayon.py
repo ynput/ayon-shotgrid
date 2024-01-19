@@ -252,6 +252,12 @@ def _create_sg_entity(
 
     logging.debug(f"Creating Shotgrid entity {sg_type} with data: {data}")
 
-    return sg_session.create(sg_type, data)
+    try:
+        new_sg_entity = sg_session.create(sg_type, data)
+        return new_sg_entity
+    except Exception as e:
+        logging.error(f"Unable to create SG entity {sg_type} with data: {data}")
+        log_traceback(e)
+        raise e
 
 
