@@ -64,6 +64,7 @@ def create_sg_entity_from_ayon_event(
 
     if sg_entity:
         logging.warning(f"Entity {sg_entity} already exists in Shotgrid!")
+        return
 
     try:
         sg_entity = _create_sg_entity(
