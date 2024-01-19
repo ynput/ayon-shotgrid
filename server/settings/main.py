@@ -2,6 +2,7 @@ from pydantic import Field
 
 from ayon_server.settings import BaseSettingsModel
 from ayon_server.settings.enum import secrets_enum
+from ayon_server.graphql.resolvers.users import get_users
 
 
 class ShotgridServiceSettings(BaseSettingsModel):
@@ -14,6 +15,12 @@ class ShotgridServiceSettings(BaseSettingsModel):
         default=10,
         title="How often (in seconds) to process Shotgrid related events.",
         validate_default=False,
+    )
+
+    ayon_service_user: str = Field(
+        default="service",
+        title="The AYON Shotgird user",
+        description="The AYON user used in the services (the user corresponding to the `AYON_API_KEY` set in the service)",
     )
 
 
