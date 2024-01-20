@@ -40,7 +40,7 @@ from ayon_api.entity_hub import EntityHub
 from nxtools import logging
 
 
-def create_ay_entity_from_sg_event(sg_event, sg_project, sg_session, ayon_entity_hub):
+def create_ay_entity_from_sg_event(sg_event, sg_project, sg_session, ayon_entity_hub, project_code_field):
     """Create an AYON entity from a Shotgrid Event.
 
     Args:
@@ -67,6 +67,7 @@ def create_ay_entity_from_sg_event(sg_event, sg_project, sg_session, ayon_entity
         sg_session,
         sg_event["entity_type"],
         sg_event["entity_id"],
+        project_code_field,
         extra_fields=extra_fields,
     )
     logging.debug(f"SG Entity as Ayon dict: {sg_entity_dict}")
@@ -124,6 +125,7 @@ def create_ay_entity_from_sg_event(sg_event, sg_project, sg_session, ayon_entity
                 sg_session,
                 sg_entity_dict[sg_parent_field]["type"],
                 sg_entity_dict[sg_parent_field]["id"],
+                project_code_field
             )
 
             logging.debug(f"SG Parent entity: {sg_parent_entity_dict}")
@@ -181,7 +183,7 @@ def create_ay_entity_from_sg_event(sg_event, sg_project, sg_session, ayon_entity
     return ay_entity
 
 
-def update_ayon_entity_from_sg_event(sg_event, sg_session, ayon_entity_hub):
+def update_ayon_entity_from_sg_event(sg_event, sg_session, ayon_entity_hub, project_code_field):
     """Try to update an entity in Ayon.
 
     Args:
@@ -197,6 +199,7 @@ def update_ayon_entity_from_sg_event(sg_event, sg_session, ayon_entity_hub):
         sg_session,
         sg_event["entity_type"],
         sg_event["entity_id"],
+        project_code_field
     )
 
     if not sg_entity_dict.get(CUST_FIELD_CODE_ID):
@@ -236,7 +239,7 @@ def update_ayon_entity_from_sg_event(sg_event, sg_session, ayon_entity_hub):
     return ay_entity
 
 
-def remove_ayon_entity_from_sg_event(sg_event, sg_session, ayon_entity_hub):
+def remove_ayon_entity_from_sg_event(sg_event, sg_session, ayon_entity_hub, project_code_field):
     """Try to remove an entity in Ayon.
 
     Args:
@@ -248,6 +251,7 @@ def remove_ayon_entity_from_sg_event(sg_event, sg_session, ayon_entity_hub):
         sg_session,
         sg_event["entity_type"],
         sg_event["entity_id"],
+        project_code_field,
         retired_only=True
     )
 

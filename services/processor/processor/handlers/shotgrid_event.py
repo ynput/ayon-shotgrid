@@ -15,7 +15,7 @@ def process_event(
     user_name=None,
     project_name=None,
     project_code=None,
-    project_field_code=None,
+    project_code_field=None,
     sg_payload=None,
     **kwargs,
 ):
@@ -39,7 +39,7 @@ def process_event(
         sg_url,
         sg_api_key,
         sg_script_name,
-        sg_project_code_field=project_field_code,
+        sg_project_code_field=project_code_field,
     )
 
     hub.react_to_shotgrid_event(sg_payload["meta"])

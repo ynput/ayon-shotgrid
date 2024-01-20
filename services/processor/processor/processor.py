@@ -162,7 +162,7 @@ class ShotgridProcessor:
                             self.sg_url,
                             self.sg_script_name,
                             self.sg_api_key,
-                            project_field_code=self.sg_project_code_field,
+                            project_code_field=self.sg_project_code_field,
                             **payload,
                         )
 
