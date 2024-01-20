@@ -162,7 +162,7 @@ def remove_sg_entity_from_ayon_event(ayon_event, sg_session, ayon_entity_hub):
         )
 
     if not sg_entity:
-        logging.warning("Unable to find entity {ay_id} in Shotgrid.")
+        logging.warning(f"Unable to find Ayon entity with id '{ay_id}' in Shotgrid.")
         return
 
     sg_id = sg_entity["id"]
