@@ -281,7 +281,8 @@ class AyonShotgridHub:
                 match_ayon_hierarchy_in_shotgrid(
                     self._ay_project,
                     self._sg_project,
-                    self._sg
+                    self._sg,
+                    self.sg_project_code_field,
                 )
 
             case "shotgrid":
