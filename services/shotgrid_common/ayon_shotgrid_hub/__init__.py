@@ -281,7 +281,8 @@ class AyonShotgridHub:
                 match_ayon_hierarchy_in_shotgrid(
                     self._ay_project,
                     self._sg_project,
-                    self._sg
+                    self._sg,
+                    self.sg_project_code_field,
                 )
 
             case "shotgrid":
@@ -323,7 +324,8 @@ class AyonShotgridHub:
                     sg_event,
                     self._sg_project,
                     self._sg,
-                    self._ay_project
+                    self._ay_project,
+                    self.sg_project_code_field
                 )
 
             case "attribute_change":
@@ -333,14 +335,16 @@ class AyonShotgridHub:
                 update_ayon_entity_from_sg_event(
                     sg_event,
                     self._sg,
-                    self._ay_project
+                    self._ay_project,
+                    self.sg_project_code_field
                 )
 
             case "entity_retirement":
                 remove_ayon_entity_from_sg_event(
                     sg_event,
                     self._sg,
-                    self._ay_project
+                    self._ay_project,
+                    self.sg_project_code_field
                 )
 
             case _:

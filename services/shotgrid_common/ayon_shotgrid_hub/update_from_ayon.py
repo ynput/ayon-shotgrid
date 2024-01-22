@@ -2,19 +2,14 @@
 """
 
 from utils import (
-    get_sg_entity_as_ay_dict,
-    get_sg_entity_parent_field,
-    get_sg_project_by_id
+    get_sg_entity_parent_field
 )
 from constants import (
     CUST_FIELD_CODE_ID,  # Shotgrid Field for the Ayon ID.
     SHOTGRID_ID_ATTRIB,  # Ayon Entity Attribute.
     SHOTGRID_TYPE_ATTRIB,  # Ayon Entity Attribute.
-    SHOTGRID_REMOVED_VALUE
 )
 
-from ayon_api import get_project
-from ayon_api.entity_hub import EntityHub
 from nxtools import logging, log_traceback
 
 
@@ -56,7 +51,7 @@ def create_sg_entity_from_ayon_event(
 
     sg_entity = None
 
-    logging.debug(f"Creating {ay_entity.name} ({sg_type} <{ay_id}>) in Shotgrid.")
+    logging.debug(f"Creating {ay_entity} ({sg_type} <{ay_id}>) in Shotgrid.")
 
     if sg_id and sg_type:
         logging.debug(f"Querying Shotgrid for {sg_type} <{sg_id}>")
@@ -64,6 +59,7 @@ def create_sg_entity_from_ayon_event(
 
     if sg_entity:
         logging.warning(f"Entity {sg_entity} already exists in Shotgrid!")
+        return
 
     try:
         sg_entity = _create_sg_entity(
@@ -161,7 +157,7 @@ def remove_sg_entity_from_ayon_event(ayon_event, sg_session, ayon_entity_hub):
         )
 
     if not sg_entity:
-        logging.warning("Unable to find entity {ay_id} in Shotgrid.")
+        logging.warning(f"Unable to find Ayon entity with id '{ay_id}' in Shotgrid.")
         return
 
     sg_id = sg_entity["id"]

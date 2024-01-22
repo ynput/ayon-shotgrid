@@ -88,7 +88,7 @@ class IntegrateShotgridPublish(pyblish.api.InstancePlugin):
                     "https://help.autodesk.com/view/SGSUB/ENU/?guid=SG_Administrator_ar_data_management_ar_linking_local_files_html"
                 )
 
-            self.log.debug("Using the Local Storage: {sg_local_storage}")
+            self.log.debug(f"Using the Local Storage: {sg_local_storage}")
 
             try:
                 if platform.system() == "Windows":

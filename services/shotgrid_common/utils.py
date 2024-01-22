@@ -29,6 +29,8 @@ def _sg_to_ay_dict(sg_entity: dict, project_code_field=None) -> dict:
     if not project_code_field:
         project_code_field = "code"
 
+    logging.debug(f"Transforming sg_entity '{sg_entity}' to ayon dict.")
+    
     task_type = None
     if sg_entity["type"] == "Task":
         if not sg_entity["step"]:
@@ -384,7 +386,7 @@ def get_sg_entities(
 
                     parent_id = asset_category_entity["name"]
 
-                entity = _sg_to_ay_dict(entity)
+                entity = _sg_to_ay_dict(entity, project_code_field=project_code_field)
                 entities_by_id[entity[SHOTGRID_ID_ATTRIB]] = entity
                 entities_by_parent_id[parent_id].append(entity)
 
@@ -395,8 +397,9 @@ def get_sg_entity_as_ay_dict(
     sg_session: shotgun_api3.Shotgun,
     sg_type: str,
     sg_id: int,
+    project_code_field: str,
     extra_fields: Optional[list] = None,
-    retired_only: Optional[bool] = False
+    retired_only: Optional[bool] = False,
 ) -> dict:
     """Get a Shotgrid entity, and morph it to an Ayon compatible one.
 
@@ -423,7 +426,7 @@ def get_sg_entity_as_ay_dict(
     if not sg_entity:
         return {}
 
-    new_entity = _sg_to_ay_dict(sg_entity)
+    new_entity = _sg_to_ay_dict(sg_entity, project_code_field)
 
     if extra_fields:
         for field in extra_fields:
