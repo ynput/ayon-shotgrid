@@ -12,7 +12,7 @@ from utils import get_sg_entities, get_sg_entity_parent_field, get_sg_entity_as_
 from nxtools import logging, log_traceback
 
 
-def match_ayon_hierarchy_in_shotgrid(entity_hub, sg_project, sg_session):
+def match_ayon_hierarchy_in_shotgrid(entity_hub, sg_project, sg_session, project_code_field):
     """Replicate an AYON project into Shotgrid.
 
     This function creates a "deck" which we keep increasing while traversing
@@ -24,6 +24,7 @@ def match_ayon_hierarchy_in_shotgrid(entity_hub, sg_project, sg_session):
         entity_hub (ayon_api.entity_hub.EntityHub): The AYON EntityHub.
         sg_project (dict): The Shotgrid project.
         sg_session (shotgun_api3.Shotgun): The Shotgrid session.
+        project_code_field (str): The Shotgrid project code field.
     """
     logging.info("Getting AYON entities.")
     entity_hub.query_entities_from_server()
@@ -31,7 +32,8 @@ def match_ayon_hierarchy_in_shotgrid(entity_hub, sg_project, sg_session):
     logging.info("Getting Shotgrid entities.")
     sg_entities_by_id, sg_entities_by_parent_id = get_sg_entities(
         sg_session,
-        sg_project
+        sg_project,
+        project_code_field=project_code_field
     )
 
     ay_entities_deck = collections.deque()
@@ -40,7 +42,7 @@ def match_ayon_hierarchy_in_shotgrid(entity_hub, sg_project, sg_session):
     # Append the project's direct children.
     for ay_project_child in entity_hub._entities_by_parent_id[entity_hub.project_name]:
         ay_entities_deck.append((
-            get_sg_entity_as_ay_dict(sg_session, "Project", sg_project["id"]),
+            get_sg_entity_as_ay_dict(sg_session, "Project", sg_project["id"], project_code_field),
             ay_project_child
         ))
 
@@ -86,7 +88,8 @@ def match_ayon_hierarchy_in_shotgrid(entity_hub, sg_project, sg_session):
                     ay_entity,
                     sg_session,
                     sg_project,
-                    sg_parent_entity
+                    sg_parent_entity,
+                    project_code_field
                 )
                 sg_entity_id = sg_entity["shotgridId"]
                 sg_entities_by_id[sg_entity_id] = sg_entity
@@ -128,7 +131,8 @@ def match_ayon_hierarchy_in_shotgrid(entity_hub, sg_project, sg_session):
         "Project"
     )
 
-def _create_new_entity(ay_entity, sg_session, sg_project, sg_parent_entity):
+
+def _create_new_entity(ay_entity, sg_session, sg_project, sg_parent_entity, project_code_field):
     """Helper method to create entities in Shotgrid.
 
     Args:
@@ -140,7 +144,7 @@ def _create_new_entity(ay_entity, sg_session, sg_project, sg_parent_entity):
 
         step_query_filters = [["code", "is", ay_entity.task_type]]
 
-        if sg_parent_entity["type"] in ["Asset", "Shot"]:
+        if sg_parent_entity["type"] in ["Asset", "Shot", "Episode", "Sequence"]:
             step_query_filters.append(
                 ["entity_type", "is", sg_parent_entity["type"]]
             )
@@ -196,7 +200,8 @@ def _create_new_entity(ay_entity, sg_session, sg_project, sg_parent_entity):
     new_entity = get_sg_entity_as_ay_dict(
         sg_session,
         new_entity["type"],
-        new_entity["id"]
+        new_entity["id"],
+        project_code_field
     )
     return new_entity
 

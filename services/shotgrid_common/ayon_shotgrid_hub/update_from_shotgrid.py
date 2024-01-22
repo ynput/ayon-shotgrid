@@ -1,5 +1,6 @@
-"""Class that will create, update or remove an Ayon entity based on the `meta`
-dictionary of a Shotgrid Event Payload, for example:
+"""Module that handles creation, update or removal of AYON entities based on SG Events.
+
+The updates come through `meta` dictionaries such as:
 "meta": {
     "id": 1274,
     "type": "entity_retirement",
@@ -10,7 +11,7 @@ dictionary of a Shotgrid Event Payload, for example:
     "retirement_date": "2023-03-31 15:26:16 UTC"
 }
 
-At most time it fetches the SG entiy as an Ayon dict:
+And most of the times it fetches the SG entity as an Ayon dict like:
 {
     "label": label,
     "name": name,
@@ -39,7 +40,7 @@ from ayon_api.entity_hub import EntityHub
 from nxtools import logging
 
 
-def create_ay_entity_from_sg_event(sg_event, sg_project, sg_session, ayon_entity_hub):
+def create_ay_entity_from_sg_event(sg_event, sg_project, sg_session, ayon_entity_hub, project_code_field):
     """Create an AYON entity from a Shotgrid Event.
 
     Args:
@@ -66,12 +67,26 @@ def create_ay_entity_from_sg_event(sg_event, sg_project, sg_session, ayon_entity
         sg_session,
         sg_event["entity_type"],
         sg_event["entity_id"],
+        project_code_field,
         extra_fields=extra_fields,
     )
-    logging.debug(f"SG Entity as Ay dict: {sg_entity_dict}")
+    logging.debug(f"SG Entity as Ayon dict: {sg_entity_dict}")
+    if not sg_entity_dict:
+        logging.warning(
+            "Entity {sg_event['entity_type']} <{sg_event['entity_id']}> "
+            "no longer exists in Shotgrid, aborting..."
+        )
+        return
+
+    if not sg_entity_dict:
+        logging.warning(
+            "Entity {sg_event['entity_type']} <{sg_event['entity_id']}> "
+            "no longer exists in Shotgrid, aborting..."
+        )
+        return
 
     if sg_entity_dict.get(CUST_FIELD_CODE_ID):
-        # Revived entity, check if it still in the Server
+        # Revived entity, check if it's still in the Server
         ay_entity = ayon_entity_hub.get_or_query_entity_by_id(
             sg_entity_dict.get(CUST_FIELD_CODE_ID),
             ["task" if sg_entity_dict.get(SHOTGRID_TYPE_ATTRIB).lower() == "task" else "folder"]
@@ -79,7 +94,7 @@ def create_ay_entity_from_sg_event(sg_event, sg_project, sg_session, ayon_entity
 
         if ay_entity:
             logging.debug(f"SG Entity exists in AYON.")
-            # Ensure Ay Entity has the correct Shotgird ID
+            # Ensure Ayon Entity has the correct Shotgrid ID
             ay_shotgrid_id = sg_entity_dict.get(SHOTGRID_ID_ATTRIB, "")
             if ay_entity.attribs.get_attribute(SHOTGRID_ID_ATTRIB).value != str(ay_shotgrid_id):
                 ay_entity.attribs.set(
@@ -113,6 +128,7 @@ def create_ay_entity_from_sg_event(sg_event, sg_project, sg_session, ayon_entity
                 sg_session,
                 sg_entity_dict[sg_parent_field]["type"],
                 sg_entity_dict[sg_parent_field]["id"],
+                project_code_field
             )
 
             logging.debug(f"SG Parent entity: {sg_parent_entity_dict}")
@@ -128,8 +144,8 @@ def create_ay_entity_from_sg_event(sg_event, sg_project, sg_session, ayon_entity
 
     if sg_entity_dict["type"].lower() == "task":
         ay_entity = ayon_entity_hub.add_new_task(
-            sg_entity_dict["name"],
-            name=sg_entity_dict["label"],
+            sg_entity_dict["task_type"],
+            name=sg_entity_dict["name"],
             label=sg_entity_dict["label"],
             entity_id=sg_entity_dict[CUST_FIELD_CODE_ID],
             parent_id=ay_parent_entity.id
@@ -169,7 +185,8 @@ def create_ay_entity_from_sg_event(sg_event, sg_project, sg_session, ayon_entity
 
     return ay_entity
 
-def update_ayon_entity_from_sg_event(sg_event, sg_session, ayon_entity_hub):
+
+def update_ayon_entity_from_sg_event(sg_event, sg_session, ayon_entity_hub, project_code_field):
     """Try to update an entity in Ayon.
 
     Args:
@@ -185,6 +202,7 @@ def update_ayon_entity_from_sg_event(sg_event, sg_session, ayon_entity_hub):
         sg_session,
         sg_event["entity_type"],
         sg_event["entity_id"],
+        project_code_field
     )
 
     if not sg_entity_dict.get(CUST_FIELD_CODE_ID):
@@ -223,7 +241,8 @@ def update_ayon_entity_from_sg_event(sg_event, sg_session, ayon_entity_hub):
 
     return ay_entity
 
-def remove_ayon_entity_from_sg_event(sg_event, sg_session, ayon_entity_hub):
+
+def remove_ayon_entity_from_sg_event(sg_event, sg_session, ayon_entity_hub, project_code_field):
     """Try to remove an entity in Ayon.
 
     Args:
@@ -235,6 +254,7 @@ def remove_ayon_entity_from_sg_event(sg_event, sg_session, ayon_entity_hub):
         sg_session,
         sg_event["entity_type"],
         sg_event["entity_id"],
+        project_code_field,
         retired_only=True
     )
 

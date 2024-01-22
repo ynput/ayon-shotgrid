@@ -1,5 +1,5 @@
 """
-A Shotgird Events listener processor for Ayon.
+A Shotgrid Events listener processor for Ayon.
 
 This service will continually run and query the Ayon Events Server in orther to
 entroll the events of topic `shotgrid.leech` to perform processing of Shotgrid
@@ -118,10 +118,11 @@ class ShotgridProcessor:
         will trigger the `handlers/project_sync.py` since that one has the attribute
         REGISTER_EVENT_TYPE = ["create-project"]
         """
-        logging.info("Start enrolling for Ayon `shotgrid.event` Events...")
-
+        logging.debug(
+            "Querying for `shotgrid.event` events "
+            f"every {self.sg_polling_frequency} seconds..."
+        )
         while True:
-            logging.info("Querying for new `shotgrid.event` events...")
             try:
                 event = ayon_api.enroll_event_job(
                     "shotgrid.event",
@@ -132,7 +133,6 @@ class ShotgridProcessor:
                 )
 
                 if not event:
-                    logging.info("No event of origin `shotgrid.event` is pending.")
                     time.sleep(self.sg_polling_frequency)
                     continue
 
@@ -162,7 +162,7 @@ class ShotgridProcessor:
                             self.sg_url,
                             self.sg_script_name,
                             self.sg_api_key,
-                            project_field_code=self.sg_project_code_field,
+                            project_code_field=self.sg_project_code_field,
                             **payload,
                         )
 

@@ -29,14 +29,25 @@ def _sg_to_ay_dict(sg_entity: dict, project_code_field=None) -> dict:
     if not project_code_field:
         project_code_field = "code"
 
+    logging.debug(f"Transforming sg_entity '{sg_entity}' to ayon dict.")
+    
+    task_type = None
     if sg_entity["type"] == "Task":
         if not sg_entity["step"]:
             raise ValueError(
-                f"Task {sg_entity} has not Pipeline Step assigned."
+                f"Task {sg_entity} has no Pipeline Step assigned."
             )
 
-        name = sg_entity["step"]["name"]
         label = sg_entity["content"]
+        task_type = sg_entity["step"]["name"]
+
+        if not label and not task_type:
+            raise ValueError(f"Unable to parse Task {sg_entity}")
+        else:
+            label = sg_entity["step"]["name"]
+
+        name = slugify_string(label)
+
     elif sg_entity["type"] == "Project":
         name = slugify_string(sg_entity[project_code_field])
         label = sg_entity[project_code_field]
@@ -44,7 +55,7 @@ def _sg_to_ay_dict(sg_entity: dict, project_code_field=None) -> dict:
         name = slugify_string(sg_entity["code"])
         label = sg_entity["code"]
 
-    return {
+    ay_dict = {
         "label": label,
         "name": name,
         SHOTGRID_ID_ATTRIB: sg_entity["id"],
@@ -53,6 +64,11 @@ def _sg_to_ay_dict(sg_entity: dict, project_code_field=None) -> dict:
         CUST_FIELD_CODE_SYNC: sg_entity.get(CUST_FIELD_CODE_SYNC, None),
         "type": sg_entity["type"],
     }
+
+    if task_type:
+        ay_dict["task_type"] = task_type
+
+    return ay_dict
 
 
 def create_ay_fields_in_sg_entities(sg_session: shotgun_api3.Shotgun):
@@ -113,12 +129,13 @@ def create_ay_fields_in_sg_project(sg_session: shotgun_api3.Shotgun):
             field_properties=sg_field_properties
         )
 
+
 def create_sg_entities_in_ay(
     project_entity: ProjectEntity,
     sg_session: shotgun_api3.Shotgun,
     shotgrid_project: dict
 ):
-    """Ensure Ayon has all the Shotgrid Tasks and Folder types.
+    """Ensure Ayon has all the SG Steps (to use as task types) and Folder types.
 
     Args:
         project_entity (ProjectEntity): The ProjectEntity for a given project.
@@ -135,38 +152,37 @@ def create_sg_entities_in_ay(
         )
     ]
 
-    new_entities = sg_entities + project_entity.folder_types
+    new_folder_types = sg_entities + project_entity.folder_types
     # So we can have a specific folder for AssetCategory
-    new_entities.append({"name": "AssetCategory"})
+    new_folder_types.append({"name": "AssetCategory"})
 
-    new_entities = list({
+    new_folder_types = list({
         entity['name']: entity
-        for entity in new_entities
+        for entity in new_folder_types
     }.values())
+    project_entity.folder_types = new_folder_types
 
-    # Create Shotgrid Statuses
+    # Add Shotgrid Statuses to Project Entity
     for status in get_sg_statuses(sg_session):
         status_short_name, status_name = status
         project_entity.statuses.create(status_name, short_name=status_short_name)
 
-    # Create Shotgrid Entities in Project Entity
-    sg_tasks = [
-        {"name": task[0], "shortName": task[1]}
-        for task in get_sg_tasks_entities(
+    # Add Project task types by quering Shotgrid Pipeline steps
+    sg_steps = [
+        {"name": step[0], "shortName": step[1]}
+        for step in get_sg_pipeline_steps(
             sg_session,
             shotgrid_project
         )
     ]
-    new_tasks = sg_tasks + project_entity.task_types
-    new_tasks = list({
+    new_task_types = sg_steps + project_entity.task_types
+    new_task_types = list({
         task['name']: task
-        for task in new_tasks
+        for task in new_task_types
     }.values())
+    project_entity.task_types = new_task_types
 
-    project_entity.folder_types = new_entities
-    project_entity.task_types = new_tasks
-
-    return sg_entities, sg_tasks
+    return sg_entities, sg_steps
 
 
 def get_asset_category(entity_hub, parent_entity, asset_category_name):
@@ -370,7 +386,7 @@ def get_sg_entities(
 
                     parent_id = asset_category_entity["name"]
 
-                entity = _sg_to_ay_dict(entity)
+                entity = _sg_to_ay_dict(entity, project_code_field=project_code_field)
                 entities_by_id[entity[SHOTGRID_ID_ATTRIB]] = entity
                 entities_by_parent_id[parent_id].append(entity)
 
@@ -381,8 +397,9 @@ def get_sg_entity_as_ay_dict(
     sg_session: shotgun_api3.Shotgun,
     sg_type: str,
     sg_id: int,
+    project_code_field: str,
     extra_fields: Optional[list] = None,
-    retired_only: Optional[bool] = False
+    retired_only: Optional[bool] = False,
 ) -> dict:
     """Get a Shotgrid entity, and morph it to an Ayon compatible one.
 
@@ -409,13 +426,14 @@ def get_sg_entity_as_ay_dict(
     if not sg_entity:
         return {}
 
-    new_entity = _sg_to_ay_dict(sg_entity)
+    new_entity = _sg_to_ay_dict(sg_entity, project_code_field)
 
     if extra_fields:
         for field in extra_fields:
             new_entity[field] = sg_entity.get(field)
 
     return new_entity
+
 
 def get_sg_entity_parent_field(
     sg_session: shotgun_api3.Shotgun,
@@ -622,19 +640,19 @@ def get_sg_statuses(sg_session: shotgun_api3.Shotgun) -> dict:
     return sg_statuses
 
 
-def get_sg_tasks_entities(
+def get_sg_pipeline_steps(
     sg_session: shotgun_api3.Shotgun,
     shotgrid_project: dict
 ) -> list:
-    """ Get all Tasks on a Shotgrid project.
+    """ Get all pipeline steps on a Shotgrid project.
 
     Args:
-        sg_session (shotgun_api3.Shotgun): Shotgun Session object.
-        shotgrid_project (dict): The project owning the Tasks.
+        sg_session (shotgun_api3.Shotgun): Shotgrid Session object.
+        shotgrid_project (dict): The project owning the Pipeline steps.
     Returns:
-        sg_tasks (list): Shotgrid Project Tasks list.
+        sg_steps (list): Shotgrid Project Pipeline Steps list.
     """
-    sg_tasks = []
+    sg_steps = []
 
     enabled_entities = get_sg_project_enabled_entities(
         sg_session,
@@ -654,9 +672,9 @@ def get_sg_tasks_entities(
     )
 
     for step in pipeline_steps:
-        sg_tasks.append((step["code"], step["short_name"].lower()))
+        sg_steps.append((step["code"], step["short_name"].lower()))
 
-    sg_tasks = list(set(sg_tasks))
-    logging.debug(f"Shotgrid Tasks: {sg_tasks}")
-    return sg_tasks
+    sg_steps = list(set(sg_steps))
+    logging.debug(f"Shotgrid Pipeline Steps: {sg_steps}")
+    return sg_steps
 

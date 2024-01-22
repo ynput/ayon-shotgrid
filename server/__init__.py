@@ -103,7 +103,7 @@ class ShotgridAddon(BaseServerAddon):
                 {
                     "type": "boolean",
                     "title": "Shotgrid Push",
-                    "description": "Push changes done to this project to Shotgird. Requires the transmitter service.",
+                    "description": "Push changes done to this project to Shotgrid. Requires the transmitter service.",
                     "inherit": False,
                     "value": False,
                 }

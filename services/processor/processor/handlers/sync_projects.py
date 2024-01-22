@@ -17,7 +17,7 @@ def process_event(
     user_name=None,
     project_name=None,
     project_code=None,
-    project_field_code=None,
+    project_code_field=None,
     **kwargs,
 ):
     """Syncronize a project between AYON and Shotgrid.
@@ -32,7 +32,7 @@ def process_event(
         sg_url,
         sg_api_key,
         sg_script_name,
-        sg_project_code_field=project_field_code,
+        sg_project_code_field=project_code_field,
     )
 
     hub.create_project()

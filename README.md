@@ -26,12 +26,12 @@ After providing a login people can publish normally, the integartion will ensure
 
 ## Services
 The services are a way to handle operations between AYON and Shotgrid in the background, these have been developed around the AYON Events system, we replicate Shotgrid events (the ones we care) as AYON `shotgrid.event`; which then the `processor` will pick up and process them acordingly; lastly the `transmitter` will look for changes in AYON and attempt to replicate them in Shotgrid.
-In any case, the Shotgird project has to have the field "Ayon Auto Sync" enabled for the `leecher` and the `transmitter` to work.
+In any case, the Shotgrid project has to have the field "Ayon Auto Sync" enabled for the `leecher` and the `transmitter` to work.
 They share code, which is found in `shotgrid_common`, most importantly the `AyonShotgridHub` a class that bootstraps common action when working with AYON and Shotgrid.
 
 The three provided services are:
  * `processor` - This has a set of handlers for different `shotgrid.event` and act on.
- * `leecher` - Periodically queries the `EventLogEntry` table on Shotgrid and ingests any event that interests us dispatching it as a `shotgird.event`, this will only query projects that have the "Ayon Auto Sync" field enabled.
+ * `leecher` - Periodically queries the `EventLogEntry` table on Shotgrid and ingests any event that interests us dispatching it as a `shotgrid.event`, this will only query projects that have the "Ayon Auto Sync" field enabled.
  * `transmitter` - Periodically check for new events in AYON of topic `entity.*`, and push any changes to Shotgrid, only affects to projects that have the "Ayon Auto Sync" field enabled.
 
 The most straighforward way to get this up and running is by using ASH (Ayon Service Host), after loading the Addon on the server, you should be able to spawn services in the "Services" page.

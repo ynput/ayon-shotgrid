@@ -43,6 +43,14 @@ class ShotgridTransmitter:
             sg_secret = ayon_api.get_secret(self.settings["shotgrid_api_secret"])
             self.sg_script_name = sg_secret.get("name")
             self.sg_api_key = sg_secret.get("value")
+            self.ayon_service_user = self.settings["service_settings"]["ayon_service_user"]
+
+            try:
+                self.sg_polling_frequency = int(
+                    self.settings["service_settings"]["polling_frequency"]
+                )
+            except Exception:
+                self.sg_polling_frequency = 10
 
         except Exception as e:
             logging.error("Unable to get Addon settings from the server.")
@@ -67,6 +75,11 @@ class ShotgridTransmitter:
             "entity.folder.attrib_changed",
         ]
 
+        logging.debug(
+            f"Querying AYON every {self.sg_polling_frequency} seconds for events to "
+            "transmit to Shotgrid, and only on Project's that have the attribute "
+            "'Shotgrid Push enabled..."
+        )
 
         while True:
             projects_we_care = [
@@ -76,11 +89,8 @@ class ShotgridTransmitter:
             ]
 
             if not projects_we_care:
-                logging.warning("No project with 'shotgridPush' attribute enabled found.")
-                time.sleep(60)
+                time.sleep(self.sg_polling_frequency)
                 continue
-
-            logging.info(f"Querying for new `entity` events on projects: {' ,'.join(projects_we_care)}")
 
             try:
                 # TODO: Enroll with a "events_filter" to narrow down the query
@@ -98,7 +108,7 @@ class ShotgridTransmitter:
                             },
                             {
                                 "key": "user",
-                                "value": "ayon_service",
+                                "value": self.ayon_service_user,
                                 "operator": "ne",
                             },
                             {
@@ -113,8 +123,7 @@ class ShotgridTransmitter:
                 )
 
                 if not event:
-                    logging.info("No event of origin `entity.*` is pending.")
-                    time.sleep(1.5)
+                    time.sleep(self.sg_polling_frequency)
                     continue
 
                 source_event = ayon_api.get_event(event["dependsOn"])
@@ -123,13 +132,19 @@ class ShotgridTransmitter:
                 ay_project = ayon_api.get_project(project_name)
 
                 if not ay_project:
-                    logging.error(f"Project {project_name} does not exit in AYON")
+                    # This should never happen since we only fetch events of 
+                    # projects we have shotgridPush enabled; but just in case
+                    # The event happens when after we deleted a project in AYON.
+                    logging.error(
+                        f"Project {project_name} does not exist in AYON "
+                        f"ignoring event {event}."
+                    )
                     ayon_api.update_event(
                         event["id"],
                         project_name=project_name,
                         status="finished"
                     )
-                    time.sleep(1.5)
+                    time.sleep(self.sg_polling_frequency)
                     continue
 
                 project_code = ay_project.get("code")
@@ -149,7 +164,7 @@ class ShotgridTransmitter:
                 ayon_api.update_event(event["id"], project_name=project_name, status="finished")
             except Exception as err:
                 log_traceback(err)
-                ayon_api.update_event(event["id"], project_name=project_name, status="finished")
+                ayon_api.update_event(event["id"], project_name=project_name, status="failed")
 
-            time.sleep(1.5)
+            time.sleep(self.sg_polling_frequency)
 

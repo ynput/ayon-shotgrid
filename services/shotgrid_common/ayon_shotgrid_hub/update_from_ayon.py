@@ -1,20 +1,15 @@
-"""Class that will create, update or remove an Shotgrid entity based on an AYON event.
+"""Module that handles creation, update or removal of SG entities based on AYON events.
 """
 
 from utils import (
-    get_sg_entity_as_ay_dict,
-    get_sg_entity_parent_field,
-    get_sg_project_by_id
+    get_sg_entity_parent_field
 )
 from constants import (
     CUST_FIELD_CODE_ID,  # Shotgrid Field for the Ayon ID.
     SHOTGRID_ID_ATTRIB,  # Ayon Entity Attribute.
     SHOTGRID_TYPE_ATTRIB,  # Ayon Entity Attribute.
-    SHOTGRID_REMOVED_VALUE
 )
 
-from ayon_api import get_project
-from ayon_api.entity_hub import EntityHub
 from nxtools import logging, log_traceback
 
 
@@ -24,7 +19,7 @@ def create_sg_entity_from_ayon_event(
     ayon_entity_hub,
     sg_project
 ):
-    """Create a Shotgird entity from an AYON event.
+    """Create a Shotgrid entity from an AYON event.
 
     Args:
         sg_event (dict): AYON event.
@@ -56,7 +51,7 @@ def create_sg_entity_from_ayon_event(
 
     sg_entity = None
 
-    logging.debug(f"Creating {ay_entity.name} ({sg_type} <{ay_id}>) in Shotgrid.")
+    logging.debug(f"Creating {ay_entity} ({sg_type} <{ay_id}>) in Shotgrid.")
 
     if sg_id and sg_type:
         logging.debug(f"Querying Shotgrid for {sg_type} <{sg_id}>")
@@ -64,6 +59,7 @@ def create_sg_entity_from_ayon_event(
 
     if sg_entity:
         logging.warning(f"Entity {sg_entity} already exists in Shotgrid!")
+        return
 
     try:
         sg_entity = _create_sg_entity(
@@ -89,7 +85,7 @@ def create_sg_entity_from_ayon_event(
 
 
 def update_sg_entity_from_ayon_event(ayon_event, sg_session, ayon_entity_hub):
-    """Try to update a Shotgird entity from an AYON event.
+    """Try to update a Shotgrid entity from an AYON event.
 
     Args:
         sg_event (dict): The `meta` key from a Shotgrid Event.
@@ -134,7 +130,7 @@ def update_sg_entity_from_ayon_event(ayon_event, sg_session, ayon_entity_hub):
 
 
 def remove_sg_entity_from_ayon_event(ayon_event, sg_session, ayon_entity_hub):
-    """Try to remove a Shotgird entity from an AYON event.
+    """Try to remove a Shotgrid entity from an AYON event.
 
     Args:
         ayon_event (dict): The `meta` key from a Shotgrid Event.
@@ -161,7 +157,7 @@ def remove_sg_entity_from_ayon_event(ayon_event, sg_session, ayon_entity_hub):
         )
 
     if not sg_entity:
-        logging.warning("Unable to find entity {ay_id} in Shotgrid.")
+        logging.warning(f"Unable to find Ayon entity with id '{ay_id}' in Shotgrid.")
         return
 
     sg_id = sg_entity["id"]
@@ -252,6 +248,12 @@ def _create_sg_entity(
 
     logging.debug(f"Creating Shotgrid entity {sg_type} with data: {data}")
 
-    return sg_session.create(sg_type, data)
+    try:
+        new_sg_entity = sg_session.create(sg_type, data)
+        return new_sg_entity
+    except Exception as e:
+        logging.error(f"Unable to create SG entity {sg_type} with data: {data}")
+        log_traceback(e)
+        raise e
 
 
