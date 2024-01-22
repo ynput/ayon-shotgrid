@@ -72,17 +72,6 @@ def create_ay_entity_from_sg_event(sg_event, sg_project, sg_session, ayon_entity
     )
     logging.debug(f"SG Entity as Ayon dict: {sg_entity_dict}")
     if not sg_entity_dict:
-        logging.warning(f"No SG Entity found from event, ignoring.")
-        return
-
-    if not sg_entity_dict:
-        logging.warning(
-            "Entity {sg_event['entity_type']} <{sg_event['entity_id']}> "
-            "no longer exists in Shotgrid, aborting..."
-        )
-        return
-
-    if not sg_entity_dict:
         logging.warning(
             "Entity {sg_event['entity_type']} <{sg_event['entity_id']}> "
             "no longer exists in Shotgrid, aborting..."
