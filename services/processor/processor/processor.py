@@ -118,7 +118,7 @@ class ShotgridProcessor:
         will trigger the `handlers/project_sync.py` since that one has the attribute
         REGISTER_EVENT_TYPE = ["create-project"]
         """
-        logging.info(
+        logging.debug(
             "Querying for `shotgrid.event` events "
             f"every {self.sg_polling_frequency} seconds..."
         )

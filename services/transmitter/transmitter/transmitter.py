@@ -75,7 +75,7 @@ class ShotgridTransmitter:
             "entity.folder.attrib_changed",
         ]
 
-        logging.info(
+        logging.debug(
             f"Querying AYON every {self.sg_polling_frequency} seconds for events to "
             "transmit to Shotgrid, and only on Project's that have the attribute "
             "'Shotgrid Push enabled..."
@@ -136,7 +136,7 @@ class ShotgridTransmitter:
                     # projects we have shotgridPush enabled; but just in case
                     # The event happens when after we deleted a project in AYON.
                     logging.error(
-                        f"Project {project_name} does not exit in AYON "
+                        f"Project {project_name} does not exist in AYON "
                         f"ignoring event {event}."
                     )
                     ayon_api.update_event(
