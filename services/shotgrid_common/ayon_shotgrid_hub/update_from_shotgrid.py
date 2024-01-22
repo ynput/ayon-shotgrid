@@ -78,6 +78,13 @@ def create_ay_entity_from_sg_event(sg_event, sg_project, sg_session, ayon_entity
         )
         return
 
+    if not sg_entity_dict:
+        logging.warning(
+            "Entity {sg_event['entity_type']} <{sg_event['entity_id']}> "
+            "no longer exists in Shotgrid, aborting..."
+        )
+        return
+
     if sg_entity_dict.get(CUST_FIELD_CODE_ID):
         # Revived entity, check if it's still in the Server
         ay_entity = ayon_entity_hub.get_or_query_entity_by_id(
