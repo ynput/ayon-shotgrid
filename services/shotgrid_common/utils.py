@@ -415,7 +415,10 @@ def get_sg_entity_as_ay_dict(
     query_fields = list(SG_COMMON_ENTITY_FIELDS)
     if extra_fields and isinstance(extra_fields, list):
         query_fields.extend(extra_fields)
-
+    
+    if project_code_field not in query_fields:
+        query_fields.append(project_code_field)
+        
     sg_entity = sg_session.find_one(
         sg_type,
         filters=[["id", "is", sg_id]],
