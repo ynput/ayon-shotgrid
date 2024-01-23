@@ -61,7 +61,10 @@ class IntegrateShotgridVersion(pyblish.api.InstancePlugin):
 
         # If there's no data to set/update, skip creation of SG version
         if not data_to_update:
-            self.log.info("No data to integrate to SG, skipping version creation.")
+            self.log.info(
+                "No data to integrate to SG for subset '%s', skipping version creation.",
+                instance.data["subset"]
+            )
             return
         
         sg_session = context.data["shotgridSession"]
