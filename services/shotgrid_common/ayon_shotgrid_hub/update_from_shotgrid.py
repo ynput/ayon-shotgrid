@@ -214,12 +214,12 @@ def update_ayon_entity_from_sg_event(sg_event, sg_session, ayon_entity_hub, proj
     )
 
     if not ay_entity:
-        logging.error("Unable to update an non existant entity.")
-        raise ValueError("Unable to update an non existant entity.")
+        logging.error("Unable to update a non existing entity.")
+        raise ValueError("Unable to update a non existing entity.")
 
     if int(ay_entity.attribs.get_attribute(SHOTGRID_ID_ATTRIB).value) != int(sg_entity_dict.get(SHOTGRID_ID_ATTRIB)):
-        logging.error("Missmatching Shotgrid IDs, aborting...")
-        raise ValueError("Missmatching Shotgrid IDs, aborting...")
+        logging.error("Mismatching Shotgrid IDs, aborting...")
+        raise ValueError("Mismatching Shotgrid IDs, aborting...")
 
     if sg_event["attribute_name"] in ["code", "name"]:
         if ay_entity.name != sg_entity_dict["name"]:
@@ -273,12 +273,12 @@ def remove_ayon_entity_from_sg_event(sg_event, sg_session, ayon_entity_hub, proj
     )
 
     if not ay_entity:
-        logging.error("Unable to update an non existant entity.")
-        raise ValueError("Unable to update an non existant entity.")
+        logging.error("Unable to update a non existing entity.")
+        raise ValueError("Unable to update a non existing entity.")
 
     if sg_entity_dict.get(CUST_FIELD_CODE_ID) != ay_entity.id:
-        logging.error("Missmatching Shotgrid IDs, aborting...")
-        raise ValueError("Missmatching Shotgrid IDs, aborting...")
+        logging.error("Mismatching Shotgrid IDs, aborting...")
+        raise ValueError("Mismatching Shotgrid IDs, aborting...")
 
     if not ay_entity.immutable_for_hierarchy:
         logging.info(f"Deleting AYON entity: {ay_entity}")

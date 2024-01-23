@@ -171,7 +171,7 @@ class AyonShotgridHub:
         try:
             self._ay_project = EntityHub(project_name)
             self._ay_project.project_entity
-            logging.info(f"Project {project_name} <{self._ay_project.project_entity.id}> already exist in AYON.")
+            logging.info(f"Project {project_name} <{self._ay_project.project_entity.id}> already exists in AYON.")
         except Exception as err:
             logging.warning(f"Project {project_name} does not exist in AYON.")
             log_traceback(err)
@@ -186,7 +186,7 @@ class AyonShotgridHub:
                     CUST_FIELD_CODE_AUTO_SYNC
                 ]
             )
-            logging.info(f"Project {project_name} ({self._sg_project[self.sg_project_code_field]}) <{self._sg_project['id']}> already exist in Shotgrid.")
+            logging.info(f"Project {project_name} ({self._sg_project[self.sg_project_code_field]}) <{self._sg_project['id']}> already exists in Shotgrid.")
         except Exception as e:
             logging.warning(f"Project {project_name} does not exist in Shotgrid. ")
             log_traceback(e)
