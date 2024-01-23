@@ -43,8 +43,6 @@ def _sg_to_ay_dict(sg_entity: dict, project_code_field=None) -> dict:
 
         if not label and not task_type:
             raise ValueError(f"Unable to parse Task {sg_entity}")
-        else:
-            label = sg_entity["step"]["name"]
 
         name = slugify_string(label)
 
