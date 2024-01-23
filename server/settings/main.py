@@ -47,7 +47,18 @@ class ShotgridSettings(BaseSettingsModel):
         default="code",
         title="Shotgrid Project Code field name",
         description="In order to create AYON projects, we need a Project Code, you can specify here which field in the Shotgrid Project entitiy represents it.",
-        excample="sg_code"
+        example="sg_code"
+    )
+    enable_shotgrid_local_storage: bool = Field(
+        default=True,
+        title="Enable Shotgrid Local Storage.",
+        description="Whether to try make use of local storage defined in Shotgrid ('Site Preferences -> File Management -> Local Storage') or not."
+    )
+    shotgrid_local_storage_key: str = Field(
+        default="primary",
+        title="Shotgrid Local Storage entry name",
+        description="Name of the 'code' to select which one of the multiple possible local storages entries to use.",
+        example="ayon_storage"
     )
     service_settings: ShotgridServiceSettings = Field(
         default_factory=ShotgridServiceSettings,

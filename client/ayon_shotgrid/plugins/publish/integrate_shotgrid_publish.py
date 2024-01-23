@@ -75,54 +75,62 @@ class IntegrateShotgridPublish(pyblish.api.InstancePlugin):
                 query_filters
             )
 
-            sg_local_storage = sg_session.find_one(
-                "LocalStorage",
-                filters=[],
-                fields=["mac_path", "windows_path", "linux_path"]
-            )
-
-            if not sg_local_storage:
-                KnownPublishError(
-                    "Unable to find a Local Storage in Shotgrid."
-                    "Enable them in Site Preferences > Local Management:"
-                    "https://help.autodesk.com/view/SGSUB/ENU/?guid=SG_Administrator_ar_data_management_ar_linking_local_files_html"
+            if instance.context.data.get("shotgridLocalStorageEnabled"):
+                sg_local_storage = sg_session.find_one(
+                    "LocalStorage",
+                    filters=[
+                        ["code", "is", instance.context.data["shotgridLocalStorageKey"]]
+                    ],
+                    fields=["mac_path", "windows_path", "linux_path"]
                 )
 
-            self.log.debug(f"Using the Local Storage: {sg_local_storage}")
+                if not sg_local_storage:
+                    raise KnownPublishError(
+                        "Unable to find a Local Storage in Shotgrid."
+                        "Enable them in Site Preferences > Local Management:"
+                        "https://help.autodesk.com/view/SGSUB/ENU/?guid=SG_Administrator_ar_data_management_ar_linking_local_files_html"
+                    )
+                
+                self.log.debug(f"Using the Local Storage: {sg_local_storage}")
 
-            try:
-                if platform.system() == "Windows":
-                    _, file_partial_path = local_path.split(
-                        sg_local_storage["windows_path"]
-                    )
-                    file_partial_path = file_partial_path.replace("\\", "/")
-                elif platform.system() == "Linux":
-                    _, file_partial_path = local_path.split(
-                        sg_local_storage["linux_path"]
-                    )
-                elif platform.system() == "Darwin":
-                    _, file_partial_path = local_path.split(
-                        sg_local_storage["mac_path"]
-                    )
+                try:
+                    if platform.system() == "Windows":
+                        _, file_partial_path = local_path.split(
+                            sg_local_storage["windows_path"]
+                        )
+                        file_partial_path = file_partial_path.replace("\\", "/")
+                    elif platform.system() == "Linux":
+                        _, file_partial_path = local_path.split(
+                            sg_local_storage["linux_path"]
+                        )
+                    elif platform.system() == "Darwin":
+                        _, file_partial_path = local_path.split(
+                            sg_local_storage["mac_path"]
+                        )
 
-                file_partial_path = file_partial_path.lstrip("/")
-            except ValueError:
-                raise KnownPublishError(
-                    f"Filepath {local_path} doesn't match the "
-                    f"Shotgrid Local Storage {sg_local_storage}"
-                    "Enable them in Site Preferences > Local Management:"
-                    "https://help.autodesk.com/view/SGSUB/ENU/?guid=SG_Administrator_ar_data_management_ar_linking_local_files_html"
-                )
+                    file_partial_path = file_partial_path.lstrip("/")
+                except ValueError as exc:
+                    raise KnownPublishError(
+                        f"Filepath {local_path} doesn't match the "
+                        f"Shotgrid Local Storage {sg_local_storage}"
+                        "Enable them in Site Preferences > Local Management:"
+                        "https://help.autodesk.com/view/SGSUB/ENU/?guid=SG_Administrator_ar_data_management_ar_linking_local_files_html"
+                    ) from exc
+                
+                path = {
+                    "local_storage": sg_local_storage,
+                    "relative_path": file_partial_path
+                }
+            else:
+                self.log.info("Shotgrid Local Storage disabled, using local path.")
+                path = {"local_path": local_path}
 
             published_file_data = {
                 "project": sg_project,
                 "code": code,
                 "entity": sg_entity,
                 "version": sg_version,
-                "path": {
-                    "local_storage": sg_local_storage,
-                    "relative_path": file_partial_path
-                },
+                "path": path,
                 # Add file type and version number fields
                 "published_file_type": self._find_published_file_type(
                     instance, local_path, representation
