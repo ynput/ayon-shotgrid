@@ -20,6 +20,8 @@ class ShotgridAddon(OpenPypeModule, IPluginPaths):
         sg_secret = ayon_api.get_secret(module_settings["shotgrid_api_secret"])
         self._shotgrid_script_name = sg_secret.get("name")
         self._shotgrid_api_key = sg_secret.get("value")
+        self._enable_local_storage = module_settings.get("enable_shotgrid_local_storage")
+        self._local_storage_key = module_settings.get("local_storage_key")
 
     def get_sg_url(self):
         return self._shotgrid_server_url if self._shotgrid_server_url else None
@@ -37,6 +39,12 @@ class ShotgridAddon(OpenPypeModule, IPluginPaths):
             ]
         }
 
+    def is_local_storage_enabled(self):
+        return self._enable_local_storage if self._enable_local_storage else False
+    
+    def get_local_storage_key(self):
+        return self._local_storage_key if self._local_storage_key else None
+    
     def create_shotgrid_session(self):
         from .lib import credentials
 
