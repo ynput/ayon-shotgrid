@@ -32,11 +32,9 @@ class CollectShotgridSession(pyblish.api.ContextPlugin):
         except Exception as e:
             self.log.error("Failed to connect to Shotgrid.", exc_info=True)
             raise KnownPublishError(
-                "Could not connect to Shotgrid {0} with user {1}.".format(
-                shotgrid_url,
-                user_login
-                )
-            )
+                f"Could not connect to Shotgrid {shotgrid_url} "
+                f"with user {user_login}."
+            ) from e
 
         if sg_session is None:
             raise KnownPublishError(
@@ -49,3 +47,11 @@ class CollectShotgridSession(pyblish.api.ContextPlugin):
         context.data["shotgridSession"] = sg_session
         context.data["shotgridUser"] = user_login
 
+        local_storage_enabled = shotgrid_module.is_local_storage_enabled()
+        context.data["shotgridLocalStorageEnabled"] = local_storage_enabled
+        self.log.info(f"Shotgrid local storage enabled: {local_storage_enabled}")
+        if local_storage_enabled:
+            local_storage_key = shotgrid_module.get_local_storage_key()
+            self.log.info(f"Using local storage entry {local_storage_key}")
+            context.data["shotgridLocalStorageKey"] = local_storage_key
+        
