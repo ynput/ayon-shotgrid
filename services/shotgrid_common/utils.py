@@ -597,10 +597,6 @@ def get_sg_project_enabled_entities(
         if sg_entity_type == "Project":
             continue
 
-        if sg_entity_type == "Version":
-            project_entities.append((sg_entity_type, "entity"))
-            continue
-
         is_entity_enabled = sg_project_schema.get(
             sg_entity_type, {}
         ).get("visible", {}).get("value", False)
