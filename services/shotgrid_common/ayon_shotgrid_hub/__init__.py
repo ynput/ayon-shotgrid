@@ -69,6 +69,7 @@ class AyonShotgridHub:
         sg_api_key,
         sg_script_name,
         sg_project_code_field=None,
+        custom_attributes_map=None,
     ):
 
         self._sg = None
@@ -91,6 +92,20 @@ class AyonShotgridHub:
         else:
             self.sg_project_code_field = "code"
 
+        if custom_attributes_map:
+            self.custom_attributes_map = custom_attributes_map
+            self.custom_attributes_map.update({
+                "name": "code",
+                "label": "name",
+                "sg_status_list": "status",
+            })
+        else:
+            self.custom_attributes_map = {
+                "name": "code",
+                "label": "name",
+                "sg_status_list": "status",
+            }
+            
         self.project_name = project_name
         self.project_code = project_code
 
@@ -329,14 +344,15 @@ class AyonShotgridHub:
                 )
 
             case "attribute_change":
-                if sg_event["attribute_name"] not in ("code", "name"):
+                if sg_event["attribute_name"] not in self.custom_attributes_map.values():
                     logging.warning("Can't handle this attribute.")
                     return
                 update_ayon_entity_from_sg_event(
                     sg_event,
                     self._sg,
                     self._ay_project,
-                    self.sg_project_code_field
+                    self.sg_project_code_field,
+                    self.custom_attributes_map,
                 )
 
             case "entity_retirement":

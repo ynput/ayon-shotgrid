@@ -55,6 +55,8 @@ class ShotgridProcessor:
             except Exception:
                 self.sg_polling_frequency = 10
 
+            self.custom_attributes_map = self.settings["compatibility_settings"]["custom_attributes_map"]
+
             if not all([self.sg_url, self.sg_script_name, self.sg_api_key]):
                 msg = "Addon is missing settings, check " \
                       "'AYON > Studio Settings > Shotgrid' and fill out all the fields."

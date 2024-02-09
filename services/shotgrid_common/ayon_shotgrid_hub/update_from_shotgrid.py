@@ -186,7 +186,7 @@ def create_ay_entity_from_sg_event(sg_event, sg_project, sg_session, ayon_entity
     return ay_entity
 
 
-def update_ayon_entity_from_sg_event(sg_event, sg_session, ayon_entity_hub, project_code_field):
+def update_ayon_entity_from_sg_event(sg_event, sg_session, ayon_entity_hub, project_code_field, ayon_sg_attribute_map):
     """Try to update an entity in Ayon.
 
     Args:
@@ -202,7 +202,9 @@ def update_ayon_entity_from_sg_event(sg_event, sg_session, ayon_entity_hub, proj
         sg_session,
         sg_event["entity_type"],
         sg_event["entity_id"],
-        project_code_field
+        project_code_field,
+        extra_fields=list(ayon_sg_attribute_map.values()),
+        custom_attributes_map=ayon_sg_attribute_map
     )
 
     if not sg_entity_dict["data"].get(CUST_FIELD_CODE_ID):
@@ -221,12 +223,17 @@ def update_ayon_entity_from_sg_event(sg_event, sg_session, ayon_entity_hub, proj
         logging.error("Mismatching Shotgrid IDs, aborting...")
         raise ValueError("Mismatching Shotgrid IDs, aborting...")
 
-    if sg_event["attribute_name"] in ["code", "name"]:
-        if ay_entity.name != sg_entity_dict["name"]:
-            ay_entity.name = sg_entity_dict["name"]
+    ay_entity.name = sg_entity_dict["name"]
+    ay_entity.label = sg_entity_dict["label"]
+    ay_entity.status = sg_entity_dict["attribs"]["sg_status_list"]
 
-        if ay_entity.label != sg_entity_dict["label"]:
-            ay_entity.label = sg_entity_dict["label"]
+    for attr, attr_value in sg_entity_dict["attribs"].items():
+        if attr in ["name", "label", "sg_status_list"]:
+            continue
+        ay_attr = next((ay_attr for ay_attr, sg_attr in ayon_sg_attribute_map.items() if sg_attr == attr), None)
+
+        if ay_attr:
+            ay_entity.attribs.set(ay_attr, attr_value)
 
     ayon_entity_hub.commit_changes()
 

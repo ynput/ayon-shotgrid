@@ -423,6 +423,7 @@ def get_sg_entity_as_ay_dict(
     project_code_field: str,
     extra_fields: Optional[list] = None,
     retired_only: Optional[bool] = False,
+    custom_attributes_map: Optional[dict] = None,
 ) -> dict:
     """Get a Shotgrid entity, and morph it to an Ayon compatible one.
 
@@ -438,10 +439,12 @@ def get_sg_entity_as_ay_dict(
     query_fields = list(SG_COMMON_ENTITY_FIELDS)
     if extra_fields and isinstance(extra_fields, list):
         query_fields.extend(extra_fields)
-    
+    else:
+        extra_fields = []
+
     if project_code_field not in query_fields:
         query_fields.append(project_code_field)
-        
+
     sg_entity = sg_session.find_one(
         sg_type,
         filters=[["id", "is", sg_id]],
@@ -454,9 +457,16 @@ def get_sg_entity_as_ay_dict(
 
     new_entity = _sg_to_ay_dict(sg_entity, project_code_field)
 
-    if extra_fields:
-        for field in extra_fields:
-            new_entity[field] = sg_entity.get(field)
+    for field in extra_fields:
+        if field in ["name", "label", "sg_status_list"]:
+            continue
+
+        if custom_attributes_map and field in custom_attributes_map.values():
+            for ay_attr, sg_attr in custom_attributes_map.items():
+                if field == sg_attr:
+                    new_entity["attribs"][ay_attr] = sg_entity.get(field)
+        else:
+            new_entity["data"][field] = sg_entity.get(field)
 
     return new_entity
 
