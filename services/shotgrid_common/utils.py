@@ -18,10 +18,13 @@ import shotgun_api3
 
 
 def _sg_to_ay_dict(sg_entity: dict, project_code_field=None) -> dict:
-    """Morph a Shotgrid entity dict into an Ayon compatible one.
+    """Morph a Shotgrid entity dict into an Ayon's Entity Hub compatible one.
 
-    Create a dictionary that follows the Ayon Entity schema and handle edge
+    Create a dictionary that follows the Ayon Entity Hub schema and handle edge
     cases so it's ready for Ayon consumption.
+
+    Folders: https://github.com/ynput/ayon-python-api/blob/30d702618b58676c3708f09f131a0974a92e1002/ayon_api/entity_hub.py#L2397
+    Tasks: https://github.com/ynput/ayon-python-api/blob/30d702618b58676c3708f09f131a0974a92e1002/ayon_api/entity_hub.py#L2579
 
     Args:
         sg_entity (dict): Shotgun Entity dict representation.
@@ -30,9 +33,13 @@ def _sg_to_ay_dict(sg_entity: dict, project_code_field=None) -> dict:
         project_code_field = "code"
 
     logging.debug(f"Transforming sg_entity '{sg_entity}' to ayon dict.")
-    
+
+    ay_entity_type = "folder"
     task_type = None
+    folder_type = None
+
     if sg_entity["type"] == "Task":
+        ay_entity_type = "task"
         if not sg_entity["step"]:
             raise ValueError(
                 f"Task {sg_entity} has no Pipeline Step assigned."
@@ -43,8 +50,10 @@ def _sg_to_ay_dict(sg_entity: dict, project_code_field=None) -> dict:
 
         if not label and not task_type:
             raise ValueError(f"Unable to parse Task {sg_entity}")
-
-        name = slugify_string(label)
+        if label:
+            name = slugify_string(label)
+        else:
+            name = slugify_string(task_type)
 
     elif sg_entity["type"] == "Project":
         name = slugify_string(sg_entity[project_code_field])
@@ -52,19 +61,26 @@ def _sg_to_ay_dict(sg_entity: dict, project_code_field=None) -> dict:
     else:
         name = slugify_string(sg_entity["code"])
         label = sg_entity["code"]
+        folder_type = sg_entity["type"]
 
     ay_dict = {
+        "type": ay_entity_type, # In the EH there are either `folder_type` or `task_type`.
         "label": label,
         "name": name,
-        SHOTGRID_ID_ATTRIB: sg_entity["id"],
-        SHOTGRID_TYPE_ATTRIB: sg_entity["type"],
-        CUST_FIELD_CODE_ID: sg_entity.get(CUST_FIELD_CODE_ID, None),
-        CUST_FIELD_CODE_SYNC: sg_entity.get(CUST_FIELD_CODE_SYNC, None),
-        "type": sg_entity["type"],
+        "attribs": {
+            SHOTGRID_ID_ATTRIB: sg_entity["id"],
+            SHOTGRID_TYPE_ATTRIB: sg_entity["type"],
+        },
+        "data": {
+            CUST_FIELD_CODE_SYNC: sg_entity.get(CUST_FIELD_CODE_SYNC, None),
+            CUST_FIELD_CODE_ID: sg_entity.get(CUST_FIELD_CODE_ID, None),
+        }
     }
 
     if task_type:
         ay_dict["task_type"] = task_type
+    elif folder_type:
+        ay_dict["folder_type"] = folder_type
 
     return ay_dict
 
@@ -375,11 +391,16 @@ def get_sg_entities(
                     asset_category_entity = {
                         "label": asset_category,
                         "name": slugify_string(asset_category).lower(),
-                        SHOTGRID_ID_ATTRIB: slugify_string(asset_category).lower(),
-                        SHOTGRID_TYPE_ATTRIB: "AssetCategory",
-                        CUST_FIELD_CODE_ID: None,
-                        CUST_FIELD_CODE_SYNC: None,
-                        "type": "AssetCategory",
+                        "attribs": {
+                            SHOTGRID_ID_ATTRIB: slugify_string(asset_category).lower(),
+                            SHOTGRID_TYPE_ATTRIB: "AssetCategory",
+                        },
+                        "data": {
+                            CUST_FIELD_CODE_ID: None,
+                            CUST_FIELD_CODE_SYNC: None,
+                        },
+                        "type": "folder",
+                        "folder_type": "AssetCategory",
                     }
 
                     if not entities_by_id.get(asset_category_entity["name"]):
@@ -389,7 +410,7 @@ def get_sg_entities(
                     parent_id = asset_category_entity["name"]
 
                 entity = _sg_to_ay_dict(entity, project_code_field=project_code_field)
-                entities_by_id[entity[SHOTGRID_ID_ATTRIB]] = entity
+                entities_by_id[entity["attribs"][SHOTGRID_ID_ATTRIB]] = entity
                 entities_by_parent_id[parent_id].append(entity)
 
     return entities_by_id, entities_by_parent_id
