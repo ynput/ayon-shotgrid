@@ -11,13 +11,7 @@ REGISTER_EVENT_TYPE = ["sync-from-shotgrid", "sync-from-ayon"]
 
 
 def process_event(
-    sg_url,
-    sg_script_name,
-    sg_api_key,
-    user_name=None,
-    project_name=None,
-    project_code=None,
-    project_code_field=None,
+    sg_processor,
     **kwargs,
 ):
     """Syncronize a project between AYON and Shotgrid.
@@ -27,14 +21,17 @@ def process_event(
     and replciate it's structe in the other platform.
     """
     hub = AyonShotgridHub(
-        project_name,
-        project_code,
-        sg_url,
-        sg_api_key,
-        sg_script_name,
-        sg_project_code_field=project_code_field,
+        kwargs.get("project_name"),
+        kwargs.get("project_code"),
+        sg_processor.sg_url,
+        sg_processor.sg_api_key,
+        sg_processor.sg_script_name,
+        sg_project_code_field=sg_processor.sg_project_code_field,
+        custom_attributes_map=sg_processor.custom_attributes_map,
+        sg_enabled_entities=sg_processor.sg_enabled_entities,
     )
 
+    # This will ensure that the project exists in both platforms.
     hub.create_project()
     hub.syncronize_projects(
         source="ayon" if kwargs.get("action") == "sync-from-ayon" else "shotgrid"

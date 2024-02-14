@@ -55,7 +55,12 @@ class ShotgridProcessor:
             except Exception:
                 self.sg_polling_frequency = 10
 
-            self.custom_attributes_map = self.settings["compatibility_settings"]["custom_attributes_map"]
+            self.custom_attributes_map = {
+                attr["ayon"]: attr["sg"]
+                for attr in self.settings["compatibility_settings"]["custom_attributes_map"]
+                if attr["sg"]
+            }
+            self.sg_enabled_entities = self.settings["compatibility_settings"]["shotgrid_enabled_entities"]
 
             if not all([self.sg_url, self.sg_script_name, self.sg_api_key]):
                 msg = "Addon is missing settings, check " \
@@ -161,9 +166,7 @@ class ShotgridProcessor:
                             status="finished"
                         )
                         handler.process_event(
-                            self.sg_url,
-                            self.sg_script_name,
-                            self.sg_api_key,
+                            self,
                             **payload,
                         )
 
