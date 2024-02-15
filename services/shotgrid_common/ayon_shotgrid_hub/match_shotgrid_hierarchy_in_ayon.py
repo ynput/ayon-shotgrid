@@ -50,15 +50,14 @@ def match_shotgrid_hierarchy_in_ayon(
         ay_entity = None
         sg_entity_sync_status = "Synced"
 
-        ay_id = sg_entity.get("sg_ayon_id")
-        ay_type = ["task" if sg_entity.get("shotgridType") == "Task" else "folder"]
+        ay_id = sg_entity["data"].get(CUST_FIELD_CODE_ID)
 
         if ay_id:
-            ay_entity = entity_hub.get_or_query_entity_by_id(ay_id, ay_type)
+            ay_entity = entity_hub.get_or_query_entity_by_id(ay_id, [sg_entity["type"]])
 
         # If we couldn't find it we create it.
         if ay_entity is None:
-            if sg_entity.get("shotgridType") == "AssetCategory":
+            if sg_entity["attribs"].get(SHOTGRID_TYPE_ATTRIB) == "AssetCategory":
                 ay_entity = get_asset_category(
                     entity_hub,
                     ay_parent_entity,
@@ -81,39 +80,38 @@ def match_shotgrid_hierarchy_in_ayon(
                 SHOTGRID_ID_ATTRIB
             ).value
 
-            if ay_shotgrid_id_attrib != str(sg_entity[SHOTGRID_ID_ATTRIB]):
+            if ay_shotgrid_id_attrib != str(sg_entity["attribs"][SHOTGRID_ID_ATTRIB]):
                 logging.error(
                     f"The AYON entity {ay_entity.name} <{ay_entity.id}> has the "
                     f"ShotgridId {ay_shotgrid_id_attrib}, while the Shotgrid ID "
-                    f"should be {sg_entity[SHOTGRID_ID_ATTRIB]}"
+                    f"should be {sg_entity['attribs'][SHOTGRID_ID_ATTRIB]}"
                 )
                 sg_entity_sync_status = "Failed"
                 sg_project_sync_status = "Failed"
                 # TODO: How to deal with mismatches?
 
         # Update SG entity with new created data
-        sg_entity[CUST_FIELD_CODE_ID] = ay_entity.id
-        sg_entities_by_id[sg_entity[SHOTGRID_ID_ATTRIB]] = sg_entity
+        sg_entity["data"][CUST_FIELD_CODE_ID] = ay_entity.id
+        sg_entities_by_id[sg_entity["attribs"][SHOTGRID_ID_ATTRIB]] = sg_entity
 
         entity_id = sg_entity["name"]
 
-        if sg_entity["type"] not in ["Folder", "AssetCategory"]:
+        if sg_entity["attribs"][SHOTGRID_TYPE_ATTRIB] not in ["Folder", "AssetCategory"]:
             if (
-                sg_entity[CUST_FIELD_CODE_ID] != ay_entity.id
-                or sg_entity[CUST_FIELD_CODE_SYNC] != sg_entity_sync_status
+                sg_entity["data"][CUST_FIELD_CODE_ID] != ay_entity.id
+                or sg_entity["data"][CUST_FIELD_CODE_SYNC] != sg_entity_sync_status
             ):
                 update_data = {
                     CUST_FIELD_CODE_ID: ay_entity.id,
-                    CUST_FIELD_CODE_SYNC: sg_entity[CUST_FIELD_CODE_SYNC]
+                    CUST_FIELD_CODE_SYNC: sg_entity["data"][CUST_FIELD_CODE_SYNC]
                 }
                 sg_session.update(
-                    sg_entity["type"],
-                    sg_entity[SHOTGRID_ID_ATTRIB],
+                    sg_entity["attribs"][SHOTGRID_TYPE_ATTRIB],
+                    sg_entity["attribs"][SHOTGRID_ID_ATTRIB],
                     update_data
                 )
 
-            # If the entity has children, add it to the deck
-            entity_id = sg_entity[SHOTGRID_ID_ATTRIB]
+            entity_id = sg_entity["attribs"][SHOTGRID_ID_ATTRIB]
 
         try:
             entity_hub.commit_changes()
@@ -152,6 +150,13 @@ def match_shotgrid_hierarchy_in_ayon(
 def _create_new_entity(entity_hub, parent_entity, sg_entity):
     """Helper method to create entities in the EntityHub.
 
+    Task Creation:
+        https://github.com/ynput/ayon-python-api/blob/30d702618b58676c3708f09f131a0974a92e1002/ayon_api/entity_hub.py#L284
+
+    Folder Creation:
+        https://github.com/ynput/ayon-python-api/blob/30d702618b58676c3708f09f131a0974a92e1002/ayon_api/entity_hub.py#L254
+
+
     Args:
         entity_hub (ayon_api.EntityHub): The project's entity hub.
         parent_entity: Ayon parent entity.
@@ -162,27 +167,21 @@ def _create_new_entity(entity_hub, parent_entity, sg_entity):
             sg_entity["task_type"],
             name=sg_entity["name"],
             label=sg_entity["label"],
-            entity_id=sg_entity[CUST_FIELD_CODE_ID],
-            parent_id=parent_entity.id
+            entity_id=sg_entity["data"][CUST_FIELD_CODE_ID],
+            parent_id=parent_entity.id,
+            attribs=sg_entity["attribs"],
+            data=sg_entity["data"],
         )
     else:
         new_entity = entity_hub.add_new_folder(
-            sg_entity["type"],
+            sg_entity["folder_type"],
             name=sg_entity["name"],
             label=sg_entity["label"],
-            entity_id=sg_entity[CUST_FIELD_CODE_ID],
+            entity_id=sg_entity["data"][CUST_FIELD_CODE_ID],
             parent_id=parent_entity.id
+            attribs=sg_entity["attribs"],
+            data=sg_entity["data"],
         )
-
-    new_entity.attribs.set(
-        SHOTGRID_ID_ATTRIB,
-        sg_entity[SHOTGRID_ID_ATTRIB]
-    )
-
-    new_entity.attribs.set(
-        SHOTGRID_TYPE_ATTRIB,
-        sg_entity["type"]
-    )
 
     logging.debug(f"Created new entity: {new_entity.name} ({new_entity.id})")
     logging.debug(f"Parent is: {parent_entity.name} ({parent_entity.id})")

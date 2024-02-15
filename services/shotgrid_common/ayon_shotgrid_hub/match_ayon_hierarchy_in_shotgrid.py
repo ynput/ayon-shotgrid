@@ -64,12 +64,12 @@ def match_ayon_hierarchy_in_shotgrid(entity_hub, sg_project, sg_session, project
                     sg_entity = sg_entities_by_id[sg_entity_id]
                     logging.info(f"Entity already exists in Shotgrid {sg_entity}")
 
-                    if sg_entity[CUST_FIELD_CODE_ID] != ay_entity.id:
+                    if sg_entity["data"][CUST_FIELD_CODE_ID] != ay_entity.id:
                         logging.error("Shotgrid record for AYON id does not match...")
                         try:
                             sg_session.update(
-                                sg_entity["shotgridType"],
-                                sg_entity["shotgridId"],
+                                sg_entity["attribs"][SHOTGRID_TYPE_ATTRIB],
+                                sg_entity["attribs"][SHOTGRID_ID_ATTRIB],
                                 {
                                     CUST_FIELD_CODE_ID: "",
                                     CUST_FIELD_CODE_SYNC: "Failed"
@@ -81,8 +81,8 @@ def match_ayon_hierarchy_in_shotgrid(entity_hub, sg_project, sg_session, project
 
             if sg_entity is None:
                 sg_parent_entity = sg_session.find_one(
-                    ay_parent_entity["shotgridType"],
-                    filters=[["id", "is", ay_parent_entity["shotgridId"]]]
+                    ay_parent_entity["attribs"][SHOTGRID_TYPE_ATTRIB],
+                    filters=[["id", "is", ay_parent_entity["attribs"][SHOTGRID_ID_ATTRIB]]]
                 )
                 sg_entity = _create_new_entity(
                     ay_entity,
@@ -91,7 +91,7 @@ def match_ayon_hierarchy_in_shotgrid(entity_hub, sg_project, sg_session, project
                     sg_parent_entity,
                     project_code_field
                 )
-                sg_entity_id = sg_entity["shotgridId"]
+                sg_entity_id = sg_entity["attribs"][SHOTGRID_ID_ATTRIB]
                 sg_entities_by_id[sg_entity_id] = sg_entity
                 sg_entities_by_parent_id[sg_parent_entity["id"]].append(sg_entity)
 
@@ -141,7 +141,6 @@ def _create_new_entity(ay_entity, sg_session, sg_project, sg_parent_entity, proj
     """
 
     if ay_entity.entity_type == "task":
-
         step_query_filters = [["code", "is", ay_entity.task_type]]
 
         if sg_parent_entity["type"] in ["Asset", "Shot", "Episode", "Sequence"]:
