@@ -13,7 +13,7 @@ from nxtools import logging, log_traceback
 
 
 def match_shotgrid_hierarchy_in_ayon(
-    entity_hub, sg_project, sg_session, project_code_field
+    entity_hub, sg_project, sg_session, sg_enabled_entities, project_code_field
 ):
     """Replicate a Shotgrid project into AYON.
 
@@ -32,6 +32,7 @@ def match_shotgrid_hierarchy_in_ayon(
     sg_entities_by_id, sg_entities_by_parent_id = get_sg_entities(
         sg_session,
         sg_project,
+        sg_enabled_entities,
         project_code_field=project_code_field
     )
 

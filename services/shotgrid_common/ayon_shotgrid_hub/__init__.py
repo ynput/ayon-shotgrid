@@ -70,6 +70,7 @@ class AyonShotgridHub:
         sg_script_name,
         sg_project_code_field=None,
         custom_attributes_map=None,
+        sg_enabled_entities=None,
     ):
 
         self._sg = None
@@ -105,7 +106,12 @@ class AyonShotgridHub:
                 "label": "name",
                 "sg_status_list": "status",
             }
-            
+
+        if sg_enabled_entities:
+            self.sg_enabled_entities = sg_enabled_entities
+        else:
+            self.sg_enabled_entities = list(AYON_SHOTGRID_ENTITY_TYPE_MAP)
+
         self.project_name = project_name
         self.project_code = project_code
 
@@ -165,7 +171,7 @@ class AyonShotgridHub:
     def create_sg_attributes(self):
         """Create all AYON needed attributes in Shotgrid."""
         create_ay_fields_in_sg_project(self._sg)
-        create_ay_fields_in_sg_entities(self._sg)
+        create_ay_fields_in_sg_entities(self._sg, self.sg_enabled_entities)
 
     @property
     def project_name(self):
@@ -268,14 +274,15 @@ class AyonShotgridHub:
                 ay_entities = [
                     folder["name"]
                     for folder in self._ay_project.project_entity.folder_types
-                    if folder["name"] in AYON_SHOTGRID_ENTITY_TYPE_MAP.keys()
+                    if folder["name"] in self.sg_enabled_entities
                 ]
 
                 sg_entities = [
                     entity_name
                     for entity_name, _ in get_sg_project_enabled_entities(
                         self._sg,
-                        self._sg_project
+                        self._sg_project,
+                        self.sg_enabled_entities,
                     )
                 ]
 
@@ -297,6 +304,7 @@ class AyonShotgridHub:
                     self._ay_project,
                     self._sg_project,
                     self._sg,
+                    self.sg_enabled_entities,
                     self.sg_project_code_field,
                 )
 
@@ -305,6 +313,7 @@ class AyonShotgridHub:
                     self._ay_project.project_entity,
                     self._sg,
                     self._sg_project,
+                    self.sg_enabled_entities,
                 )
                 self._ay_project.commit_changes()
 
@@ -312,6 +321,7 @@ class AyonShotgridHub:
                     self._ay_project,
                     self._sg_project,
                     self._sg,
+                    self.sg_enabled_entities,
                     self.sg_project_code_field,
                 )
 
@@ -340,7 +350,8 @@ class AyonShotgridHub:
                     self._sg_project,
                     self._sg,
                     self._ay_project,
-                    self.sg_project_code_field
+                    self.sg_enabled_entities,
+                    self.sg_project_code_field,
                 )
 
             case "attribute_change":

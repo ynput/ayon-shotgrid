@@ -12,7 +12,7 @@ from utils import get_sg_entities, get_sg_entity_parent_field, get_sg_entity_as_
 from nxtools import logging, log_traceback
 
 
-def match_ayon_hierarchy_in_shotgrid(entity_hub, sg_project, sg_session, project_code_field):
+def match_ayon_hierarchy_in_shotgrid(entity_hub, sg_project, sg_session, sg_enabled_entities, project_code_field):
     """Replicate an AYON project into Shotgrid.
 
     This function creates a "deck" which we keep increasing while traversing
@@ -33,6 +33,7 @@ def match_ayon_hierarchy_in_shotgrid(entity_hub, sg_project, sg_session, project
     sg_entities_by_id, sg_entities_by_parent_id = get_sg_entities(
         sg_session,
         sg_project,
+        sg_enabled_entities,
         project_code_field=project_code_field
     )
 
@@ -89,6 +90,7 @@ def match_ayon_hierarchy_in_shotgrid(entity_hub, sg_project, sg_session, project
                     sg_session,
                     sg_project,
                     sg_parent_entity,
+                    sg_enabled_entities,
                     project_code_field
                 )
                 sg_entity_id = sg_entity["attribs"][SHOTGRID_ID_ATTRIB]
@@ -132,7 +134,7 @@ def match_ayon_hierarchy_in_shotgrid(entity_hub, sg_project, sg_session, project
     )
 
 
-def _create_new_entity(ay_entity, sg_session, sg_project, sg_parent_entity, project_code_field):
+def _create_new_entity(ay_entity, sg_session, sg_project, sg_parent_entity, sg_enabled_entities, project_code_field):
     """Helper method to create entities in Shotgrid.
 
     Args:
@@ -170,7 +172,7 @@ def _create_new_entity(ay_entity, sg_session, sg_project, sg_parent_entity, proj
             }
         )
     else:
-        sg_parent_field = get_sg_entity_parent_field(sg_session, sg_project, ay_entity.folder_type)
+        sg_parent_field = get_sg_entity_parent_field(sg_session, sg_project, ay_entity.folder_type, sg_enabled_entities)
 
         if sg_parent_field == "project" or sg_parent_entity["type"] == "Project":
             new_entity = sg_session.create(

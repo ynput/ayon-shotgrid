@@ -117,7 +117,7 @@ class ShotgridListener:
 
         # TODO: Create a complex filter so skip event types "_Change" that
         # we don't handle.
-        for entity_type in AYON_SHOTGRID_ENTITY_TYPE_MAP.keys():
+        for entity_type in self.sg_enabled_entities:
             for event_name in SG_EVENT_TYPES:
                 sg_event_types.append(event_name.format(entity_type))
 

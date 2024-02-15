@@ -40,7 +40,7 @@ from ayon_api.entity_hub import EntityHub
 from nxtools import logging
 
 
-def create_ay_entity_from_sg_event(sg_event, sg_project, sg_session, ayon_entity_hub, project_code_field):
+def create_ay_entity_from_sg_event(sg_event, sg_project, sg_session, ayon_entity_hub, sg_enabled_entites, project_code_field):
     """Create an AYON entity from a Shotgrid Event.
 
     Args:
@@ -56,6 +56,7 @@ def create_ay_entity_from_sg_event(sg_event, sg_project, sg_session, ayon_entity
         sg_session,
         sg_project,
         sg_event["entity_type"],
+        sg_enabled_entites,
     )
     extra_fields = [sg_parent_field]
 

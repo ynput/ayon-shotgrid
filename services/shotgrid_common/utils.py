@@ -85,7 +85,7 @@ def _sg_to_ay_dict(sg_entity: dict, project_code_field=None) -> dict:
     return ay_dict
 
 
-def create_ay_fields_in_sg_entities(sg_session: shotgun_api3.Shotgun):
+def create_ay_fields_in_sg_entities(sg_session: shotgun_api3.Shotgun, sg_entities: list):
     """Create Ayon fields in Shotgrid entities.
 
     Some fields need to exist in the Shotgrid Entities, mainly the `sg_ayon_id`
@@ -94,7 +94,7 @@ def create_ay_fields_in_sg_entities(sg_session: shotgun_api3.Shotgun):
     Args:
         sg_session (shotgun_api3.Shotgun): Instance of a Shotgrid API Session.
     """
-    for sg_entity_type in AYON_SHOTGRID_ENTITY_TYPE_MAP:
+    for sg_entity_type in sg_entities:
         get_or_create_sg_field(
             sg_session,
             sg_entity_type,
@@ -147,7 +147,8 @@ def create_ay_fields_in_sg_project(sg_session: shotgun_api3.Shotgun):
 def create_sg_entities_in_ay(
     project_entity: ProjectEntity,
     sg_session: shotgun_api3.Shotgun,
-    shotgrid_project: dict
+    shotgrid_project: dict,
+    sg_enabled_entities: list,
 ):
     """Ensure Ayon has all the SG Steps (to use as task types) and Folder types.
 
@@ -155,6 +156,7 @@ def create_sg_entities_in_ay(
         project_entity (ProjectEntity): The ProjectEntity for a given project.
         sg_session (shotgun_api3.Shotgun): Shotgun Session object.
         shotgrid_project (dict): The project owning the Tasks.
+        sg_enabled_entities (list): The enabled entites.
     """
    
     # Types of SG entities to ignore as Ayon folders
@@ -165,7 +167,8 @@ def create_sg_entities_in_ay(
         {"name": entity_type}
         for entity_type, _ in get_sg_project_enabled_entities(
             sg_session,
-            shotgrid_project
+            shotgrid_project,
+            sg_enabled_entities
         ) if entity_type.lower() not in ignored_folder_types
     ]
 
@@ -190,7 +193,8 @@ def create_sg_entities_in_ay(
         {"name": step[0], "shortName": step[1]}
         for step in get_sg_pipeline_steps(
             sg_session,
-            shotgrid_project
+            shotgrid_project,
+            sg_enabled_entities
         )
     ]
     new_task_types = sg_steps + project_entity.task_types
@@ -311,6 +315,7 @@ def get_or_create_sg_field(
 def get_sg_entities(
     sg_session: shotgun_api3.Shotgun,
     sg_project: dict,
+    sg_enabled_entities: list,
     custom_fields: Optional[list] = None,
     project_code_field: str = None,
 ) -> tuple[dict, dict]:
@@ -347,7 +352,8 @@ def get_sg_entities(
 
     project_enabled_entities = get_sg_project_enabled_entities(
         sg_session,
-        sg_project
+        sg_project,
+        sg_enabled_entities
     )
 
     if not project_code_field:
@@ -474,7 +480,8 @@ def get_sg_entity_as_ay_dict(
 def get_sg_entity_parent_field(
     sg_session: shotgun_api3.Shotgun,
     sg_project: dict,
-    sg_entity_type: str
+    sg_entity_type: str,
+    sg_enabled_entities: list
 ) -> str:
     """Find the Shotgrid entity field that points to its parent.
 
@@ -492,7 +499,7 @@ def get_sg_entity_parent_field(
     """
     sg_parent_field = ""
 
-    for entity_tuple in get_sg_project_enabled_entities(sg_session, sg_project):
+    for entity_tuple in get_sg_project_enabled_entities(sg_session, sg_project, sg_enabled_entities):
         entity_type, parent_field = entity_tuple
 
         if entity_type == sg_entity_type:
@@ -587,7 +594,8 @@ def get_sg_project_by_name(
 
 def get_sg_project_enabled_entities(
     sg_session: shotgun_api3.Shotgun,
-    sg_project: dict
+    sg_project: dict,
+    sg_enabled_entities: list,
 ) -> list:
     """Function to get all enabled entities in a project.
 
@@ -624,7 +632,7 @@ def get_sg_project_enabled_entities(
 
     project_entities = []
 
-    for sg_entity_type in AYON_SHOTGRID_ENTITY_TYPE_MAP:
+    for sg_entity_type in sg_enabled_entities:
         if sg_entity_type == "Project":
             continue
 
@@ -674,7 +682,8 @@ def get_sg_statuses(sg_session: shotgun_api3.Shotgun) -> dict:
 
 def get_sg_pipeline_steps(
     sg_session: shotgun_api3.Shotgun,
-    shotgrid_project: dict
+    shotgrid_project: dict,
+    sg_enabled_entities: list,
 ) -> list:
     """ Get all pipeline steps on a Shotgrid project.
 
@@ -685,10 +694,10 @@ def get_sg_pipeline_steps(
         sg_steps (list): Shotgrid Project Pipeline Steps list.
     """
     sg_steps = []
-
     enabled_entities = get_sg_project_enabled_entities(
         sg_session,
-        shotgrid_project
+        shotgrid_project,
+        sg_enabled_entities
     )
 
     pipeline_steps = sg_session.find(
