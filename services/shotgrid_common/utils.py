@@ -18,10 +18,13 @@ import shotgun_api3
 
 
 def _sg_to_ay_dict(sg_entity: dict, project_code_field=None) -> dict:
-    """Morph a Shotgrid entity dict into an Ayon compatible one.
+    """Morph a Shotgrid entity dict into an Ayon's Entity Hub compatible one.
 
-    Create a dictionary that follows the Ayon Entity schema and handle edge
+    Create a dictionary that follows the Ayon Entity Hub schema and handle edge
     cases so it's ready for Ayon consumption.
+
+    Folders: https://github.com/ynput/ayon-python-api/blob/30d702618b58676c3708f09f131a0974a92e1002/ayon_api/entity_hub.py#L2397
+    Tasks: https://github.com/ynput/ayon-python-api/blob/30d702618b58676c3708f09f131a0974a92e1002/ayon_api/entity_hub.py#L2579
 
     Args:
         sg_entity (dict): Shotgun Entity dict representation.
@@ -30,9 +33,13 @@ def _sg_to_ay_dict(sg_entity: dict, project_code_field=None) -> dict:
         project_code_field = "code"
 
     logging.debug(f"Transforming sg_entity '{sg_entity}' to ayon dict.")
-    
+
+    ay_entity_type = "folder"
     task_type = None
+    folder_type = None
+
     if sg_entity["type"] == "Task":
+        ay_entity_type = "task"
         if not sg_entity["step"]:
             raise ValueError(
                 f"Task {sg_entity} has no Pipeline Step assigned."
@@ -43,8 +50,10 @@ def _sg_to_ay_dict(sg_entity: dict, project_code_field=None) -> dict:
 
         if not label and not task_type:
             raise ValueError(f"Unable to parse Task {sg_entity}")
-
-        name = slugify_string(label)
+        if label:
+            name = slugify_string(label)
+        else:
+            name = slugify_string(task_type)
 
     elif sg_entity["type"] == "Project":
         name = slugify_string(sg_entity[project_code_field])
@@ -52,24 +61,31 @@ def _sg_to_ay_dict(sg_entity: dict, project_code_field=None) -> dict:
     else:
         name = slugify_string(sg_entity["code"])
         label = sg_entity["code"]
+        folder_type = sg_entity["type"]
 
     ay_dict = {
+        "type": ay_entity_type, # In the EH there are either `folder_type` or `task_type`.
         "label": label,
         "name": name,
-        SHOTGRID_ID_ATTRIB: sg_entity["id"],
-        SHOTGRID_TYPE_ATTRIB: sg_entity["type"],
-        CUST_FIELD_CODE_ID: sg_entity.get(CUST_FIELD_CODE_ID, None),
-        CUST_FIELD_CODE_SYNC: sg_entity.get(CUST_FIELD_CODE_SYNC, None),
-        "type": sg_entity["type"],
+        "attribs": {
+            SHOTGRID_ID_ATTRIB: sg_entity["id"],
+            SHOTGRID_TYPE_ATTRIB: sg_entity["type"],
+        },
+        "data": {
+            CUST_FIELD_CODE_SYNC: sg_entity.get(CUST_FIELD_CODE_SYNC, None),
+            CUST_FIELD_CODE_ID: sg_entity.get(CUST_FIELD_CODE_ID, None),
+        }
     }
 
     if task_type:
         ay_dict["task_type"] = task_type
+    elif folder_type:
+        ay_dict["folder_type"] = folder_type
 
     return ay_dict
 
 
-def create_ay_fields_in_sg_entities(sg_session: shotgun_api3.Shotgun):
+def create_ay_fields_in_sg_entities(sg_session: shotgun_api3.Shotgun, sg_entities: list):
     """Create Ayon fields in Shotgrid entities.
 
     Some fields need to exist in the Shotgrid Entities, mainly the `sg_ayon_id`
@@ -78,7 +94,7 @@ def create_ay_fields_in_sg_entities(sg_session: shotgun_api3.Shotgun):
     Args:
         sg_session (shotgun_api3.Shotgun): Instance of a Shotgrid API Session.
     """
-    for sg_entity_type in AYON_SHOTGRID_ENTITY_TYPE_MAP:
+    for sg_entity_type in sg_entities:
         get_or_create_sg_field(
             sg_session,
             sg_entity_type,
@@ -131,7 +147,8 @@ def create_ay_fields_in_sg_project(sg_session: shotgun_api3.Shotgun):
 def create_sg_entities_in_ay(
     project_entity: ProjectEntity,
     sg_session: shotgun_api3.Shotgun,
-    shotgrid_project: dict
+    shotgrid_project: dict,
+    sg_enabled_entities: list,
 ):
     """Ensure Ayon has all the SG Steps (to use as task types) and Folder types.
 
@@ -139,6 +156,7 @@ def create_sg_entities_in_ay(
         project_entity (ProjectEntity): The ProjectEntity for a given project.
         sg_session (shotgun_api3.Shotgun): Shotgun Session object.
         shotgrid_project (dict): The project owning the Tasks.
+        sg_enabled_entities (list): The enabled entites.
     """
    
     # Types of SG entities to ignore as Ayon folders
@@ -149,7 +167,8 @@ def create_sg_entities_in_ay(
         {"name": entity_type}
         for entity_type, _ in get_sg_project_enabled_entities(
             sg_session,
-            shotgrid_project
+            shotgrid_project,
+            sg_enabled_entities
         ) if entity_type.lower() not in ignored_folder_types
     ]
 
@@ -174,7 +193,8 @@ def create_sg_entities_in_ay(
         {"name": step[0], "shortName": step[1]}
         for step in get_sg_pipeline_steps(
             sg_session,
-            shotgrid_project
+            shotgrid_project,
+            sg_enabled_entities
         )
     ]
     new_task_types = sg_steps + project_entity.task_types
@@ -295,6 +315,7 @@ def get_or_create_sg_field(
 def get_sg_entities(
     sg_session: shotgun_api3.Shotgun,
     sg_project: dict,
+    sg_enabled_entities: list,
     custom_fields: Optional[list] = None,
     project_code_field: str = None,
 ) -> tuple[dict, dict]:
@@ -331,7 +352,8 @@ def get_sg_entities(
 
     project_enabled_entities = get_sg_project_enabled_entities(
         sg_session,
-        sg_project
+        sg_project,
+        sg_enabled_entities
     )
 
     if not project_code_field:
@@ -375,11 +397,16 @@ def get_sg_entities(
                     asset_category_entity = {
                         "label": asset_category,
                         "name": slugify_string(asset_category).lower(),
-                        SHOTGRID_ID_ATTRIB: slugify_string(asset_category).lower(),
-                        SHOTGRID_TYPE_ATTRIB: "AssetCategory",
-                        CUST_FIELD_CODE_ID: None,
-                        CUST_FIELD_CODE_SYNC: None,
-                        "type": "AssetCategory",
+                        "attribs": {
+                            SHOTGRID_ID_ATTRIB: slugify_string(asset_category).lower(),
+                            SHOTGRID_TYPE_ATTRIB: "AssetCategory",
+                        },
+                        "data": {
+                            CUST_FIELD_CODE_ID: None,
+                            CUST_FIELD_CODE_SYNC: None,
+                        },
+                        "type": "folder",
+                        "folder_type": "AssetCategory",
                     }
 
                     if not entities_by_id.get(asset_category_entity["name"]):
@@ -389,7 +416,7 @@ def get_sg_entities(
                     parent_id = asset_category_entity["name"]
 
                 entity = _sg_to_ay_dict(entity, project_code_field=project_code_field)
-                entities_by_id[entity[SHOTGRID_ID_ATTRIB]] = entity
+                entities_by_id[entity["attribs"][SHOTGRID_ID_ATTRIB]] = entity
                 entities_by_parent_id[parent_id].append(entity)
 
     return entities_by_id, entities_by_parent_id
@@ -402,6 +429,7 @@ def get_sg_entity_as_ay_dict(
     project_code_field: str,
     extra_fields: Optional[list] = None,
     retired_only: Optional[bool] = False,
+    custom_attributes_map: Optional[dict] = None,
 ) -> dict:
     """Get a Shotgrid entity, and morph it to an Ayon compatible one.
 
@@ -417,10 +445,12 @@ def get_sg_entity_as_ay_dict(
     query_fields = list(SG_COMMON_ENTITY_FIELDS)
     if extra_fields and isinstance(extra_fields, list):
         query_fields.extend(extra_fields)
-    
+    else:
+        extra_fields = []
+
     if project_code_field not in query_fields:
         query_fields.append(project_code_field)
-        
+
     sg_entity = sg_session.find_one(
         sg_type,
         filters=[["id", "is", sg_id]],
@@ -433,9 +463,16 @@ def get_sg_entity_as_ay_dict(
 
     new_entity = _sg_to_ay_dict(sg_entity, project_code_field)
 
-    if extra_fields:
-        for field in extra_fields:
-            new_entity[field] = sg_entity.get(field)
+    for field in extra_fields:
+        if field in ["name", "label", "sg_status_list"]:
+            continue
+
+        if custom_attributes_map and field in custom_attributes_map.values():
+            for ay_attr, sg_attr in custom_attributes_map.items():
+                if field == sg_attr:
+                    new_entity["attribs"][ay_attr] = sg_entity.get(field)
+        else:
+            new_entity["data"][field] = sg_entity.get(field)
 
     return new_entity
 
@@ -443,7 +480,8 @@ def get_sg_entity_as_ay_dict(
 def get_sg_entity_parent_field(
     sg_session: shotgun_api3.Shotgun,
     sg_project: dict,
-    sg_entity_type: str
+    sg_entity_type: str,
+    sg_enabled_entities: list
 ) -> str:
     """Find the Shotgrid entity field that points to its parent.
 
@@ -461,7 +499,7 @@ def get_sg_entity_parent_field(
     """
     sg_parent_field = ""
 
-    for entity_tuple in get_sg_project_enabled_entities(sg_session, sg_project):
+    for entity_tuple in get_sg_project_enabled_entities(sg_session, sg_project, sg_enabled_entities):
         entity_type, parent_field = entity_tuple
 
         if entity_type == sg_entity_type:
@@ -556,7 +594,8 @@ def get_sg_project_by_name(
 
 def get_sg_project_enabled_entities(
     sg_session: shotgun_api3.Shotgun,
-    sg_project: dict
+    sg_project: dict,
+    sg_enabled_entities: list,
 ) -> list:
     """Function to get all enabled entities in a project.
 
@@ -593,7 +632,7 @@ def get_sg_project_enabled_entities(
 
     project_entities = []
 
-    for sg_entity_type in AYON_SHOTGRID_ENTITY_TYPE_MAP:
+    for sg_entity_type in sg_enabled_entities:
         if sg_entity_type == "Project":
             continue
 
@@ -643,7 +682,8 @@ def get_sg_statuses(sg_session: shotgun_api3.Shotgun) -> dict:
 
 def get_sg_pipeline_steps(
     sg_session: shotgun_api3.Shotgun,
-    shotgrid_project: dict
+    shotgrid_project: dict,
+    sg_enabled_entities: list,
 ) -> list:
     """ Get all pipeline steps on a Shotgrid project.
 
@@ -654,10 +694,10 @@ def get_sg_pipeline_steps(
         sg_steps (list): Shotgrid Project Pipeline Steps list.
     """
     sg_steps = []
-
     enabled_entities = get_sg_project_enabled_entities(
         sg_session,
-        shotgrid_project
+        shotgrid_project,
+        sg_enabled_entities
     )
 
     pipeline_steps = sg_session.find(

@@ -40,7 +40,7 @@ from ayon_api.entity_hub import EntityHub
 from nxtools import logging
 
 
-def create_ay_entity_from_sg_event(sg_event, sg_project, sg_session, ayon_entity_hub, project_code_field):
+def create_ay_entity_from_sg_event(sg_event, sg_project, sg_session, ayon_entity_hub, sg_enabled_entites, project_code_field):
     """Create an AYON entity from a Shotgrid Event.
 
     Args:
@@ -56,6 +56,7 @@ def create_ay_entity_from_sg_event(sg_event, sg_project, sg_session, ayon_entity
         sg_session,
         sg_project,
         sg_event["entity_type"],
+        sg_enabled_entites,
     )
     extra_fields = [sg_parent_field]
 
@@ -85,17 +86,17 @@ def create_ay_entity_from_sg_event(sg_event, sg_project, sg_session, ayon_entity
         )
         return
 
-    if sg_entity_dict.get(CUST_FIELD_CODE_ID):
+    if sg_entity_dict["data"].get(CUST_FIELD_CODE_ID):
         # Revived entity, check if it's still in the Server
         ay_entity = ayon_entity_hub.get_or_query_entity_by_id(
-            sg_entity_dict.get(CUST_FIELD_CODE_ID),
-            ["task" if sg_entity_dict.get(SHOTGRID_TYPE_ATTRIB).lower() == "task" else "folder"]
+            sg_entity_dict["data"].get(CUST_FIELD_CODE_ID),
+            [sg_entity_dict["type"]]
         )
 
         if ay_entity:
             logging.debug(f"SG Entity exists in AYON.")
             # Ensure Ayon Entity has the correct Shotgrid ID
-            ay_shotgrid_id = sg_entity_dict.get(SHOTGRID_ID_ATTRIB, "")
+            ay_shotgrid_id = sg_entity_dict["attribs"].get(SHOTGRID_ID_ATTRIB, "")
             if ay_entity.attribs.get_attribute(SHOTGRID_ID_ATTRIB).value != str(ay_shotgrid_id):
                 ay_entity.attribs.set(
                     SHOTGRID_ID_ATTRIB,
@@ -108,12 +109,12 @@ def create_ay_entity_from_sg_event(sg_event, sg_project, sg_session, ayon_entity
 
             return ay_entity
 
-    if sg_entity_dict[sg_parent_field] is None:
+    if sg_entity_dict["data"][sg_parent_field] is None:
         # Parent is the project
         logging.debug(f"SG Parent is the Project: {sg_project}")
         ay_parent_entity = ayon_entity_hub.project_entity
     else:
-        if sg_entity_dict["type"] == "Asset" and sg_entity_dict.get("sg_asset_type"):
+        if sg_entity_dict["attribs"][SHOTGRID_TYPE_ATTRIB] == "Asset" and sg_entity_dict["data"].get("sg_asset_type"):
             logging.debug(f"SG Parent is an Asset category.")
 
             ay_parent_entity = get_asset_category(
@@ -126,15 +127,15 @@ def create_ay_entity_from_sg_event(sg_event, sg_project, sg_session, ayon_entity
             # Find parent entity ID
             sg_parent_entity_dict = get_sg_entity_as_ay_dict(
                 sg_session,
-                sg_entity_dict[sg_parent_field]["type"],
-                sg_entity_dict[sg_parent_field]["id"],
+                sg_entity_dict["data"][sg_parent_field]["type"],
+                sg_entity_dict["data"][sg_parent_field]["id"],
                 project_code_field
             )
 
             logging.debug(f"SG Parent entity: {sg_parent_entity_dict}")
             ay_parent_entity = ayon_entity_hub.get_or_query_entity_by_id(
-                sg_parent_entity_dict.get(CUST_FIELD_CODE_ID),
-                ["task" if sg_parent_entity_dict.get(CUST_FIELD_CODE_ID).lower() == "task" else "folder"]
+                sg_parent_entity_dict["data"].get(CUST_FIELD_CODE_ID),
+                ["task" if sg_parent_entity_dict["data"].get(CUST_FIELD_CODE_ID).lower() == "task" else "folder"]
             )
 
     if not ay_parent_entity:
@@ -147,34 +148,34 @@ def create_ay_entity_from_sg_event(sg_event, sg_project, sg_session, ayon_entity
             sg_entity_dict["task_type"],
             name=sg_entity_dict["name"],
             label=sg_entity_dict["label"],
-            entity_id=sg_entity_dict[CUST_FIELD_CODE_ID],
+            entity_id=sg_entity_dict["data"][CUST_FIELD_CODE_ID],
             parent_id=ay_parent_entity.id
         )
     else:
         ay_entity = ayon_entity_hub.add_new_folder(
-            sg_entity_dict["type"],
+            sg_entity_dict["folder_type"],
             name=sg_entity_dict["name"],
             label=sg_entity_dict["label"],
-            entity_id=sg_entity_dict[CUST_FIELD_CODE_ID],
+            entity_id=sg_entity_dict["data"][CUST_FIELD_CODE_ID],
             parent_id=ay_parent_entity.id
         )
 
     logging.debug(f"Created new AYON entity: {ay_entity}")
     ay_entity.attribs.set(
         SHOTGRID_ID_ATTRIB,
-        sg_entity_dict.get(SHOTGRID_ID_ATTRIB, "")
+        sg_entity_dict["attribs"].get(SHOTGRID_ID_ATTRIB, "")
     )
     ay_entity.attribs.set(
         SHOTGRID_TYPE_ATTRIB,
-        sg_entity_dict.get(SHOTGRID_TYPE_ATTRIB, "")
+        sg_entity_dict["attribs"].get(SHOTGRID_TYPE_ATTRIB, "")
     )
 
     try:
         ayon_entity_hub.commit_changes()
 
         sg_session.update(
-            sg_entity_dict["type"],
-            sg_entity_dict[SHOTGRID_ID_ATTRIB],
+            sg_entity_dict["attribs"][SHOTGRID_TYPE_ATTRIB],
+            sg_entity_dict["attribs"][SHOTGRID_ID_ATTRIB],
             {
                 CUST_FIELD_CODE_ID: ay_entity.id
             }
@@ -186,7 +187,7 @@ def create_ay_entity_from_sg_event(sg_event, sg_project, sg_session, ayon_entity
     return ay_entity
 
 
-def update_ayon_entity_from_sg_event(sg_event, sg_session, ayon_entity_hub, project_code_field):
+def update_ayon_entity_from_sg_event(sg_event, sg_session, ayon_entity_hub, project_code_field, ayon_sg_attribute_map):
     """Try to update an entity in Ayon.
 
     Args:
@@ -202,38 +203,45 @@ def update_ayon_entity_from_sg_event(sg_event, sg_session, ayon_entity_hub, proj
         sg_session,
         sg_event["entity_type"],
         sg_event["entity_id"],
-        project_code_field
+        project_code_field,
+        extra_fields=list(ayon_sg_attribute_map.values()),
+        custom_attributes_map=ayon_sg_attribute_map
     )
 
-    if not sg_entity_dict.get(CUST_FIELD_CODE_ID):
+    if not sg_entity_dict["data"].get(CUST_FIELD_CODE_ID):
         logging.warning("Shotgrid Missing Ayon ID")
-    
+
     ay_entity = ayon_entity_hub.get_or_query_entity_by_id(
-        sg_entity_dict.get(CUST_FIELD_CODE_ID),
-        ["task" if sg_entity_dict.get(CUST_FIELD_CODE_ID).lower() == "task" else "folder"]
+        sg_entity_dict["data"].get(CUST_FIELD_CODE_ID),
+        [sg_entity_dict["type"]]
     )
 
     if not ay_entity:
         logging.error("Unable to update a non existing entity.")
         raise ValueError("Unable to update a non existing entity.")
 
-    if int(ay_entity.attribs.get_attribute(SHOTGRID_ID_ATTRIB).value) != int(sg_entity_dict.get(SHOTGRID_ID_ATTRIB)):
+    if int(ay_entity.attribs.get_attribute(SHOTGRID_ID_ATTRIB).value) != int(sg_entity_dict["attribs"].get(SHOTGRID_ID_ATTRIB)):
         logging.error("Mismatching Shotgrid IDs, aborting...")
         raise ValueError("Mismatching Shotgrid IDs, aborting...")
 
-    if sg_event["attribute_name"] in ["code", "name"]:
-        if ay_entity.name != sg_entity_dict["name"]:
-            ay_entity.name = sg_entity_dict["name"]
+    ay_entity.name = sg_entity_dict["name"]
+    ay_entity.label = sg_entity_dict["label"]
+    ay_entity.status = sg_entity_dict["attribs"]["sg_status_list"]
 
-        if ay_entity.label != sg_entity_dict["label"]:
-            ay_entity.label = sg_entity_dict["label"]
+    for attr, attr_value in sg_entity_dict["attribs"].items():
+        if attr in ["name", "label", "sg_status_list"]:
+            continue
+        ay_attr = next((ay_attr for ay_attr, sg_attr in ayon_sg_attribute_map.items() if sg_attr == attr), None)
+
+        if ay_attr:
+            ay_entity.attribs.set(ay_attr, attr_value)
 
     ayon_entity_hub.commit_changes()
 
-    if sg_entity_dict.get(CUST_FIELD_CODE_ID) != ay_entity.id:
+    if sg_entity_dict["data"].get(CUST_FIELD_CODE_ID) != ay_entity.id:
         sg_session.update(
-            sg_entity_dict["type"],
-            sg_entity_dict[SHOTGRID_ID_ATTRIB],
+            sg_entity_dict["attribs"][SHOTGRID_TYPE_ATTRIB],
+            sg_entity_dict["attribs"][SHOTGRID_ID_ATTRIB],
             {
                 CUST_FIELD_CODE_ID: ay_entity.id
             }
@@ -263,12 +271,12 @@ def remove_ayon_entity_from_sg_event(sg_event, sg_session, ayon_entity_hub, proj
         logging.warning(f"Entity {sg_event['entity_type']} <{sg_event['entity_id']}> no longer exists in SG.")
         raise ValueError(f"Entity {sg_event['entity_type']} <{sg_event['entity_id']}> no longer exists in SG.")
 
-    if not sg_entity_dict.get(CUST_FIELD_CODE_ID):
+    if not sg_entity_dict["data"].get(CUST_FIELD_CODE_ID):
         logging.warning("Shotgrid Missing Ayon ID")
         raise ValueError("Shotgrid Missing Ayon ID")
 
     ay_entity = ayon_entity_hub.get_or_query_entity_by_id(
-        sg_entity_dict.get(CUST_FIELD_CODE_ID),
+        sg_entity_dict["data"].get(CUST_FIELD_CODE_ID),
         ["task" if sg_entity_dict.get("type").lower() == "task" else "folder"]
     )
 
@@ -276,7 +284,7 @@ def remove_ayon_entity_from_sg_event(sg_event, sg_session, ayon_entity_hub, proj
         logging.error("Unable to update a non existing entity.")
         raise ValueError("Unable to update a non existing entity.")
 
-    if sg_entity_dict.get(CUST_FIELD_CODE_ID) != ay_entity.id:
+    if sg_entity_dict["data"].get(CUST_FIELD_CODE_ID) != ay_entity.id:
         logging.error("Mismatching Shotgrid IDs, aborting...")
         raise ValueError("Mismatching Shotgrid IDs, aborting...")
 

@@ -34,7 +34,6 @@ from utils import (
     create_sg_entities_in_ay,
     get_sg_project_enabled_entities,
     get_sg_project_by_name,
-    get_sg_missing_ay_attributes,
 )
 
 import ayon_api
@@ -69,6 +68,8 @@ class AyonShotgridHub:
         sg_api_key,
         sg_script_name,
         sg_project_code_field=None,
+        custom_attributes_map=None,
+        sg_enabled_entities=None,
     ):
 
         self._sg = None
@@ -90,6 +91,25 @@ class AyonShotgridHub:
             self.sg_project_code_field = sg_project_code_field
         else:
             self.sg_project_code_field = "code"
+
+        if custom_attributes_map:
+            self.custom_attributes_map = custom_attributes_map
+            self.custom_attributes_map.update({
+                "name": "code",
+                "label": "name",
+                "sg_status_list": "status",
+            })
+        else:
+            self.custom_attributes_map = {
+                "name": "code",
+                "label": "name",
+                "sg_status_list": "status",
+            }
+
+        if sg_enabled_entities:
+            self.sg_enabled_entities = sg_enabled_entities
+        else:
+            self.sg_enabled_entities = list(AYON_SHOTGRID_ENTITY_TYPE_MAP)
 
         self.project_name = project_name
         self.project_code = project_code
@@ -121,36 +141,16 @@ class AyonShotgridHub:
 
         try:
             self._sg.connect()
-            logging.debug("Succesfully connected to Shotgrid.")
-
-            try:
-                self._check_for_missing_sg_attributes()
-            except ValueError as e:
-                logging.warning(e)
 
         except Exception as e:
             logging.error("Unable to connect to Shotgrid.")
             log_traceback(e)
             raise(e)
 
-    def _check_for_missing_sg_attributes(self):
-        """Check if Shotgrid has all the fields.
-
-        In order to sync to work, Shotgrid needs to have certain fields in both
-        the Project and the entities within it, if any is missing this will raise.
-        """
-        missing_attributes = get_sg_missing_ay_attributes(self._sg)
-
-        if missing_attributes:
-            raise ValueError("""Shotgrid Project is missing the following attributes: {0}
-            Use `AyonShotgridHub.create_sg_attributes()` to create them.""".format(
-                "\n".join(missing_attributes)
-            ))
-
     def create_sg_attributes(self):
         """Create all AYON needed attributes in Shotgrid."""
         create_ay_fields_in_sg_project(self._sg)
-        create_ay_fields_in_sg_entities(self._sg)
+        create_ay_fields_in_sg_entities(self._sg, self.sg_enabled_entities)
 
     @property
     def project_name(self):
@@ -171,10 +171,8 @@ class AyonShotgridHub:
         try:
             self._ay_project = EntityHub(project_name)
             self._ay_project.project_entity
-            logging.info(f"Project {project_name} <{self._ay_project.project_entity.id}> already exists in AYON.")
         except Exception as err:
             logging.warning(f"Project {project_name} does not exist in AYON.")
-            log_traceback(err)
             self._ay_project = None
 
         try:
@@ -186,27 +184,19 @@ class AyonShotgridHub:
                     CUST_FIELD_CODE_AUTO_SYNC
                 ]
             )
-            logging.info(f"Project {project_name} ({self._sg_project[self.sg_project_code_field]}) <{self._sg_project['id']}> already exists in Shotgrid.")
         except Exception as e:
             logging.warning(f"Project {project_name} does not exist in Shotgrid. ")
-            log_traceback(e)
             self._sg_project = None
 
     def create_project(self):
         """Create project in AYON and Shotgrid.
-
-        This step is also where we create all the required fields in Shotgrid
-        entities.
         """
         if self._ay_project is None:
             logging.info(f"Creating AYON project {self.project_name} ({self.project_code}).")
             ayon_api.create_project(self.project_name, self.project_code)
             self._ay_project = EntityHub(self.project_name)
             self._ay_project.query_entities_from_server()
-        else:
-            logging.info(f"Project {self.project_name} ({self.project_code}) already exists in AYON.")
 
-        self.create_sg_attributes()
         self._ay_project.commit_changes()
 
         if self._sg_project is None:
@@ -231,8 +221,9 @@ class AyonShotgridHub:
                 "Project"
             )
             self._ay_project.commit_changes()
-        else:
-            logging.info(f"Project {self.project_name} ({self.project_code}) already exists in SG.")
+
+        self.create_sg_attributes()
+        logging.info(f"Project {self.project_name} ({self.project_code}) available in SG and AYON.")
 
     def syncronize_projects(self, source="ayon"):
         """ Ensure a Project matches in the other platform.
@@ -244,7 +235,7 @@ class AyonShotgridHub:
         if not self._ay_project or not self._sg_project:
             raise ValueError("""The project is missing in one of the two platforms:
                 AYON: {0}
-                Shotgrid:{1}""".format(self._ay_project, self._sg_project)
+                Shotgrid: {1}""".format(self._ay_project, self._sg_project)
             )
 
         match source:
@@ -253,14 +244,15 @@ class AyonShotgridHub:
                 ay_entities = [
                     folder["name"]
                     for folder in self._ay_project.project_entity.folder_types
-                    if folder["name"] in AYON_SHOTGRID_ENTITY_TYPE_MAP.keys()
+                    if folder["name"] in self.sg_enabled_entities
                 ]
 
                 sg_entities = [
                     entity_name
                     for entity_name, _ in get_sg_project_enabled_entities(
                         self._sg,
-                        self._sg_project
+                        self._sg_project,
+                        self.sg_enabled_entities,
                     )
                 ]
 
@@ -282,6 +274,7 @@ class AyonShotgridHub:
                     self._ay_project,
                     self._sg_project,
                     self._sg,
+                    self.sg_enabled_entities,
                     self.sg_project_code_field,
                 )
 
@@ -290,6 +283,7 @@ class AyonShotgridHub:
                     self._ay_project.project_entity,
                     self._sg,
                     self._sg_project,
+                    self.sg_enabled_entities,
                 )
                 self._ay_project.commit_changes()
 
@@ -297,6 +291,7 @@ class AyonShotgridHub:
                     self._ay_project,
                     self._sg_project,
                     self._sg,
+                    self.sg_enabled_entities,
                     self.sg_project_code_field,
                 )
 
@@ -325,18 +320,20 @@ class AyonShotgridHub:
                     self._sg_project,
                     self._sg,
                     self._ay_project,
-                    self.sg_project_code_field
+                    self.sg_enabled_entities,
+                    self.sg_project_code_field,
                 )
 
             case "attribute_change":
-                if sg_event["attribute_name"] not in ("code", "name"):
+                if sg_event["attribute_name"] not in self.custom_attributes_map.values():
                     logging.warning("Can't handle this attribute.")
                     return
                 update_ayon_entity_from_sg_event(
                     sg_event,
                     self._sg,
                     self._ay_project,
-                    self.sg_project_code_field
+                    self.sg_project_code_field,
+                    self.custom_attributes_map,
                 )
 
             case "entity_retirement":

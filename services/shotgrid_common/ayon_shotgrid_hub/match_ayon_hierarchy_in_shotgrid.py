@@ -12,7 +12,7 @@ from utils import get_sg_entities, get_sg_entity_parent_field, get_sg_entity_as_
 from nxtools import logging, log_traceback
 
 
-def match_ayon_hierarchy_in_shotgrid(entity_hub, sg_project, sg_session, project_code_field):
+def match_ayon_hierarchy_in_shotgrid(entity_hub, sg_project, sg_session, sg_enabled_entities, project_code_field):
     """Replicate an AYON project into Shotgrid.
 
     This function creates a "deck" which we keep increasing while traversing
@@ -33,6 +33,7 @@ def match_ayon_hierarchy_in_shotgrid(entity_hub, sg_project, sg_session, project
     sg_entities_by_id, sg_entities_by_parent_id = get_sg_entities(
         sg_session,
         sg_project,
+        sg_enabled_entities,
         project_code_field=project_code_field
     )
 
@@ -56,20 +57,22 @@ def match_ayon_hierarchy_in_shotgrid(entity_hub, sg_project, sg_session, project
             or ay_entity.entity_type == "task"
         ):
             sg_entity_id = ay_entity.attribs.get(SHOTGRID_ID_ATTRIB, None)
+            sg_entity_type = ay_entity.attribs.get(SHOTGRID_TYPE_ATTRIB, "")
+
+            if sg_entity_type == "AssetCategory":
+                continue
 
             if sg_entity_id:
-                sg_entity_id = int(sg_entity_id)
-
                 if sg_entity_id in sg_entities_by_id:
                     sg_entity = sg_entities_by_id[sg_entity_id]
                     logging.info(f"Entity already exists in Shotgrid {sg_entity}")
 
-                    if sg_entity[CUST_FIELD_CODE_ID] != ay_entity.id:
+                    if sg_entity["data"][CUST_FIELD_CODE_ID] != ay_entity.id:
                         logging.error("Shotgrid record for AYON id does not match...")
                         try:
                             sg_session.update(
-                                sg_entity["shotgridType"],
-                                sg_entity["shotgridId"],
+                                sg_entity["attribs"][SHOTGRID_TYPE_ATTRIB],
+                                sg_entity["attribs"][SHOTGRID_ID_ATTRIB],
                                 {
                                     CUST_FIELD_CODE_ID: "",
                                     CUST_FIELD_CODE_SYNC: "Failed"
@@ -81,17 +84,18 @@ def match_ayon_hierarchy_in_shotgrid(entity_hub, sg_project, sg_session, project
 
             if sg_entity is None:
                 sg_parent_entity = sg_session.find_one(
-                    ay_parent_entity["shotgridType"],
-                    filters=[["id", "is", ay_parent_entity["shotgridId"]]]
+                    ay_parent_entity["attribs"][SHOTGRID_TYPE_ATTRIB],
+                    filters=[["id", "is", ay_parent_entity["attribs"][SHOTGRID_ID_ATTRIB]]]
                 )
                 sg_entity = _create_new_entity(
                     ay_entity,
                     sg_session,
                     sg_project,
                     sg_parent_entity,
+                    sg_enabled_entities,
                     project_code_field
                 )
-                sg_entity_id = sg_entity["shotgridId"]
+                sg_entity_id = sg_entity["attribs"][SHOTGRID_ID_ATTRIB]
                 sg_entities_by_id[sg_entity_id] = sg_entity
                 sg_entities_by_parent_id[sg_parent_entity["id"]].append(sg_entity)
 
@@ -132,7 +136,7 @@ def match_ayon_hierarchy_in_shotgrid(entity_hub, sg_project, sg_session, project
     )
 
 
-def _create_new_entity(ay_entity, sg_session, sg_project, sg_parent_entity, project_code_field):
+def _create_new_entity(ay_entity, sg_session, sg_project, sg_parent_entity, sg_enabled_entities, project_code_field):
     """Helper method to create entities in Shotgrid.
 
     Args:
@@ -141,7 +145,6 @@ def _create_new_entity(ay_entity, sg_session, sg_project, sg_parent_entity, proj
     """
 
     if ay_entity.entity_type == "task":
-
         step_query_filters = [["code", "is", ay_entity.task_type]]
 
         if sg_parent_entity["type"] in ["Asset", "Shot", "Episode", "Sequence"]:
@@ -171,7 +174,7 @@ def _create_new_entity(ay_entity, sg_session, sg_project, sg_parent_entity, proj
             }
         )
     else:
-        sg_parent_field = get_sg_entity_parent_field(sg_session, sg_project, ay_entity.folder_type)
+        sg_parent_field = get_sg_entity_parent_field(sg_session, sg_project, ay_entity.folder_type, sg_enabled_entities)
 
         if sg_parent_field == "project" or sg_parent_entity["type"] == "Project":
             new_entity = sg_session.create(
