@@ -57,10 +57,12 @@ def match_ayon_hierarchy_in_shotgrid(entity_hub, sg_project, sg_session, sg_enab
             or ay_entity.entity_type == "task"
         ):
             sg_entity_id = ay_entity.attribs.get(SHOTGRID_ID_ATTRIB, None)
+            sg_entity_type = ay_entity.attribs.get(SHOTGRID_TYPE_ATTRIB, "")
+
+            if sg_entity_type == "AssetCategory":
+                continue
 
             if sg_entity_id:
-                sg_entity_id = int(sg_entity_id)
-
                 if sg_entity_id in sg_entities_by_id:
                     sg_entity = sg_entities_by_id[sg_entity_id]
                     logging.info(f"Entity already exists in Shotgrid {sg_entity}")

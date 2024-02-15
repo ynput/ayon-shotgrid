@@ -179,7 +179,7 @@ def _create_new_entity(entity_hub, parent_entity, sg_entity):
             name=sg_entity["name"],
             label=sg_entity["label"],
             entity_id=sg_entity["data"][CUST_FIELD_CODE_ID],
-            parent_id=parent_entity.id
+            parent_id=parent_entity.id,
             attribs=sg_entity["attribs"],
             data=sg_entity["data"],
         )
