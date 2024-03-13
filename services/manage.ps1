@@ -39,7 +39,7 @@ function Show-Help {
     Write-Host ""
     Write-Host "Ayon Shotgrid $AddonVersion Service Builder"
     Write-Host ""
-    Write-Host "Usage: .\manage.ps1 [target] -SERVICE [service-name]"
+    Write-Host "Usage: .\manage.ps1 [target] -Service [service-name]"
     Write-Host ""
     Write-Host "Runtime targets:"
     Write-Host "build        Build docker image."
@@ -58,7 +58,7 @@ function Show-Help {
 
 function build {
     $Image = Get-ServiceImage
-    docker build --network=host -t $Image -f "$ServiceDir/Dockerfile" .
+    docker build --no-cache --network=host -t $Image -f "$ServiceDir/Dockerfile" .
 }
 function build-all {
     "leecher", "processor", "transmitter" | ForEach-Object {
