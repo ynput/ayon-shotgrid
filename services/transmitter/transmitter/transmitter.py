@@ -167,4 +167,3 @@ class ShotgridTransmitter:
                 ayon_api.update_event(event["id"], project_name=project_name, status="failed")
 
             time.sleep(self.sg_polling_frequency)
-
