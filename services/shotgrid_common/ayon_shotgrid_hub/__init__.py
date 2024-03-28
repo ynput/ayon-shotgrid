@@ -48,7 +48,7 @@ class AyonShotgridHub:
     """A Hub to manage a Project in both AYON and Shotgrid
 
     Provided a correct project name and code, we attempt to initialize both APIs
-    and ensures that both platforms have the required elements to syncronize a
+    and ensures that both platforms have the required elements to synchronize a
     project across them.
 
     The Shotgrid credentials must have enough permissions to add fields to
@@ -225,7 +225,7 @@ class AyonShotgridHub:
         self.create_sg_attributes()
         logging.info(f"Project {self.project_name} ({self.project_code}) available in SG and AYON.")
 
-    def syncronize_projects(self, source="ayon"):
+    def synchronize_projects(self, source="ayon"):
         """ Ensure a Project matches in the other platform.
 
         Args:
