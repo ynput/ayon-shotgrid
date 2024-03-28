@@ -1,5 +1,7 @@
 import collections
 
+from ayon_api import slugify_string
+
 from constants import (
     CUST_FIELD_CODE_ID,
     CUST_FIELD_CODE_SYNC,
@@ -56,6 +58,15 @@ def match_shotgrid_hierarchy_in_ayon(
         if ay_id:
             ay_entity = entity_hub.get_or_query_entity_by_id(ay_id, [sg_entity["type"]])
 
+        # If we haven't found the ay_entity by its id, check by its name
+        # to avoid creating duplicates and erroring out
+        if ay_entity is None:
+            name = slugify_string(sg_entity["name"])
+            for child in ay_parent_entity.children:
+                if child.name.lower() == name.lower():
+                    ay_entity = child
+                    break
+
         # If we couldn't find it we create it.
         if ay_entity is None:
             if sg_entity["attribs"].get(SHOTGRID_TYPE_ATTRIB) == "AssetCategory":
@@ -89,7 +100,7 @@ def match_shotgrid_hierarchy_in_ayon(
                 )
                 sg_entity_sync_status = "Failed"
                 sg_project_sync_status = "Failed"
-                # TODO: How to deal with mismatches?
+                continue
 
         # Update SG entity with new created data
         sg_entity["data"][CUST_FIELD_CODE_ID] = ay_entity.id
