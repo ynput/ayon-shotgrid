@@ -84,7 +84,7 @@ def create_sg_entity_from_ayon_event(
         log_traceback(e)
 
 
-def update_sg_entity_from_ayon_event(ayon_event, sg_session, ayon_entity_hub):
+def update_sg_entity_from_ayon_event(ayon_event, sg_session, ayon_entity_hub, custom_attribs_map=None):
     """Try to update a Shotgrid entity from an AYON event.
 
     Args:
@@ -104,28 +104,40 @@ def update_sg_entity_from_ayon_event(ayon_event, sg_session, ayon_entity_hub):
         raise ValueError(
             f"Event has a non existant entity? {ayon_event['summary']['entityId']}"
         )
+    
+    logging.debug(f"Processing entity {ay_entity}")
 
     sg_id = ay_entity.attribs.get("shotgridId")
     sg_type = ay_entity.attribs.get("shotgridType")
 
     try:
         sg_field_name = "code"
-
-        if ay_entity.get("taskType"):
+        if ay_entity["entity_type"] == "task":
             sg_field_name = "content"
+
+        dict_to_update = {
+            sg_field_name: ay_entity["name"],
+            CUST_FIELD_CODE_ID: ay_entity["id"]
+        }
+        # Add any possible new values to update
+        if custom_attribs_map:
+            new_attribs = ayon_event["payload"].get("newValue", {})
+            for key, value in new_attribs.items():
+                if key not in custom_attribs_map or not value:
+                    logging.warning(f"Attribute {key} not supported in SG")
+                    continue
+                sg_key = custom_attribs_map[key]
+                dict_to_update[sg_key] = value
 
         sg_entity = sg_session.update(
             sg_type,
-            sg_id,
-            {
-                sg_field_name: ay_entity["name"],
-                CUST_FIELD_CODE_ID: ay_entity["id"]
-            }
+            int(sg_id),
+            dict_to_update
         )
         logging.info(f"Updated Shotgrid entity: {sg_entity}")
         return sg_entity
     except Exception as e:
-        logging.error(f"Unable to delete {sg_type} <{sg_id}> in Shotgrid!")
+        logging.error(f"Unable to update {sg_type} <{sg_id}> in Shotgrid!")
         log_traceback(e)
 
 

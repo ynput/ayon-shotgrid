@@ -326,7 +326,9 @@ class AyonShotgridHub:
 
             case "attribute_change":
                 if sg_event["attribute_name"] not in self.custom_attributes_map.values():
-                    logging.warning("Can't handle this attribute.")
+                    logging.warning(
+                        "Updating attribute '%s' from SG to Ayon not supported.", sg_event["attribute_name"]
+                    )
                     return
                 update_ayon_entity_from_sg_event(
                     sg_event,
@@ -388,7 +390,17 @@ class AyonShotgridHub:
                     self._sg,
                     self._ay_project,
                 )
-
+            case "entity.task.attrib_changed" | "entity.folder.attrib_changed":
+                attrib_key = next(iter(ayon_event["payload"]["newValue"]))
+                if attrib_key not in self.custom_attributes_map:
+                    logging.warning("Updating attribute '%s' from Ayon to SG not supported: %s.", attrib_key, self.custom_attributes_map)
+                    return
+                update_sg_entity_from_ayon_event(
+                    ayon_event,
+                    self._sg,
+                    self._ay_project,
+                    self.custom_attributes_map
+                )
             case _:
                 msg = f"Unable to process event {ayon_event['topic']}."
                 logging.error(msg)

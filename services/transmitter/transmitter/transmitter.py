@@ -5,20 +5,13 @@ This service will continually run and query the Ayon Events Server in order to
 entroll the events of topic `entity.folder` and `entity.task` when any of the
 two are `created`, `renamed` or `deleted`.
 """
-# import importlib
-import os
-import sys
 import time
-# import types
-import signal
 import socket
 
 from ayon_shotgrid_hub import AyonShotgridHub
 
 import ayon_api
-from ayon_api.entity_hub import EntityHub
 from nxtools import logging, log_traceback
-import shotgun_api3
 
 
 class ShotgridTransmitter:
@@ -45,6 +38,11 @@ class ShotgridTransmitter:
             self.sg_api_key = sg_secret.get("value")
             self.ayon_service_user = self.settings["service_settings"]["ayon_service_user"]
 
+            self.custom_attributes_map = {
+                attr["ayon"]: attr["sg"]
+                for attr in self.settings["compatibility_settings"]["custom_attributes_map"]
+                if attr["sg"]
+            }
             try:
                 self.sg_polling_frequency = int(
                     self.settings["service_settings"]["polling_frequency"]
@@ -156,6 +154,7 @@ class ShotgridTransmitter:
                     self.sg_api_key,
                     self.sg_script_name,
                     sg_project_code_field=self.sg_project_code_field,
+                    custom_attributes_map=self.custom_attributes_map,
                 )
 
                 hub.react_to_ayon_event(source_event)
