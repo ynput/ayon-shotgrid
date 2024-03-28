@@ -239,8 +239,6 @@ const getAyonUsers = async () => {
 
 
 const createNewUserInAyon = async (login, email, name) => {
-  /* Spawn an AYON Event of topic "shotgrid.event" to synchcronize a project
-  from Shotgrid into AYON. */
   call_result_paragraph = document.getElementById("call-result");
 
   response = await ayonAPI
