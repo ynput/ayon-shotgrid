@@ -325,8 +325,8 @@ class AyonShotgridHub:
         this is to be expanded.
 
         Args:
-            sg_event (dict): The `meta` key of a Shogrid Event, describing what
-                the change encompases, i.e. a new shot, new asset, etc.
+            sg_event (dict): The `meta` key of a ShotGrid Event, describing what
+                the change encompasses, i.e. a new shot, new asset, etc.
         """
         match sg_event["type"]:
             case "new_entity" | "entity_revival":
