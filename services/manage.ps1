@@ -106,6 +106,7 @@ function dist {
 # Main function
 function main {
     if ($FunctionName -eq "build") {
+        Write-Host "Building service $ServiceDir"
         build
     }
     elseif ($FunctionName -eq "build-all") {
@@ -113,13 +114,16 @@ function main {
         build-all
     }
     elseif ($FunctionName -eq "clean") {
-        dev
+        Write-Host "Cleaning service $ServiceDir"
+        clean
     }
     elseif ($FunctionName -eq "clean-build") {
-        dist
+        Write-Host "Cleaning and building service $ServiceDir"
+        clean-build
     }
     elseif ($FunctionName -eq "clean-build-all") {
-        bash
+        Write-Host "Cleaning and building all services"
+        clean-build-all
     }
     elseif ($FunctionName -eq "dev") {
         dev
