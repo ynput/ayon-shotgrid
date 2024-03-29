@@ -296,12 +296,12 @@ const getShotgridProjects = async () => {
 
   if (sgProjects) {
     sgProjects.forEach((project) => {
-      sgProjectsConformed.push({
-        "name": project.attributes.name,
-        "code": project.attributes[`${addonSettings.shotgrid_project_code_field}`],
-        "shotgridId": project.id,
-        "ayonId": project.attributes.sg_ayon_id,
-      })
+    sgProjectsConformed.push({
+      "name": project.attributes.name,
+      "code": project.attributes[`${addonSettings.shotgrid_project_code_field}`],
+      "shotgridId": project.id,
+      "ayonId": project.attributes.sg_ayon_id,
+    })
     });
   }
   return sgProjectsConformed;
