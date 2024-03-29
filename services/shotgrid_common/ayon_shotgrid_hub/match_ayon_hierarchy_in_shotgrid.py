@@ -7,18 +7,28 @@ from constants import (
     SHOTGRID_TYPE_ATTRIB,
 )
 
-from utils import get_sg_entities, get_sg_entity_parent_field, get_sg_entity_as_ay_dict
+from utils import (
+    get_sg_entities,
+    get_sg_entity_parent_field,
+    get_sg_entity_as_ay_dict
+)
 
 from nxtools import logging, log_traceback
 
 
-def match_ayon_hierarchy_in_shotgrid(entity_hub, sg_project, sg_session, sg_enabled_entities, project_code_field):
+def match_ayon_hierarchy_in_shotgrid(
+    entity_hub,
+    sg_project,
+    sg_session,
+    sg_enabled_entities,
+    project_code_field
+):
     """Replicate an AYON project into Shotgrid.
 
     This function creates a "deck" which we keep increasing while traversing
     the AYON project and finding new children, this is more efficient than
     creating a dictionary with the whole AYON project structure since we
-    `popleft` the elements when procesing them.
+    `popleft` the elements when processing them.
 
     Args:
         entity_hub (ayon_api.entity_hub.EntityHub): The AYON EntityHub.
@@ -159,7 +169,7 @@ def _create_new_entity(ay_entity, sg_session, sg_project, sg_parent_entity, sg_e
         if not task_step:
             raise ValueError(
                 f"Unable to create Task {ay_entity.task_type} {ay_entity}\n"
-                f"    -> Shotgrid is missng Pipeline Step {ay_entity.task_type}"
+                f"-> Shotgrid is missing Pipeline Step {ay_entity.task_type}"
             )
 
         new_entity = sg_session.create(
@@ -174,9 +184,13 @@ def _create_new_entity(ay_entity, sg_session, sg_project, sg_parent_entity, sg_e
             }
         )
     else:
-        sg_parent_field = get_sg_entity_parent_field(sg_session, sg_project, ay_entity.folder_type, sg_enabled_entities)
+        sg_parent_field = get_sg_entity_parent_field(
+            sg_session, sg_project, ay_entity.folder_type, sg_enabled_entities)
 
-        if sg_parent_field == "project" or sg_parent_entity["type"] == "Project":
+        if (
+            sg_parent_field == "project"
+            or sg_parent_entity["type"] == "Project"
+        ):
             new_entity = sg_session.create(
                 ay_entity.folder_type,
                 {
@@ -207,5 +221,3 @@ def _create_new_entity(ay_entity, sg_session, sg_project, sg_parent_entity, sg_e
         project_code_field
     )
     return new_entity
-
-

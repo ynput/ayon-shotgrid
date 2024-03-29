@@ -1,8 +1,6 @@
 from ayon_server.entities.core.attrib import attribute_library
 from ayon_server.settings import BaseSettingsModel, SettingsField
-from ayon_server.settings.enum import secrets_enum
-from ayon_server.graphql.resolvers.users import get_users
-
+from ayon_server.settings.enum import secrets_enum, anatomy_presets_enum
 
 
 def get_default_folder_attributes():
@@ -130,15 +128,23 @@ class ShotgridSettings(BaseSettingsModel):
         description="Name of the 'code' to select which one of the multiple possible local storages entries to use.",
         example="ayon_storage"
     )
+    anatomy_preset: str = SettingsField(
+        default="_",
+        title="Anatomy Preset",
+        description=(
+            "The anatomy preset to use for the "
+            "Shotgrid synchronized projects."
+        ),
+        enum_resolver=anatomy_presets_enum
+    )
 
     compatibility_settings: ShotgridCompatibilitySettings = SettingsField(
         default_factory=ShotgridCompatibilitySettings,
         title="Shotgrid <-> AYON compatibility Settings",
         description="All the settings that allow us to fine-grain the relation between Shotgird and AYON entities."
     )
-    
+
     service_settings: ShotgridServiceSettings = SettingsField(
         default_factory=ShotgridServiceSettings,
         title="Service settings",
     )
-

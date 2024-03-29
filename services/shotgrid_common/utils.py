@@ -158,7 +158,7 @@ def create_sg_entities_in_ay(
         shotgrid_project (dict): The project owning the Tasks.
         sg_enabled_entities (list): The enabled entites.
     """
-   
+
     # Types of SG entities to ignore as Ayon folders
     ignored_folder_types = {"task", "version"}
 
@@ -499,7 +499,9 @@ def get_sg_entity_parent_field(
     """
     sg_parent_field = ""
 
-    for entity_tuple in get_sg_project_enabled_entities(sg_session, sg_project, sg_enabled_entities):
+    for entity_tuple in get_sg_project_enabled_entities(
+        sg_session, sg_project, sg_enabled_entities
+    ):
         entity_type, parent_field = entity_tuple
 
         if entity_type == sg_entity_type:
@@ -645,7 +647,7 @@ def get_sg_project_enabled_entities(
 
             if parent_field and parent_field != "__flat__":
                 if "," in parent_field:
-                    # This catches instances where the Hierarchy is set to 
+                    # This catches instances where the Hierarchy is set to
                     # something like "Seq > Secene > Shot" which returns a string
                     # like so: 'sg_scene,Scene.sg_sequence' and confusing enough
                     # we want the first element to be the parent.
@@ -718,4 +720,3 @@ def get_sg_pipeline_steps(
     sg_steps = list(set(sg_steps))
     logging.debug(f"Shotgrid Pipeline Steps: {sg_steps}")
     return sg_steps
-

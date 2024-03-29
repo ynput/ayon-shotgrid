@@ -71,6 +71,7 @@ class AyonShotgridHub:
         custom_attributes_map=None,
         sg_enabled_entities=None,
     ):
+        self.settings = ayon_api.get_service_addon_settings()
 
         self._sg = None
 
@@ -192,8 +193,22 @@ class AyonShotgridHub:
         """Create project in AYON and Shotgrid.
         """
         if self._ay_project is None:
-            logging.info(f"Creating AYON project {self.project_name} ({self.project_code}).")
-            ayon_api.create_project(self.project_name, self.project_code)
+            anatomy_preset_name = self.settings.get("anatomy_preset", None)
+
+            # making sure build in preset is not used
+            if anatomy_preset_name == "_":
+                anatomy_preset_name = None
+
+            logging.info(
+                f"Creating AYON project {self.project_name}\n"
+                f"- project code: {self.project_code}\n"
+                f"- anatomy preset: {anatomy_preset_name}\n"
+            )
+            ayon_api.create_project(
+                self.project_name,
+                self.project_code,
+                preset_name=anatomy_preset_name
+            )
             self._ay_project = EntityHub(self.project_name)
             self._ay_project.query_entities_from_server()
 
@@ -373,6 +388,7 @@ class AyonShotgridHub:
                     self._sg,
                     self._ay_project,
                     self._sg_project,
+                    self.sg_enabled_entities,
                 )
 
             case "entity.task.deleted" | "entity.folder.deleted":
@@ -388,9 +404,21 @@ class AyonShotgridHub:
                     self._sg,
                     self._ay_project,
                 )
-
+            case "entity.task.attrib_changed" | "entity.folder.attrib_changed":
+                attrib_key = next(iter(ayon_event["payload"]["newValue"]))
+                if attrib_key not in self.custom_attributes_map:
+                    logging.warning(
+                        f"Updating attribute '{attrib_key}' from Ayon to SG "
+                        f"not supported: {self.custom_attributes_map}."
+                    )
+                    return
+                update_sg_entity_from_ayon_event(
+                    ayon_event,
+                    self._sg,
+                    self._ay_project,
+                    self.custom_attributes_map
+                )
             case _:
                 msg = f"Unable to process event {ayon_event['topic']}."
                 logging.error(msg)
                 raise ValueError(msg)
-

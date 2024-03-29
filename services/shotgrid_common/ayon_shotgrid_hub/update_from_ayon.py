@@ -17,7 +17,8 @@ def create_sg_entity_from_ayon_event(
     ayon_event,
     sg_session,
     ayon_entity_hub,
-    sg_project
+    sg_project,
+    sg_enabled_entities,
 ):
     """Create a Shotgrid entity from an AYON event.
 
@@ -26,6 +27,7 @@ def create_sg_entity_from_ayon_event(
         sg_session (shotgun_api3.Shotgun): The Shotgrid API session.
         ayon_entity_hub (ayon_api.entity_hub.EntityHub): The AYON EntityHub.
         sg_project (dict): The Shotgrid project.
+        sg_enabled_entities (list): List of Shotgrid entities to be enabled.
 
     Returns:
         ay_entity (ayon_api.entity_hub.EntityHub.Entity): The newly created entity.
@@ -67,6 +69,7 @@ def create_sg_entity_from_ayon_event(
             ay_entity,
             sg_project,
             sg_type,
+            sg_enabled_entities,
         )
         logging.info(f"Created Shotgrid entity: {sg_entity}")
 
@@ -84,13 +87,19 @@ def create_sg_entity_from_ayon_event(
         log_traceback(e)
 
 
-def update_sg_entity_from_ayon_event(ayon_event, sg_session, ayon_entity_hub):
+def update_sg_entity_from_ayon_event(
+    ayon_event,
+    sg_session,
+    ayon_entity_hub,
+    custom_attribs_map=None
+):
     """Try to update a Shotgrid entity from an AYON event.
 
     Args:
         sg_event (dict): The `meta` key from a Shotgrid Event.
         sg_session (shotgun_api3.Shotgun): The Shotgrid API session.
         ayon_entity_hub (ayon_api.entity_hub.EntityHub): The AYON EntityHub.
+        custom_attribs_map (dict): A mapping of custom attributes to update.
 
     Returns:
         sg_entity (dict): The modified Shotgrid entity.
@@ -105,27 +114,39 @@ def update_sg_entity_from_ayon_event(ayon_event, sg_session, ayon_entity_hub):
             f"Event has a non existant entity? {ayon_event['summary']['entityId']}"
         )
 
+    logging.debug(f"Processing entity {ay_entity}")
+
     sg_id = ay_entity.attribs.get("shotgridId")
     sg_type = ay_entity.attribs.get("shotgridType")
 
     try:
         sg_field_name = "code"
-
-        if ay_entity.get("taskType"):
+        if ay_entity["entity_type"] == "task":
             sg_field_name = "content"
+
+        dict_to_update = {
+            sg_field_name: ay_entity["name"],
+            CUST_FIELD_CODE_ID: ay_entity["id"]
+        }
+        # Add any possible new values to update
+        if custom_attribs_map:
+            new_attribs = ayon_event["payload"].get("newValue", {})
+            for key, value in new_attribs.items():
+                if key not in custom_attribs_map or not value:
+                    logging.warning(f"Attribute {key} not supported in SG")
+                    continue
+                sg_key = custom_attribs_map[key]
+                dict_to_update[sg_key] = value
 
         sg_entity = sg_session.update(
             sg_type,
-            sg_id,
-            {
-                sg_field_name: ay_entity["name"],
-                CUST_FIELD_CODE_ID: ay_entity["id"]
-            }
+            int(sg_id),
+            dict_to_update
         )
         logging.info(f"Updated Shotgrid entity: {sg_entity}")
         return sg_entity
     except Exception as e:
-        logging.error(f"Unable to delete {sg_type} <{sg_id}> in Shotgrid!")
+        logging.error(f"Unable to update {sg_type} <{sg_id}> in Shotgrid!")
         log_traceback(e)
 
 
@@ -175,13 +196,16 @@ def _create_sg_entity(
     ay_entity,
     sg_project,
     sg_type,
+    sg_enabled_entities,
 ):
     """ Create a new Shotgrid entity.
 
     Args:
+        sg_session (shotgun_api3.Shotgun): The Shotgrid API session.
         ay_entity (dict): The AYON entity.
         sg_project (dict): The Shotgrid Project.
         sg_type (str): The Shotgrid type of the new entity.
+        sg_enabled_entities (list): List of Shotgrid entities to be enabled.
     """
     sg_field_name = "code"
     sg_step = None
@@ -213,13 +237,14 @@ def _create_sg_entity(
         if not sg_step:
             raise ValueError(
                 f"Unable to create Task {ay_entity.task_type} {ay_entity}\n"
-                f"    -> Shotgrid is missng Pipeline Step {ay_entity.task_type}"
+                f"-> Shotgrid is missing Pipeline Step {ay_entity.task_type}"
             )
 
     parent_field = get_sg_entity_parent_field(
         sg_session,
         sg_project,
         sg_type,
+        sg_enabled_entities
     )
 
     if parent_field.lower() == "project":
@@ -255,5 +280,3 @@ def _create_sg_entity(
         logging.error(f"Unable to create SG entity {sg_type} with data: {data}")
         log_traceback(e)
         raise e
-
-

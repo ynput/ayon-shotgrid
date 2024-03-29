@@ -5,20 +5,13 @@ This service will continually run and query the Ayon Events Server in order to
 entroll the events of topic `entity.folder` and `entity.task` when any of the
 two are `created`, `renamed` or `deleted`.
 """
-# import importlib
-import os
-import sys
 import time
-# import types
-import signal
 import socket
 
 from ayon_shotgrid_hub import AyonShotgridHub
 
 import ayon_api
-from ayon_api.entity_hub import EntityHub
 from nxtools import logging, log_traceback
-import shotgun_api3
 
 
 class ShotgridTransmitter:
@@ -38,12 +31,15 @@ class ShotgridTransmitter:
             ayon_api.init_service()
             self.settings = ayon_api.get_service_addon_settings()
             self.sg_url = self.settings["shotgrid_server"]
-            self.sg_project_code_field = self.settings["shotgrid_project_code_field"]
+            self.sg_project_code_field = \
+                self.settings["shotgrid_project_code_field"]
 
-            sg_secret = ayon_api.get_secret(self.settings["shotgrid_api_secret"])
+            sg_secret = ayon_api.get_secret(
+                self.settings["shotgrid_api_secret"])
             self.sg_script_name = sg_secret.get("name")
             self.sg_api_key = sg_secret.get("value")
-            self.ayon_service_user = self.settings["service_settings"]["ayon_service_user"]
+            self.ayon_service_user = \
+                self.settings["service_settings"]["ayon_service_user"]
 
             try:
                 self.sg_polling_frequency = int(
@@ -51,6 +47,16 @@ class ShotgridTransmitter:
                 )
             except Exception:
                 self.sg_polling_frequency = 10
+
+            self.sg_enabled_entities = (
+                self.settings["compatibility_settings"]
+                             ["shotgrid_enabled_entities"])
+
+            self.custom_attributes_map = {
+                attr["ayon"]: attr["sg"]
+                for attr in self.settings["compatibility_settings"]["custom_attributes_map"]
+                if attr["sg"]
+            }
 
         except Exception as e:
             logging.error("Unable to get Addon settings from the server.")
@@ -60,8 +66,8 @@ class ShotgridTransmitter:
     def start_processing(self):
         """ Main loop querying AYON for `entity.*` events.
 
-        We enroll to events that `created`, `deleted` and `renamed` on AYON `entity`
-        to replicate the event in Shotgrid.
+        We enroll to events that `created`, `deleted` and `renamed`
+        on AYON `entity` to replicate the event in Shotgrid.
         """
         events_we_care = [
             "entity.task.created",
@@ -132,7 +138,7 @@ class ShotgridTransmitter:
                 ay_project = ayon_api.get_project(project_name)
 
                 if not ay_project:
-                    # This should never happen since we only fetch events of 
+                    # This should never happen since we only fetch events of
                     # projects we have shotgridPush enabled; but just in case
                     # The event happens when after we deleted a project in AYON.
                     logging.error(
@@ -156,15 +162,20 @@ class ShotgridTransmitter:
                     self.sg_api_key,
                     self.sg_script_name,
                     sg_project_code_field=self.sg_project_code_field,
+                    custom_attributes_map=self.custom_attributes_map,
+                    sg_enabled_entities=self.sg_enabled_entities,
                 )
 
                 hub.react_to_ayon_event(source_event)
 
-                logging.info("Event has been processed... setting to finished!")
-                ayon_api.update_event(event["id"], project_name=project_name, status="finished")
+                logging.info(
+                    "Event has been processed... setting to finished!")
+                ayon_api.update_event(
+                    event["id"], project_name=project_name, status="finished")
             except Exception as err:
                 log_traceback(err)
-                ayon_api.update_event(event["id"], project_name=project_name, status="failed")
+                ayon_api.update_event(
+                    event["id"], project_name=project_name, status="failed")
 
             time.sleep(self.sg_polling_frequency)
 

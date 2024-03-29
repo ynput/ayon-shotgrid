@@ -296,4 +296,3 @@ def remove_ayon_entity_from_sg_event(sg_event, sg_session, ayon_entity_hub, proj
         ay_entity.attribs.set(SHOTGRID_ID_ATTRIB, SHOTGRID_REMOVED_VALUE)
 
     ayon_entity_hub.commit_changes()
-
