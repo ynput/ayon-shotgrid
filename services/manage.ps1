@@ -16,7 +16,6 @@ function Get-AddonVersion {
 
 $AddonVersion = Get-AddonVersion
 $ServiceDir = $arguments | Where-Object { $_ -notmatch "-Service" }
-Write-Host "Image: "$ServiceDir
 
 function EnsureServiceDir {
     if (-not $ServiceDir) {
@@ -62,7 +61,8 @@ function build {
 }
 function build-all {
     "leecher", "processor", "transmitter" | ForEach-Object {
-        .\manage.ps1 "build" -Service_dir $_
+        write-host "Building $_"
+        .\manage.ps1 "build" -Service $_
     }
 }
 function clean {
@@ -109,7 +109,8 @@ function main {
         build
     }
     elseif ($FunctionName -eq "build-all") {
-        clean
+        Write-Host "Building all services"
+        build-all
     }
     elseif ($FunctionName -eq "clean") {
         dev
