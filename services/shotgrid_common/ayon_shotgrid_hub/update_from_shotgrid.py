@@ -187,7 +187,13 @@ def create_ay_entity_from_sg_event(sg_event, sg_project, sg_session, ayon_entity
     return ay_entity
 
 
-def update_ayon_entity_from_sg_event(sg_event, sg_session, ayon_entity_hub, project_code_field, ayon_sg_attribute_map):
+def update_ayon_entity_from_sg_event(
+    sg_event,
+    sg_session,
+    ayon_entity_hub,
+    project_code_field,
+    ayon_sg_attribute_map
+):
     """Try to update an entity in Ayon.
 
     Args:
@@ -220,6 +226,8 @@ def update_ayon_entity_from_sg_event(sg_event, sg_session, ayon_entity_hub, proj
         logging.error("Unable to update a non existing entity.")
         raise ValueError("Unable to update a non existing entity.")
 
+    logging.debug(f"Updating Ayon Entity: {ay_entity.name}")
+
     if int(ay_entity.attribs.get_attribute(SHOTGRID_ID_ATTRIB).value) != int(sg_entity_dict["attribs"].get(SHOTGRID_ID_ATTRIB)):
         logging.error("Mismatching Shotgrid IDs, aborting...")
         raise ValueError("Mismatching Shotgrid IDs, aborting...")
@@ -231,9 +239,17 @@ def update_ayon_entity_from_sg_event(sg_event, sg_session, ayon_entity_hub, proj
     for attr, attr_value in sg_entity_dict["attribs"].items():
         if attr in ["name", "label", "sg_status_list"]:
             continue
-        ay_attr = next((ay_attr for ay_attr, sg_attr in ayon_sg_attribute_map.items() if sg_attr == attr), None)
+        ay_attr = next(
+            (
+                ay_attr for ay_attr, _ in ayon_sg_attribute_map.items()
+                if ay_attr == attr
+            ),
+            None
+        )
 
         if ay_attr:
+            logging.info(
+                f"Setting attribute {ay_attr} with value {attr_value}")
             ay_entity.attribs.set(ay_attr, attr_value)
 
     ayon_entity_hub.commit_changes()

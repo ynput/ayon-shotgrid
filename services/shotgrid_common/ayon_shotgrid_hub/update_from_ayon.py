@@ -165,7 +165,16 @@ def remove_sg_entity_from_ayon_event(ayon_event, sg_session, ayon_entity_hub):
     """
     logging.debug(f"Processing event {ayon_event}")
     ay_id = ayon_event["payload"]["entityData"]["id"]
-    sg_id = ayon_event["payload"]["entityData"]["attrib"]["shotgridId"]
+    ay_entity_path = ayon_event["payload"]["entityData"]["path"]
+    sg_id = ayon_event["payload"]["entityData"]["attrib"].get("shotgridId")
+
+    if not sg_id:
+        logging.warning(
+            f"Entity '{ay_entity_path}' does not have a "
+            "ShotGrid ID to remove."
+        )
+        return
+
     sg_type = ayon_event["payload"]["entityData"]["attrib"]["shotgridType"]
 
     if not sg_type:
