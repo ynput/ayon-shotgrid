@@ -30,16 +30,19 @@ def create_sg_entity_from_ayon_event(
         sg_enabled_entities (list): List of Shotgrid entities to be enabled.
 
     Returns:
-        ay_entity (ayon_api.entity_hub.EntityHub.Entity): The newly created entity.
+        ay_entity (ayon_api.entity_hub.EntityHub.Entity): The newly
+            created entity.
     """
     logging.debug(f"Processing event {ayon_event}")
 
     ay_id = ayon_event["summary"]["entityId"]
-    ay_entity = ayon_entity_hub.get_or_query_entity_by_id(ay_id, ["folder", "task"])
+    ay_entity = ayon_entity_hub.get_or_query_entity_by_id(
+        ay_id, ["folder", "task"])
 
     if not ay_entity:
         raise ValueError(
-            f"Event has a non existant entity? {ayon_event['summary']['entityId']}"
+            "Event has a non existant entity? "
+            f"{ayon_event['summary']['entityId']}"
         )
 
     sg_id = ay_entity.attribs.get("shotgridId")
@@ -107,11 +110,13 @@ def update_sg_entity_from_ayon_event(
     """
     logging.debug(f"Processing event {ayon_event}")
     ay_id = ayon_event["summary"]["entityId"]
-    ay_entity = ayon_entity_hub.get_or_query_entity_by_id(ay_id, ["folder", "task"])
+    ay_entity = ayon_entity_hub.get_or_query_entity_by_id(
+        ay_id, ["folder", "task"])
 
     if not ay_entity:
         raise ValueError(
-            f"Event has a non existant entity? {ayon_event['summary']['entityId']}"
+            "Event has a non existent entity? "
+            f"{ayon_event['summary']['entityId']}"
         )
 
     logging.debug(f"Processing entity {ay_entity}")
@@ -178,7 +183,8 @@ def remove_sg_entity_from_ayon_event(ayon_event, sg_session, ayon_entity_hub):
         )
 
     if not sg_entity:
-        logging.warning(f"Unable to find Ayon entity with id '{ay_id}' in Shotgrid.")
+        logging.warning(
+            f"Unable to find Ayon entity with id '{ay_id}' in Shotgrid.")
         return
 
     sg_id = sg_entity["id"]
@@ -266,7 +272,10 @@ def _create_sg_entity(
         else:
             data = {
                 "project": sg_project,
-                parent_field: {"type": sg_parent_type, "id": int(sg_parent_id)},
+                parent_field: {
+                    "type": sg_parent_type,
+                    "id": int(sg_parent_id)
+                },
                 sg_field_name: ay_entity.name,
                 CUST_FIELD_CODE_ID: ay_entity.id,
             }
@@ -277,6 +286,7 @@ def _create_sg_entity(
         new_sg_entity = sg_session.create(sg_type, data)
         return new_sg_entity
     except Exception as e:
-        logging.error(f"Unable to create SG entity {sg_type} with data: {data}")
+        logging.error(
+            f"Unable to create SG entity {sg_type} with data: {data}")
         log_traceback(e)
         raise e
