@@ -10,10 +10,16 @@ addon directory directly (eg. into `ayon-backend/addons`).
 Format of package folder:
 ADDON_REPO/package/{addon name}/{addon version}
 
-You can specify `--output_dir` in arguments to change output directory where
-package will be created. Existing package directory will always be purged if
-already present! This could be used to create package directly in server folder
-if available.
+You can specify following arguments:
+`--output_dir`: in arguments to change output directory where
+    package will be created. Existing package directory will always be purged
+    if already present! This could be used to create package directly in server
+    folder if available. Default is 'package' directory in current directory.
+`--skip-zip`: to skip zipping server package and create only server folder
+    structure.
+`--keep-sources`: to keep server folder structure when server package is
+    created.
+`--clear-output-dir`: to clear output directory before package creation.
 
 Package contains server side files directly,
 client side code zipped in `private` subfolder.
@@ -280,7 +286,8 @@ def main(
         log.info(f"Purging {addon_output_root}")
         shutil.rmtree(addon_output_root)
 
-    os.makedirs(addon_output_dir)
+    if not os.path.exists(addon_output_dir):
+        os.makedirs(addon_output_dir)
 
     log.info(f"Preparing package for {ADDON_NAME}-{addon_version}")
 
