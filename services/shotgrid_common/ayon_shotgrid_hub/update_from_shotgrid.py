@@ -253,13 +253,8 @@ def update_ayon_entity_from_sg_event(
     logging.debug("Updating Ayon entity with '%s'" % sg_entity_dict)
     ay_entity.name = sg_entity_dict["name"]
     ay_entity.label = sg_entity_dict["label"]
-    # TODO: this is not updating the status!
-    ay_entity.status = sg_entity_dict["status"]
 
     for attr, attr_value in sg_entity_dict["attribs"].items():
-        if attr in ["status"]:
-            continue
-
         # TODO: add support for tags
         if attr == "tags":
             continue
@@ -271,7 +266,9 @@ def update_ayon_entity_from_sg_event(
             ),
             None
         )
-        if ay_attr:
+        if attr == "status":
+            ay_entity.status = attr_value
+        elif ay_attr:
             logging.info(
                 f"Setting attribute {ay_attr} with value {attr_value}")
             ay_entity.attribs.set(ay_attr, attr_value)
