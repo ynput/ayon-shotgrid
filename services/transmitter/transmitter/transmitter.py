@@ -42,17 +42,21 @@ class ShotgridTransmitter:
                 self.settings["service_settings"]["ayon_service_user"]
 
             # Compatibility settings
-            custom_attributes_map = self.settings["compatibility_settings"][
-                "custom_attributes_map"]
-            self.custom_attributes_map = {
+            custom_attribs_map = self.settings["compatibility_settings"][
+                "custom_attribs_map"]
+            self.custom_attribs_map = {
                 attr["ayon"]: attr["sg"]
-                for attr in custom_attributes_map
+                for attr in custom_attribs_map
+                if attr["sg"]
+            }
+            self.custom_attribs_types = {
+                attr["sg"]: (attr["type"], attr["scope"])
+                for attr in custom_attribs_map
                 if attr["sg"]
             }
             self.sg_enabled_entities = (
                 self.settings["compatibility_settings"]
                              ["shotgrid_enabled_entities"])
-
             try:
                 self.sg_polling_frequency = int(
                     self.settings["service_settings"]["polling_frequency"]
@@ -77,10 +81,14 @@ class ShotgridTransmitter:
             "entity.task.renamed",
             "entity.task.create",
             "entity.task.attrib_changed",
+            "entity.task.status_changed",
+            "entity.task.tags_changed",
             "entity.folder.created",
             "entity.folder.deleted",
             "entity.folder.renamed",
             "entity.folder.attrib_changed",
+            "entity.folder.status_changed",
+            "entity.folder.tags_changed",
         ]
 
         logging.debug(
@@ -164,7 +172,8 @@ class ShotgridTransmitter:
                     self.sg_api_key,
                     self.sg_script_name,
                     sg_project_code_field=self.sg_project_code_field,
-                    custom_attributes_map=self.custom_attributes_map,
+                    custom_attribs_map=self.custom_attribs_map,
+                    custom_attribs_types=self.custom_attribs_types,
                     sg_enabled_entities=self.sg_enabled_entities,
                 )
 

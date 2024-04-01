@@ -8,19 +8,23 @@ def get_default_folder_attributes():
 
     Get all the `attribs` for Folder entities in a list
     to be consumed by the `default_factory` in the
-    `ShotgridCompatibilitySettings.custom_attributes_map`
+    `ShotgridCompatibilitySettings.custom_attribs_map`
     settings.
     """
     attributes = []
 
     for attr_dict in attribute_library.data.get("folder", {}):
         attr_name = attr_dict["name"]
-        attr_title = attr_dict["title"]
 
         if attr_name in ["shotgridId", "shotgridType", "tools"]:
             continue
 
-        attr_map = {"ayon": attr_name, "sg": "" }
+        attr_map = {
+            "ayon": attr_name,
+            "sg": "",
+            "type": [attr_dict["type"]],
+            "scope": default_shotgrid_entities()
+        }
 
         if attr_map not in attributes:
             attributes.append(attr_map)
@@ -65,7 +69,25 @@ class ShotgridServiceSettings(BaseSettingsModel):
 class AttributesMappingModel(BaseSettingsModel):
     _layout = "compact"
     ayon: str = SettingsField(title="AYON")
-    sg: str = SettingsField(title="Shotgrid")
+    sg: str = SettingsField(title="SG")
+    # TODO: how do you make this a single selectable entry
+    type: list[str] = SettingsField(
+        title="Type",
+        default_factory=list,
+        enum_resolver=lambda: [
+            "string",
+            "integer",
+            "float",
+            "list_of_strings",
+            "boolean",
+            "datetime",
+        ]
+    )
+    scope: list[str] = SettingsField(
+        title="Scope",
+        default_factory=list,
+        enum_resolver=default_shotgrid_entities
+    )
 
 
 class ShotgridCompatibilitySettings(BaseSettingsModel):
@@ -85,10 +107,10 @@ class ShotgridCompatibilitySettings(BaseSettingsModel):
         description="The Entities that are enabled in Shotgrid, disable any that you do not use."
     )
 
-    custom_attributes_map: list[AttributesMappingModel] = SettingsField(
+    custom_attribs_map: list[AttributesMappingModel] = SettingsField(
         title="Folder Attributes Map",
         default_factory=get_default_folder_attributes,
-        description="AYON Folder's attributes <> Shotgird fields mapping, empty ones will be ignored.",
+        description="AYON attributes <> Shotgrid fields (without 'sg_' prefix!) mapping. Empty ones will be ignored.",
     )
 
 

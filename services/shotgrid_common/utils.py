@@ -2,7 +2,7 @@ import collections
 from typing import Dict, Optional
 
 from constants import (
-    AYON_SHOTGRID_ENTITY_TYPE_MAP,
+    AYON_SHOTGRID_ATTRIBUTES_MAP,
     CUST_FIELD_CODE_ID,
     CUST_FIELD_CODE_SYNC,
     SG_COMMON_ENTITY_FIELDS,
@@ -17,7 +17,9 @@ from nxtools import logging
 import shotgun_api3
 
 
-def _sg_to_ay_dict(sg_entity: dict, project_code_field=None) -> dict:
+def _sg_to_ay_dict(
+    sg_entity: dict, project_code_field=None, custom_attribs_map: Optional[dict] = None,
+) -> dict:
     """Morph a Shotgrid entity dict into an Ayon's Entity Hub compatible one.
 
     Create a dictionary that follows the Ayon Entity Hub schema and handle edge
@@ -76,6 +78,17 @@ def _sg_to_ay_dict(sg_entity: dict, project_code_field=None) -> dict:
             CUST_FIELD_CODE_ID: sg_entity.get(CUST_FIELD_CODE_ID, None),
         }
     }
+    if custom_attribs_map:
+        logging.debug("Checking custom attribs map")
+        for ay_attr, sg_attr in custom_attribs_map.items():
+            sg_value = sg_entity.get(sg_attr) or sg_entity.get(f"sg_{sg_attr}")
+
+            # If no value in SG entity skip
+            if sg_value is None:
+                logging.debug("No value found for %s:%s" % (ay_attr, sg_attr))
+                continue
+            
+            ay_dict["attribs"][ay_attr] = sg_value
 
     if task_type:
         ay_dict["task_type"] = task_type
@@ -85,7 +98,12 @@ def _sg_to_ay_dict(sg_entity: dict, project_code_field=None) -> dict:
     return ay_dict
 
 
-def create_ay_fields_in_sg_entities(sg_session: shotgun_api3.Shotgun, sg_entities: list):
+def create_ay_fields_in_sg_entities(
+    sg_session: shotgun_api3.Shotgun,
+    sg_entities: list,
+    custom_attribs_map: list,
+    custom_attribs_types: list
+):
     """Create Ayon fields in Shotgrid entities.
 
     Some fields need to exist in the Shotgrid Entities, mainly the `sg_ayon_id`
@@ -116,8 +134,62 @@ def create_ay_fields_in_sg_entities(sg_session: shotgun_api3.Shotgun, sg_entitie
             }
         )
 
+        # Add custom attributes to entity
+        create_ay_custom_attribs_in_sg_entity(
+            sg_session,
+            sg_entity_type,
+            custom_attribs_map,
+            custom_attribs_types
+        )
 
-def create_ay_fields_in_sg_project(sg_session: shotgun_api3.Shotgun):
+
+def create_ay_custom_attribs_in_sg_entity(
+    sg_session: shotgun_api3.Shotgun,
+    sg_entity_type: str,
+    custom_attribs_map: list,
+    custom_attribs_types: list
+):
+     # Add all the custom attributes
+    for sg_attrib in custom_attribs_map.values():
+
+        data_scope = custom_attribs_types.get(sg_attrib)
+        if not data_scope:
+            continue
+
+        data_type, ent_scope = data_scope
+
+        # TODO: Fix data type being a list
+        data_type = data_type[0]
+
+        # If SG entity type is not in the scope set on the attribute, skip it
+        if sg_entity_type not in ent_scope:
+            continue
+        
+        field_type = AYON_SHOTGRID_ATTRIBUTES_MAP[data_type]["name"]
+
+        # First we simply validate whether the built-in attribute
+        # already exists in the SG entity
+        exists = check_sg_attribute_exists(
+            sg_session,
+            sg_entity_type,
+            sg_attrib,
+        )
+        # If it doesn't exist, we create a custom attribute on the
+        # SG entity by prefixing it with "sg_"
+        if not exists:
+            get_or_create_sg_field(
+                sg_session,
+                sg_entity_type,
+                sg_attrib,
+                field_type
+            )
+
+
+def create_ay_fields_in_sg_project(
+    sg_session: shotgun_api3.Shotgun,
+    custom_attribs_map: list,
+    custom_attribs_types: list
+):
     """Create Ayon Project fields in Shotgrid.
 
     This will create Project Unique attributes into Shotgrid.
@@ -141,6 +213,14 @@ def create_ay_fields_in_sg_project(sg_session: shotgun_api3.Shotgun):
             sg_field_type,
             field_code=sg_field_code,
             field_properties=sg_field_properties
+        )
+
+        # Add custom attributes to project
+        create_ay_custom_attribs_in_sg_entity(
+            sg_session,
+            "Project",
+            custom_attribs_map,
+            custom_attribs_types
         )
 
 
@@ -184,9 +264,10 @@ def create_sg_entities_in_ay(
     project_entity.folder_types = new_folder_types
 
     # Add Shotgrid Statuses to Project Entity
-    for status in get_sg_statuses(sg_session):
-        status_short_name, status_name = status
-        project_entity.statuses.create(status_name, short_name=status_short_name)
+    ay_status_codes = [s.short_name.lower() for s in list(project_entity.statuses)]
+    for status_code, status_name in get_sg_statuses(sg_session).items():
+        if status_code.lower() not in ay_status_codes:
+            project_entity.statuses.create(status_name, short_name=status_code)
 
     # Add Project task types by quering Shotgrid Pipeline steps
     sg_steps = [
@@ -267,29 +348,14 @@ def get_or_create_sg_field(
     Returns:
         attribute_exists (str): The Field name (code).
     """
-    attribute_exists = None
-
     if not field_code:
         field_code = f"sg_{field_name.lower().replace(' ', '_')}"
 
-    try:
-        attribute_exists = sg_session.schema_field_read(
-            sg_entity_type,
-            field_name=field_code
-        )
-        if attribute_exists:
-            logging.debug(
-                f"Shotgrid field {sg_entity_type} > {field_code} exists."
-            )
-            return attribute_exists
-
-    except Exception:
-        # shotgun_api3.shotgun.Fault: API schema_field_read()
-        pass
+    attribute_exists = check_sg_attribute_exists(sg_session, sg_entity_type, field_code)
 
     if not attribute_exists:
         logging.debug(
-            f"Shotgrid field {sg_entity_type} > {field_code} does not exists."
+            f"Shotgrid field {sg_entity_type} > {field_code} does not exist."
         )
 
         try:
@@ -312,12 +378,32 @@ def get_or_create_sg_field(
     return attribute_exists
 
 
+def check_sg_attribute_exists(
+    sg_session: shotgun_api3.Shotgun,
+    sg_entity_type: str,
+    field_code: str,
+) -> bool:
+    """Validate whether given field code exists under that entity"""
+    try:
+        attribute_exists = sg_session.schema_field_read(
+            sg_entity_type,
+            field_name=field_code
+        )
+        return attribute_exists
+    except Exception:
+        # shotgun_api3.shotgun.Fault: API schema_field_read()
+        pass
+    
+    return False
+
+
 def get_sg_entities(
     sg_session: shotgun_api3.Shotgun,
     sg_project: dict,
     sg_enabled_entities: list,
     custom_fields: Optional[list] = None,
     project_code_field: str = None,
+    custom_attribs_map: Optional[dict] = None,
 ) -> tuple[dict, dict]:
     """Get all available entities within a Shotgrid Project.
 
@@ -359,12 +445,14 @@ def get_sg_entities(
     if not project_code_field:
         project_code_field = "code"
 
+    # TODO: Add support to sync versions too
     entities_to_ignore = ["Version"]
 
     entities_by_id = {
         sg_project["id"]: _sg_to_ay_dict(
             sg_project,
-            project_code_field=project_code_field
+            project_code_field=project_code_field,
+            custom_attribs_map=custom_attribs_map,
         ),
     }
 
@@ -377,23 +465,23 @@ def get_sg_entities(
 
         if entity_name in entities_to_ignore:
             continue
-
+        
         sg_entities = sg_session.find(
             entity_name,
             filters=[["project", "is", sg_project]],
             fields=common_fields,
         )
         if sg_entities:
-            for entity in sg_entities:
+            for sg_entity in sg_entities:
                 parent_id = sg_project["id"]
 
-                if parent_field != "project" and entity[parent_field] and entity_name != "Asset":
-                    parent_id = entity[parent_field]["id"]
-                elif entity_name == "Asset" and entity["sg_asset_type"]:
+                if parent_field != "project" and sg_entity[parent_field] and entity_name != "Asset":
+                    parent_id = sg_entity[parent_field]["id"]
+                elif entity_name == "Asset" and sg_entity["sg_asset_type"]:
                     # Asset Caregories (sg_asset_type) are not entities
                     # (or at least arent queryable) in Shotgrid
                     # thus here we create common folders.
-                    asset_category = entity["sg_asset_type"]
+                    asset_category = sg_entity["sg_asset_type"]
                     asset_category_entity = {
                         "label": asset_category,
                         "name": slugify_string(asset_category).lower(),
@@ -415,9 +503,14 @@ def get_sg_entities(
 
                     parent_id = asset_category_entity["name"]
 
-                entity = _sg_to_ay_dict(entity, project_code_field=project_code_field)
-                entities_by_id[entity["attribs"][SHOTGRID_ID_ATTRIB]] = entity
-                entities_by_parent_id[parent_id].append(entity)
+                sg_entity_dict = _sg_to_ay_dict(
+                    sg_entity,
+                    project_code_field=project_code_field,
+                    custom_attribs_map=custom_attribs_map,
+                )
+
+                entities_by_id[sg_entity_dict["attribs"][SHOTGRID_ID_ATTRIB]] = sg_entity_dict
+                entities_by_parent_id[parent_id].append(sg_entity_dict)
 
     return entities_by_id, entities_by_parent_id
 
@@ -429,7 +522,7 @@ def get_sg_entity_as_ay_dict(
     project_code_field: str,
     extra_fields: Optional[list] = None,
     retired_only: Optional[bool] = False,
-    custom_attributes_map: Optional[dict] = None,
+    custom_attribs_map: Optional[dict] = None,
 ) -> dict:
     """Get a Shotgrid entity, and morph it to an Ayon compatible one.
 
@@ -448,6 +541,14 @@ def get_sg_entity_as_ay_dict(
     else:
         extra_fields = []
 
+    # If custom attributes are passed, query each of them
+    # NOTE: we query both with the prefix "sg_" and without
+    # to account for the fact that some attributes are built-in
+    # and some aren't in SG
+    if custom_attribs_map:
+        for sg_attrib in custom_attribs_map.values():
+            query_fields.extend([f"sg_{sg_attrib}", sg_attrib])
+
     if project_code_field not in query_fields:
         query_fields.append(project_code_field)
 
@@ -461,20 +562,20 @@ def get_sg_entity_as_ay_dict(
     if not sg_entity:
         return {}
 
-    new_entity = _sg_to_ay_dict(sg_entity, project_code_field)
+    sg_entity_dict = _sg_to_ay_dict(
+        sg_entity, project_code_field, custom_attribs_map=custom_attribs_map
+    )
 
+    # TODO: add missing sg_status_list?
     for field in extra_fields:
-        if field in ["name", "label", "sg_status_list"]:
+        sg_value = sg_entity.get(field)
+        # If no value in SG entity skip
+        if sg_value is None:
             continue
+        
+        sg_entity_dict["data"][field] = sg_value
 
-        if custom_attributes_map and field in custom_attributes_map.values():
-            for ay_attr, sg_attr in custom_attributes_map.items():
-                if field == sg_attr:
-                    new_entity["attribs"][ay_attr] = sg_entity.get(field)
-        else:
-            new_entity["data"][field] = sg_entity.get(field)
-
-    return new_entity
+    return sg_entity_dict
 
 
 def get_sg_entity_parent_field(
@@ -664,7 +765,10 @@ def get_sg_project_enabled_entities(
     return project_entities
 
 
-def get_sg_statuses(sg_session: shotgun_api3.Shotgun) -> dict:
+def get_sg_statuses(
+    sg_session: shotgun_api3.Shotgun,
+    sg_entity_type: Optional[str] = None
+) -> dict:
     """ Get all Statuses on a Shotgrid project.
 
     Args:
@@ -673,11 +777,20 @@ def get_sg_statuses(sg_session: shotgun_api3.Shotgun) -> dict:
     Returns:
         sg_statuses (list[tuple()]): Shotgrid Project Statuses list of tuples.
     """
-
-    sg_statuses = [
-        (status["code"], status["name"])
+    # If given an entity type, we filter out the statuses by just the ones
+    # supported by that entity
+    # NOTE: this is a limitation in Ayon as the statuses are global and not
+    # per entity
+    if sg_entity_type:
+        entity_status = sg_session.schema_field_read(sg_entity_type, "sg_status_list")
+        sg_statuses = entity_status["sg_status_list"]["properties"]["display_values"]["value"]
+        logging.debug(f"Shotgrid Statuses supported by {sg_entity_type}: {sg_statuses}")
+        return sg_statuses
+    
+    sg_statuses = {
+        status["code"]: status["name"]
         for status in sg_session.find("Status", [], fields=["name", "code"])
-    ]
+    }
     logging.debug(f"Shotgrid Statuses: {sg_statuses}")
     return sg_statuses
 

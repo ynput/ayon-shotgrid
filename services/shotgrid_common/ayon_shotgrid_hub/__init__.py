@@ -68,7 +68,8 @@ class AyonShotgridHub:
         sg_api_key,
         sg_script_name,
         sg_project_code_field=None,
-        custom_attributes_map=None,
+        custom_attribs_map=None,
+        custom_attribs_types=None,
         sg_enabled_entities=None,
     ):
         self.settings = ayon_api.get_service_addon_settings()
@@ -92,20 +93,15 @@ class AyonShotgridHub:
             self.sg_project_code_field = sg_project_code_field
         else:
             self.sg_project_code_field = "code"
-
-        if custom_attributes_map:
-            self.custom_attributes_map = custom_attributes_map
-            self.custom_attributes_map.update({
-                "name": "code",
-                "label": "name",
-                "sg_status_list": "status",
-            })
-        else:
-            self.custom_attributes_map = {
-                "name": "code",
-                "label": "name",
-                "sg_status_list": "status",
-            }
+        self.custom_attribs_map = {
+            "status": "status_list",
+            "tags": "tags"
+        }
+        if custom_attribs_map:
+            self.custom_attribs_map.update(custom_attribs_map)
+        
+        if custom_attribs_types:
+            self.custom_attribs_types = custom_attribs_types
 
         if sg_enabled_entities:
             self.sg_enabled_entities = sg_enabled_entities
@@ -150,8 +146,15 @@ class AyonShotgridHub:
 
     def create_sg_attributes(self):
         """Create all AYON needed attributes in Shotgrid."""
-        create_ay_fields_in_sg_project(self._sg)
-        create_ay_fields_in_sg_entities(self._sg, self.sg_enabled_entities)
+        create_ay_fields_in_sg_project(
+            self._sg, self.custom_attribs_map, self.custom_attribs_types
+        )
+        create_ay_fields_in_sg_entities(
+            self._sg,
+            self.sg_enabled_entities,
+            self.custom_attribs_map,
+            self.custom_attribs_types
+        )
 
     @property
     def project_name(self):
@@ -176,14 +179,19 @@ class AyonShotgridHub:
             logging.warning(f"Project {project_name} does not exist in AYON.")
             self._ay_project = None
 
+        custom_fields = [
+            self.sg_project_code_field,
+            CUST_FIELD_CODE_AUTO_SYNC
+        ]
+        if self.custom_attribs_map:
+            for attrib in self.custom_attribs_map.values():
+                custom_fields.extend([f"sg_{attrib}", attrib])
+
         try:
             self._sg_project = get_sg_project_by_name(
                 self._sg,
                 self.project_name,
-                custom_fields=[
-                    self.sg_project_code_field,
-                    CUST_FIELD_CODE_AUTO_SYNC
-                ]
+                custom_fields=custom_fields
             )
         except Exception as e:
             logging.warning(f"Project {project_name} does not exist in Shotgrid. ")
@@ -212,6 +220,8 @@ class AyonShotgridHub:
             self._ay_project = EntityHub(self.project_name)
             self._ay_project.query_entities_from_server()
 
+            # TODO: add custom attributes on creation
+
         self._ay_project.commit_changes()
 
         if self._sg_project is None:
@@ -236,6 +246,8 @@ class AyonShotgridHub:
                 "Project"
             )
             self._ay_project.commit_changes()
+            
+            # TODO: add custom attributes on creation
 
         self.create_sg_attributes()
         logging.info(f"Project {self.project_name} ({self.project_code}) available in SG and AYON.")
@@ -268,6 +280,7 @@ class AyonShotgridHub:
                         self._sg,
                         self._sg_project,
                         self.sg_enabled_entities,
+                        self.custom_attribs_map
                     )
                 ]
 
@@ -291,6 +304,7 @@ class AyonShotgridHub:
                     self._sg,
                     self.sg_enabled_entities,
                     self.sg_project_code_field,
+                    self.custom_attribs_map
                 )
 
             case "shotgrid":
@@ -308,6 +322,7 @@ class AyonShotgridHub:
                     self._sg,
                     self.sg_enabled_entities,
                     self.sg_project_code_field,
+                    self.custom_attribs_map
                 )
 
             case _:
@@ -337,21 +352,16 @@ class AyonShotgridHub:
                     self._ay_project,
                     self.sg_enabled_entities,
                     self.sg_project_code_field,
+                    self.custom_attribs_map,
                 )
 
             case "attribute_change":
-                if sg_event["attribute_name"] not in self.custom_attributes_map.values():
-                    logging.warning(
-                        f"Updating attribute '{sg_event['attribute_name']}' "
-                        "from SG to Ayon not supported."
-                    )
-                    return
                 update_ayon_entity_from_sg_event(
                     sg_event,
                     self._sg,
                     self._ay_project,
                     self.sg_project_code_field,
-                    self.custom_attributes_map,
+                    self.custom_attribs_map,
                 )
 
             case "entity_retirement":
@@ -392,6 +402,7 @@ class AyonShotgridHub:
                     self._ay_project,
                     self._sg_project,
                     self.sg_enabled_entities,
+                    self.custom_attribs_map,
                 )
 
             case "entity.task.deleted" | "entity.folder.deleted":
@@ -409,17 +420,26 @@ class AyonShotgridHub:
                 )
             case "entity.task.attrib_changed" | "entity.folder.attrib_changed":
                 attrib_key = next(iter(ayon_event["payload"]["newValue"]))
-                if attrib_key not in self.custom_attributes_map:
+                if attrib_key not in self.custom_attribs_map:
                     logging.warning(
                         f"Updating attribute '{attrib_key}' from Ayon to SG "
-                        f"not supported: {self.custom_attributes_map}."
+                        f"not supported: {self.custom_attribs_map}."
                     )
                     return
                 update_sg_entity_from_ayon_event(
                     ayon_event,
                     self._sg,
                     self._ay_project,
-                    self.custom_attributes_map
+                    self.custom_attribs_map,
+                )
+            case "entity.task.status_changed" | "entity.folder.status_changed" | "entity.task.tags_changed" | "entity.folder.tags_changed":
+                # TODO: for some reason the payload here is not a dict but we know
+                # we always want to update the entity
+                update_sg_entity_from_ayon_event(
+                    ayon_event,
+                    self._sg,
+                    self._ay_project,
+                    self.custom_attribs_map,
                 )
             case _:
                 msg = f"Unable to process event {ayon_event['topic']}."

@@ -35,12 +35,18 @@ from constants import (
     SHOTGRID_REMOVED_VALUE
 )
 
-from ayon_api import get_project
-from ayon_api.entity_hub import EntityHub
 from nxtools import logging
 
 
-def create_ay_entity_from_sg_event(sg_event, sg_project, sg_session, ayon_entity_hub, sg_enabled_entites, project_code_field):
+def create_ay_entity_from_sg_event(
+    sg_event,
+    sg_project,
+    sg_session,
+    ayon_entity_hub,
+    sg_enabled_entites,
+    project_code_field,
+    custom_attribs_map=None,
+):
     """Create an AYON entity from a Shotgrid Event.
 
     Args:
@@ -48,6 +54,10 @@ def create_ay_entity_from_sg_event(sg_event, sg_project, sg_session, ayon_entity
         sg_project (dict): The Shotgrid project.
         sg_session (shotgun_api3.Shotgun): The Shotgrid API session.
         ayon_entity_hub (ayon_api.entity_hub.EntityHub): The AYON EntityHub.
+        sg_enabled_entities (list[str]): List of entity strings enabled.
+        project_code_field (str): The Shotgrid project code field.
+        custom_attribs_map (dict): Dictionary that maps a list of attribute names from
+            Ayon to Shotgrid.
 
     Returns:
         ay_entity (ayon_api.entity_hub.EntityHub.Entity): The newly created entity.
@@ -70,15 +80,9 @@ def create_ay_entity_from_sg_event(sg_event, sg_project, sg_session, ayon_entity
         sg_event["entity_id"],
         project_code_field,
         extra_fields=extra_fields,
+        custom_attribs_map=custom_attribs_map,
     )
     logging.debug(f"SG Entity as Ayon dict: {sg_entity_dict}")
-    if not sg_entity_dict:
-        logging.warning(
-            "Entity {sg_event['entity_type']} <{sg_event['entity_id']}> "
-            "no longer exists in Shotgrid, aborting..."
-        )
-        return
-
     if not sg_entity_dict:
         logging.warning(
             "Entity {sg_event['entity_type']} <{sg_event['entity_id']}> "
@@ -106,6 +110,17 @@ def create_ay_entity_from_sg_event(sg_event, sg_project, sg_session, ayon_entity
                     SHOTGRID_TYPE_ATTRIB,
                     sg_entity_dict["type"]
                 )
+            
+            # TODO: Make sure attributes are on sync?
+            # if custom_attribs_map:
+            #     for ay_attr in custom_attribs_map.keys():
+            #         sg_value = sg_entity_dict["data"].get(ay_attr)
+
+            #         # If no value in SG entity skip
+            #         if not sg_value:
+            #             continue
+                    
+            #         ay_entity.attribs.set(ay_attr, sg_value)
 
             return ay_entity
 
@@ -129,7 +144,7 @@ def create_ay_entity_from_sg_event(sg_event, sg_project, sg_session, ayon_entity
                 sg_session,
                 sg_entity_dict["data"][sg_parent_field]["type"],
                 sg_entity_dict["data"][sg_parent_field]["id"],
-                project_code_field
+                project_code_field,
             )
 
             logging.debug(f"SG Parent entity: {sg_parent_entity_dict}")
@@ -149,7 +164,8 @@ def create_ay_entity_from_sg_event(sg_event, sg_project, sg_session, ayon_entity
             name=sg_entity_dict["name"],
             label=sg_entity_dict["label"],
             entity_id=sg_entity_dict["data"][CUST_FIELD_CODE_ID],
-            parent_id=ay_parent_entity.id
+            parent_id=ay_parent_entity.id,
+            attribs=sg_entity_dict["attribs"]
         )
     else:
         ay_entity = ayon_entity_hub.add_new_folder(
@@ -157,7 +173,8 @@ def create_ay_entity_from_sg_event(sg_event, sg_project, sg_session, ayon_entity
             name=sg_entity_dict["name"],
             label=sg_entity_dict["label"],
             entity_id=sg_entity_dict["data"][CUST_FIELD_CODE_ID],
-            parent_id=ay_parent_entity.id
+            parent_id=ay_parent_entity.id,
+            attribs=sg_entity_dict["attribs"]
         )
 
     logging.debug(f"Created new AYON entity: {ay_entity}")
@@ -192,7 +209,7 @@ def update_ayon_entity_from_sg_event(
     sg_session,
     ayon_entity_hub,
     project_code_field,
-    ayon_sg_attribute_map
+    custom_attribs_map
 ):
     """Try to update an entity in Ayon.
 
@@ -200,6 +217,8 @@ def update_ayon_entity_from_sg_event(
         sg_event (dict): The `meta` key from a Shotgrid Event.
         sg_session (shotgun_api3.Shotgun): The Shotgrid API session.
         ayon_entity_hub (ayon_api.entity_hub.EntityHub): The AYON EntityHub.
+        project_code_field (str): The Shotgrid project code field.
+        custom_attribs_map (dict): Dictionary of extra attributes to store in the SG entity.
 
     Returns:
         ay_entity (ayon_api.entity_hub.EntityHub.Entity): The modified entity.
@@ -210,8 +229,7 @@ def update_ayon_entity_from_sg_event(
         sg_event["entity_type"],
         sg_event["entity_id"],
         project_code_field,
-        extra_fields=list(ayon_sg_attribute_map.values()),
-        custom_attributes_map=ayon_sg_attribute_map
+        custom_attribs_map=custom_attribs_map
     )
 
     if not sg_entity_dict["data"].get(CUST_FIELD_CODE_ID):
@@ -232,21 +250,27 @@ def update_ayon_entity_from_sg_event(
         logging.error("Mismatching Shotgrid IDs, aborting...")
         raise ValueError("Mismatching Shotgrid IDs, aborting...")
 
+    logging.debug("Updating Ayon entity with '%s'" % sg_entity_dict)
     ay_entity.name = sg_entity_dict["name"]
     ay_entity.label = sg_entity_dict["label"]
-    ay_entity.status = sg_entity_dict["attribs"]["sg_status_list"]
+    # TODO: this is not updating the status!
+    ay_entity.status = sg_entity_dict["status"]
 
     for attr, attr_value in sg_entity_dict["attribs"].items():
-        if attr in ["name", "label", "sg_status_list"]:
+        if attr in ["status"]:
             continue
+
+        # TODO: add support for tags
+        if attr == "tags":
+            continue
+
         ay_attr = next(
             (
-                ay_attr for ay_attr, _ in ayon_sg_attribute_map.items()
+                ay_attr for ay_attr in custom_attribs_map.keys()
                 if ay_attr == attr
             ),
             None
         )
-
         if ay_attr:
             logging.info(
                 f"Setting attribute {ay_attr} with value {attr_value}")

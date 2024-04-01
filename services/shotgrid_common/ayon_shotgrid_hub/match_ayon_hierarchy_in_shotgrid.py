@@ -10,7 +10,8 @@ from constants import (
 from utils import (
     get_sg_entities,
     get_sg_entity_parent_field,
-    get_sg_entity_as_ay_dict
+    get_sg_entity_as_ay_dict,
+    check_sg_attribute_exists
 )
 
 from nxtools import logging, log_traceback
@@ -21,7 +22,8 @@ def match_ayon_hierarchy_in_shotgrid(
     sg_project,
     sg_session,
     sg_enabled_entities,
-    project_code_field
+    project_code_field,
+    custom_attribs_map=None,
 ):
     """Replicate an AYON project into Shotgrid.
 
@@ -39,12 +41,21 @@ def match_ayon_hierarchy_in_shotgrid(
     logging.info("Getting AYON entities.")
     entity_hub.query_entities_from_server()
 
+    custom_fields = []
+    if custom_attribs_map:
+        custom_fields = [
+            custom_fields.extend(f"sg_{sg_attrib}", sg_attrib)
+            for sg_attrib in custom_attribs_map.values()
+        ]
+
     logging.info("Getting Shotgrid entities.")
     sg_entities_by_id, sg_entities_by_parent_id = get_sg_entities(
         sg_session,
         sg_project,
         sg_enabled_entities,
-        project_code_field=project_code_field
+        custom_fields=custom_fields,
+        project_code_field=project_code_field,
+        custom_attribs_map=custom_attribs_map,
     )
 
     ay_entities_deck = collections.deque()
@@ -53,7 +64,10 @@ def match_ayon_hierarchy_in_shotgrid(
     # Append the project's direct children.
     for ay_project_child in entity_hub._entities_by_parent_id[entity_hub.project_name]:
         ay_entities_deck.append((
-            get_sg_entity_as_ay_dict(sg_session, "Project", sg_project["id"], project_code_field),
+            get_sg_entity_as_ay_dict(
+                sg_session, "Project", sg_project["id"], project_code_field,
+                custom_attribs_map=custom_attribs_map
+            ),
             ay_project_child
         ))
 
@@ -77,6 +91,8 @@ def match_ayon_hierarchy_in_shotgrid(
                     sg_entity = sg_entities_by_id[sg_entity_id]
                     logging.info(f"Entity already exists in Shotgrid {sg_entity}")
 
+                    # TODO: check and update custom attributes?
+
                     if sg_entity["data"][CUST_FIELD_CODE_ID] != ay_entity.id:
                         logging.error("Shotgrid record for AYON id does not match...")
                         try:
@@ -97,17 +113,18 @@ def match_ayon_hierarchy_in_shotgrid(
                     ay_parent_entity["attribs"][SHOTGRID_TYPE_ATTRIB],
                     filters=[["id", "is", ay_parent_entity["attribs"][SHOTGRID_ID_ATTRIB]]]
                 )
-                sg_entity = _create_new_entity(
+                sg_entity_dict = _create_new_entity(
                     ay_entity,
                     sg_session,
                     sg_project,
                     sg_parent_entity,
                     sg_enabled_entities,
-                    project_code_field
+                    project_code_field,
+                    custom_attribs_map,
                 )
-                sg_entity_id = sg_entity["attribs"][SHOTGRID_ID_ATTRIB]
-                sg_entities_by_id[sg_entity_id] = sg_entity
-                sg_entities_by_parent_id[sg_parent_entity["id"]].append(sg_entity)
+                sg_entity_id = sg_entity_dict["attribs"][SHOTGRID_ID_ATTRIB]
+                sg_entities_by_id[sg_entity_id] = sg_entity_dict
+                sg_entities_by_parent_id[sg_parent_entity["id"]].append(sg_entity_dict)
 
             ay_entity.attribs.set(
                 SHOTGRID_ID_ATTRIB,
@@ -115,16 +132,16 @@ def match_ayon_hierarchy_in_shotgrid(
             )
             ay_entity.attribs.set(
                 SHOTGRID_TYPE_ATTRIB,
-                sg_entity["type"]
+                sg_entity_dict["type"]
             )
             entity_hub.commit_changes()
 
-        if sg_entity is None:
+        if sg_entity_dict is None:
             # Shotgrid doesn't have the concept of "Folders"
-            sg_entity = ay_parent_entity
+            sg_entity_dict = ay_parent_entity
 
         for ay_entity_child in entity_hub._entities_by_parent_id.get(ay_entity.id, []):
-            ay_entities_deck.append((sg_entity, ay_entity_child))
+            ay_entities_deck.append((sg_entity_dict, ay_entity_child))
 
     sg_session.update(
         "Project",
@@ -146,12 +163,25 @@ def match_ayon_hierarchy_in_shotgrid(
     )
 
 
-def _create_new_entity(ay_entity, sg_session, sg_project, sg_parent_entity, sg_enabled_entities, project_code_field):
+def _create_new_entity(
+    ay_entity,
+    sg_session,
+    sg_project,
+    sg_parent_entity,
+    sg_enabled_entities,
+    project_code_field,
+    custom_attribs_map=None,
+):
     """Helper method to create entities in Shotgrid.
 
     Args:
-        parent_entity: Ayon parent entity.
-        ay_entity (dict): Shotgrid entity to create.
+        sg_session (shotgun_api3.Shotgun): The Shotgrid API session.
+        ay_entity (dict): The AYON entity.
+        sg_project (dict): The Shotgrid Project.
+        sg_type (str): The Shotgrid type of the new entity.
+        sg_enabled_entities (list): List of Shotgrid entities to be enabled.
+        project_code_field (str): The Shotgrid project code field.
+        custom_attribs_map (dict): Dictionary of extra attributes to store in the SG entity.
     """
 
     if ay_entity.entity_type == "task":
@@ -172,52 +202,67 @@ def _create_new_entity(ay_entity, sg_session, sg_project, sg_parent_entity, sg_e
                 f"-> Shotgrid is missing Pipeline Step {ay_entity.task_type}"
             )
 
-        new_entity = sg_session.create(
-            "Task",
-            {
-                "project": sg_project,
-                "content": ay_entity.label,
-                CUST_FIELD_CODE_ID: ay_entity.id,
-                CUST_FIELD_CODE_SYNC: "Synced",
-                "entity": sg_parent_entity,
-                "step": task_step,
-            }
-        )
+        sg_type = "Task"
+        data = {
+            "project": sg_project,
+            "content": ay_entity.label,
+            CUST_FIELD_CODE_ID: ay_entity.id,
+            CUST_FIELD_CODE_SYNC: "Synced",
+            "entity": sg_parent_entity,
+            "step": task_step,
+        }
     else:
         sg_parent_field = get_sg_entity_parent_field(
             sg_session, sg_project, ay_entity.folder_type, sg_enabled_entities)
 
-        if (
-            sg_parent_field == "project"
-            or sg_parent_entity["type"] == "Project"
-        ):
-            new_entity = sg_session.create(
-                ay_entity.folder_type,
-                {
-                    "project": sg_project,
-                    "code": ay_entity.name,
-                    CUST_FIELD_CODE_ID: ay_entity.id,
-                    CUST_FIELD_CODE_SYNC: "Synced",
-                }
-            )
-        else:
-            new_entity = sg_session.create(
-                ay_entity.folder_type,
-                {
-                    "project": sg_project,
-                    "code": ay_entity.name,
-                    CUST_FIELD_CODE_ID: ay_entity.id,
-                    CUST_FIELD_CODE_SYNC: "Synced",
-                    sg_parent_field: sg_parent_entity,
-                }
-            )
+        sg_type = ay_entity.folder_type
+        data = {
+            "project": sg_project,
+            "code": ay_entity.name,
+            CUST_FIELD_CODE_ID: ay_entity.id,
+            CUST_FIELD_CODE_SYNC: "Synced",
+        }
+        # If parent field is different than project, add parent field to
+        # data
+        # NOTE: why?
+        if (sg_parent_field != "project" and sg_parent_entity["type"] != "Project"):
+            data[sg_parent_field] = sg_parent_entity
 
-    logging.debug(f"Created new entity: {new_entity}")
+
+    # Fill up data with any extra attributes from Ayon we want to sync to SG
+    if custom_attribs_map:
+        for ayon_attrib, sg_attrib in custom_attribs_map.items():
+            attrib_value = ay_entity.attribs.get(ayon_attrib)
+            if not attrib_value:
+                logging.debug(
+                    f"Couldn't find value for '{ayon_attrib}' in entity '{ay_entity.name}'"
+                )
+                continue
+
+            exists = check_sg_attribute_exists(sg_session, sg_type, sg_attrib)
+            if not exists:
+                sg_attrib = f"sg_{sg_attrib}"
+                exists = check_sg_attribute_exists(sg_session, sg_type, sg_attrib)
+            
+            if exists:
+                data[sg_attrib] = attrib_value
+
+    try:
+        sg_entity = sg_session.create(sg_type, data)
+    except Exception as e:
+        logging.error(
+            f"Unable to create SG entity {sg_type} with data: {data}")
+        log_traceback(e)
+        raise e
+    
+    logging.debug(f"Created new entity: {sg_entity}")
     logging.debug(f"Parent is: {sg_parent_entity}")
-    new_entity = get_sg_entity_as_ay_dict(
+
+    sg_entity_dict = get_sg_entity_as_ay_dict(
         sg_session,
-        new_entity["type"],
-        new_entity["id"],
-        project_code_field
+        sg_entity["type"],
+        sg_entity["id"],
+        project_code_field,
+        custom_attribs_map=custom_attribs_map
     )
-    return new_entity
+    return sg_entity_dict

@@ -2,7 +2,9 @@
 """
 
 from utils import (
-    get_sg_entity_parent_field
+    get_sg_entity_parent_field,
+    check_sg_attribute_exists,
+    get_sg_statuses
 )
 from constants import (
     CUST_FIELD_CODE_ID,  # Shotgrid Field for the Ayon ID.
@@ -19,6 +21,7 @@ def create_sg_entity_from_ayon_event(
     ayon_entity_hub,
     sg_project,
     sg_enabled_entities,
+    custom_attribs_map=None,
 ):
     """Create a Shotgrid entity from an AYON event.
 
@@ -28,6 +31,8 @@ def create_sg_entity_from_ayon_event(
         ayon_entity_hub (ayon_api.entity_hub.EntityHub): The AYON EntityHub.
         sg_project (dict): The Shotgrid project.
         sg_enabled_entities (list): List of Shotgrid entities to be enabled.
+        custom_attribs_map (dict): Dictionary that maps a list of attribute names from
+            Ayon to Shotgrid.
 
     Returns:
         ay_entity (ayon_api.entity_hub.EntityHub.Entity): The newly
@@ -73,6 +78,7 @@ def create_sg_entity_from_ayon_event(
             sg_project,
             sg_type,
             sg_enabled_entities,
+            custom_attribs_map,
         )
         logging.info(f"Created Shotgrid entity: {sg_entity}")
 
@@ -94,7 +100,7 @@ def update_sg_entity_from_ayon_event(
     ayon_event,
     sg_session,
     ayon_entity_hub,
-    custom_attribs_map=None
+    custom_attribs_map=None,
 ):
     """Try to update a Shotgrid entity from an AYON event.
 
@@ -136,12 +142,40 @@ def update_sg_entity_from_ayon_event(
         # Add any possible new values to update
         if custom_attribs_map:
             new_attribs = ayon_event["payload"].get("newValue", {})
-            for key, value in new_attribs.items():
-                if key not in custom_attribs_map or not value:
-                    logging.warning(f"Attribute {key} not supported in SG")
+            # If payload newValue is not a dict it means is a status update
+            if not isinstance(new_attribs, dict):
+                if ayon_event["topic"].endswith("status_changed"):
+                    sg_statuses = get_sg_statuses(sg_session, sg_type)
+                    for sg_status_code, sg_status_name in sg_statuses.items():
+                        if new_attribs.lower() == sg_status_name.lower():
+                            new_attribs = {"status": sg_status_code}
+                            break
+                    else:
+                        logging.error(
+                            f"Unable to update '{sg_type}' with status "
+                            f"'{new_attribs}' in Shotgrid as it's not compatible! "
+                            f"It should be one of: {sg_statuses}"
+                        )
+                        return
+
+                elif ayon_event["topic"].endswith("tags_changed"):
+                    new_attribs = {"tags": new_attribs}
+                else:
+                    new_attribs = {}
+
+            for new_attrib_name, new_attrib_value in new_attribs.items():
+                if new_attrib_name not in custom_attribs_map:
+                    logging.warning(f"Attribute {new_attrib_name} not supported in SG")
                     continue
-                sg_key = custom_attribs_map[key]
-                dict_to_update[sg_key] = value
+
+                sg_attrib = custom_attribs_map.get(new_attrib_name)
+                exists = check_sg_attribute_exists(sg_session, sg_type, sg_attrib)
+                if not exists:
+                    sg_attrib = f"sg_{sg_attrib}"
+                    exists = check_sg_attribute_exists(sg_session, sg_type, sg_attrib)
+                
+                if exists:
+                    dict_to_update[sg_attrib] = new_attrib_value
 
         sg_entity = sg_session.update(
             sg_type,
@@ -212,6 +246,7 @@ def _create_sg_entity(
     sg_project,
     sg_type,
     sg_enabled_entities,
+    custom_attribs_map=None,
 ):
     """ Create a new Shotgrid entity.
 
@@ -221,6 +256,7 @@ def _create_sg_entity(
         sg_project (dict): The Shotgrid Project.
         sg_type (str): The Shotgrid type of the new entity.
         sg_enabled_entities (list): List of Shotgrid entities to be enabled.
+        custom_attribs_map (dict): Dictionary of extra attributes to store in the SG entity.
     """
     sg_field_name = "code"
     sg_step = None
@@ -288,6 +324,21 @@ def _create_sg_entity(
                 sg_field_name: ay_entity.name,
                 CUST_FIELD_CODE_ID: ay_entity.id,
             }
+
+    # Fill up data with any extra attributes from Ayon we want to sync to SG
+    if custom_attribs_map:
+        for ay_attrib, sg_attrib in custom_attribs_map.items():
+            attrib_value = ay_entity.attribs.get(ay_attrib)
+            if attrib_value is None:
+                continue
+
+            exists = check_sg_attribute_exists(sg_session, sg_type, sg_attrib)
+            if not exists:
+                sg_attrib = f"sg_{sg_attrib}"
+                exists = check_sg_attribute_exists(sg_session, sg_type, sg_attrib)
+            
+            if exists:
+                data[sg_attrib] = attrib_value
 
     logging.debug(f"Creating Shotgrid entity {sg_type} with data: {data}")
 
