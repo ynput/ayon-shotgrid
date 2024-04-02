@@ -48,7 +48,7 @@ class AyonShotgridHub:
     """A Hub to manage a Project in both AYON and Shotgrid
 
     Provided a correct project name and code, we attempt to initialize both APIs
-    and ensures that both platforms have the required elements to syncronize a
+    and ensures that both platforms have the required elements to synchronize a
     project across them.
 
     The Shotgrid credentials must have enough permissions to add fields to
@@ -240,7 +240,7 @@ class AyonShotgridHub:
         self.create_sg_attributes()
         logging.info(f"Project {self.project_name} ({self.project_code}) available in SG and AYON.")
 
-    def syncronize_projects(self, source="ayon"):
+    def synchronize_projects(self, source="ayon"):
         """ Ensure a Project matches in the other platform.
 
         Args:
@@ -341,7 +341,10 @@ class AyonShotgridHub:
 
             case "attribute_change":
                 if sg_event["attribute_name"] not in self.custom_attributes_map.values():
-                    logging.warning("Can't handle this attribute.")
+                    logging.warning(
+                        f"Updating attribute '{sg_event['attribute_name']}' "
+                        "from SG to Ayon not supported."
+                    )
                     return
                 update_ayon_entity_from_sg_event(
                     sg_event,

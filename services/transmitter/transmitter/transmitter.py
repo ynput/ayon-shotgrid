@@ -41,22 +41,24 @@ class ShotgridTransmitter:
             self.ayon_service_user = \
                 self.settings["service_settings"]["ayon_service_user"]
 
+            # Compatibility settings
+            custom_attributes_map = self.settings["compatibility_settings"][
+                "custom_attributes_map"]
+            self.custom_attributes_map = {
+                attr["ayon"]: attr["sg"]
+                for attr in custom_attributes_map
+                if attr["sg"]
+            }
+            self.sg_enabled_entities = (
+                self.settings["compatibility_settings"]
+                             ["shotgrid_enabled_entities"])
+
             try:
                 self.sg_polling_frequency = int(
                     self.settings["service_settings"]["polling_frequency"]
                 )
             except Exception:
                 self.sg_polling_frequency = 10
-
-            self.sg_enabled_entities = (
-                self.settings["compatibility_settings"]
-                             ["shotgrid_enabled_entities"])
-
-            self.custom_attributes_map = {
-                attr["ayon"]: attr["sg"]
-                for attr in self.settings["compatibility_settings"]["custom_attributes_map"]
-                if attr["sg"]
-            }
 
         except Exception as e:
             logging.error("Unable to get Addon settings from the server.")
@@ -178,4 +180,3 @@ class ShotgridTransmitter:
                     event["id"], project_name=project_name, status="failed")
 
             time.sleep(self.sg_polling_frequency)
-

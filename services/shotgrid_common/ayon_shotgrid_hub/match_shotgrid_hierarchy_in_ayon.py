@@ -1,5 +1,7 @@
 import collections
 
+from ayon_api import slugify_string
+
 from constants import (
     CUST_FIELD_CODE_ID,
     CUST_FIELD_CODE_SYNC,
@@ -54,11 +56,21 @@ def match_shotgrid_hierarchy_in_ayon(
         ay_id = sg_entity["data"].get(CUST_FIELD_CODE_ID)
 
         if ay_id:
-            ay_entity = entity_hub.get_or_query_entity_by_id(ay_id, [sg_entity["type"]])
+            ay_entity = entity_hub.get_or_query_entity_by_id(
+                ay_id, [sg_entity["type"]])
+
+        # If we haven't found the ay_entity by its id, check by its name
+        # to avoid creating duplicates and erroring out
+        if ay_entity is None:
+            name = slugify_string(sg_entity["name"])
+            for child in ay_parent_entity.children:
+                if child.name.lower() == name.lower():
+                    ay_entity = child
+                    break
 
         # If we couldn't find it we create it.
         if ay_entity is None:
-            if sg_entity["attribs"].get(SHOTGRID_TYPE_ATTRIB) == "AssetCategory":
+            if sg_entity["attribs"].get(SHOTGRID_TYPE_ATTRIB) == "AssetCategory":  # noqa
                 ay_entity = get_asset_category(
                     entity_hub,
                     ay_parent_entity,
@@ -81,15 +93,15 @@ def match_shotgrid_hierarchy_in_ayon(
                 SHOTGRID_ID_ATTRIB
             ).value
 
-            if ay_shotgrid_id_attrib != str(sg_entity["attribs"][SHOTGRID_ID_ATTRIB]):
+            if ay_shotgrid_id_attrib != str(sg_entity["attribs"][SHOTGRID_ID_ATTRIB]): # noqa
                 logging.error(
-                    f"The AYON entity {ay_entity.name} <{ay_entity.id}> has the "
-                    f"ShotgridId {ay_shotgrid_id_attrib}, while the Shotgrid ID "
+                    f"The AYON entity {ay_entity.name} <{ay_entity.id}> has the "  # noqa
+                    f"ShotgridId {ay_shotgrid_id_attrib}, while the Shotgrid ID "  # noqa
                     f"should be {sg_entity['attribs'][SHOTGRID_ID_ATTRIB]}"
                 )
                 sg_entity_sync_status = "Failed"
                 sg_project_sync_status = "Failed"
-                # TODO: How to deal with mismatches?
+                continue
 
         # Update SG entity with new created data
         sg_entity["data"][CUST_FIELD_CODE_ID] = ay_entity.id
@@ -97,14 +109,15 @@ def match_shotgrid_hierarchy_in_ayon(
 
         entity_id = sg_entity["name"]
 
-        if sg_entity["attribs"][SHOTGRID_TYPE_ATTRIB] not in ["Folder", "AssetCategory"]:
+        if sg_entity["attribs"][SHOTGRID_TYPE_ATTRIB] not in [
+                "Folder", "AssetCategory"]:
             if (
                 sg_entity["data"][CUST_FIELD_CODE_ID] != ay_entity.id
-                or sg_entity["data"][CUST_FIELD_CODE_SYNC] != sg_entity_sync_status
+                or sg_entity["data"][CUST_FIELD_CODE_SYNC] != sg_entity_sync_status  # noqa
             ):
                 update_data = {
                     CUST_FIELD_CODE_ID: ay_entity.id,
-                    CUST_FIELD_CODE_SYNC: sg_entity["data"][CUST_FIELD_CODE_SYNC]
+                    CUST_FIELD_CODE_SYNC: sg_entity["data"][CUST_FIELD_CODE_SYNC]  # noqa
                 }
                 sg_session.update(
                     sg_entity["attribs"][SHOTGRID_TYPE_ATTRIB],
@@ -187,5 +200,3 @@ def _create_new_entity(entity_hub, parent_entity, sg_entity):
     logging.debug(f"Created new entity: {new_entity.name} ({new_entity.id})")
     logging.debug(f"Parent is: {parent_entity.name} ({parent_entity.id})")
     return new_entity
-
-

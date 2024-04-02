@@ -14,7 +14,7 @@ def process_event(
     sg_processor,
     **kwargs,
 ):
-    """Syncronize a project between AYON and Shotgrid.
+    """Synchronize a project between AYON and Shotgrid.
 
     Events with the action `sync-from-shotgrid` or `sync-from-ayon` will trigger
     this function, where we travees a whole project, either in Shotgrid or AYON,
@@ -33,7 +33,7 @@ def process_event(
 
     # This will ensure that the project exists in both platforms.
     hub.create_project()
-    hub.syncronize_projects(
+    hub.synchronize_projects(
         source="ayon" if kwargs.get("action") == "sync-from-ayon" else "shotgrid"
     )
 

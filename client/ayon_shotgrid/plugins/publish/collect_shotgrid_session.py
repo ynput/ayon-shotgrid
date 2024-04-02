@@ -11,10 +11,10 @@ class CollectShotgridSession(pyblish.api.ContextPlugin):
     label = "Collecting Shotgrid session"
 
     def process(self, context):
-        user_login = os.getenv("AYON_SG_USERNAME")
+        user_login = os.getenv("AYON_SG_USERNAME") or os.getenv("USER")
         if not user_login:
             raise KnownPublishError(
-                "Have you logged in into Ayon Tray > Shotgrid?"
+                "User not found in environment, make sure it's set."
             )
 
         shotgrid_module = context.data["openPypeModules"]["shotgrid"]
@@ -54,4 +54,3 @@ class CollectShotgridSession(pyblish.api.ContextPlugin):
             local_storage_key = shotgrid_module.get_local_storage_key()
             self.log.info(f"Using local storage entry {local_storage_key}")
             context.data["shotgridLocalStorageKey"] = local_storage_key
-        

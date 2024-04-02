@@ -250,13 +250,15 @@ def update_ayon_entity_from_sg_event(
             continue
         ay_attr = next(
             (
-                ay_attr for ay_attr, sg_attr in ayon_sg_attribute_map.items()
-                if sg_attr == attr
+                ay_attr for ay_attr, _ in ayon_sg_attribute_map.items()
+                if ay_attr == attr
             ),
             None
         )
 
         if ay_attr:
+            logging.info(
+                f"Setting attribute {ay_attr} with value {attr_value}")
             ay_entity.attribs.set(ay_attr, attr_value)
 
     ayon_entity_hub.commit_changes()
