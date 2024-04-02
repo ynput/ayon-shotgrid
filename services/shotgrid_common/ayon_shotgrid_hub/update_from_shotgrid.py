@@ -26,7 +26,8 @@ And most of the times it fetches the SG entity as an Ayon dict like:
 from utils import (
     get_asset_category,
     get_sg_entity_as_ay_dict,
-    get_sg_entity_parent_field
+    get_sg_entity_parent_field,
+    update_ay_entity_custom_attributes,
 )
 from constants import (
     CUST_FIELD_CODE_ID,  # Shotgrid Field for the Ayon ID.
@@ -74,33 +75,33 @@ def create_ay_entity_from_sg_event(
         extra_fields.append("sg_asset_type")
         sg_parent_field = "sg_asset_type"
 
-    sg_entity_dict = get_sg_entity_as_ay_dict(
+    sg_ay_dict = get_sg_entity_as_ay_dict(
         sg_session,
         sg_event["entity_type"],
         sg_event["entity_id"],
         project_code_field,
-        extra_fields=extra_fields,
         custom_attribs_map=custom_attribs_map,
+        extra_fields=extra_fields,
     )
-    logging.debug(f"SG Entity as Ayon dict: {sg_entity_dict}")
-    if not sg_entity_dict:
+    logging.debug(f"SG Entity as Ayon dict: {sg_ay_dict}")
+    if not sg_ay_dict:
         logging.warning(
             "Entity {sg_event['entity_type']} <{sg_event['entity_id']}> "
             "no longer exists in Shotgrid, aborting..."
         )
         return
 
-    if sg_entity_dict["data"].get(CUST_FIELD_CODE_ID):
+    if sg_ay_dict["data"].get(CUST_FIELD_CODE_ID):
         # Revived entity, check if it's still in the Server
         ay_entity = ayon_entity_hub.get_or_query_entity_by_id(
-            sg_entity_dict["data"].get(CUST_FIELD_CODE_ID),
-            [sg_entity_dict["type"]]
+            sg_ay_dict["data"].get(CUST_FIELD_CODE_ID),
+            [sg_ay_dict["type"]]
         )
 
         if ay_entity:
-            logging.debug(f"SG Entity exists in AYON.")
+            logging.debug("SG Entity exists in AYON.")
             # Ensure Ayon Entity has the correct Shotgrid ID
-            ay_shotgrid_id = sg_entity_dict["attribs"].get(SHOTGRID_ID_ATTRIB, "")
+            ay_shotgrid_id = sg_ay_dict["attribs"].get(SHOTGRID_ID_ATTRIB, "")
             if ay_entity.attribs.get_attribute(SHOTGRID_ID_ATTRIB).value != str(ay_shotgrid_id):
                 ay_entity.attribs.set(
                     SHOTGRID_ID_ATTRIB,
@@ -108,42 +109,35 @@ def create_ay_entity_from_sg_event(
                 )
                 ay_entity.attribs.set(
                     SHOTGRID_TYPE_ATTRIB,
-                    sg_entity_dict["type"]
+                    sg_ay_dict["type"]
                 )
             
-            # TODO: Make sure attributes are on sync?
-            # if custom_attribs_map:
-            #     for ay_attr in custom_attribs_map.keys():
-            #         sg_value = sg_entity_dict["data"].get(ay_attr)
-
-            #         # If no value in SG entity skip
-            #         if not sg_value:
-            #             continue
-                    
-            #         ay_entity.attribs.set(ay_attr, sg_value)
+            update_ay_entity_custom_attributes(
+                ay_entity, sg_ay_dict, custom_attribs_map
+            )
 
             return ay_entity
 
-    if sg_entity_dict["data"][sg_parent_field] is None:
+    if sg_ay_dict["data"][sg_parent_field] is None:
         # Parent is the project
         logging.debug(f"SG Parent is the Project: {sg_project}")
         ay_parent_entity = ayon_entity_hub.project_entity
     else:
-        if sg_entity_dict["attribs"][SHOTGRID_TYPE_ATTRIB] == "Asset" and sg_entity_dict["data"].get("sg_asset_type"):
+        if sg_ay_dict["attribs"][SHOTGRID_TYPE_ATTRIB] == "Asset" and sg_ay_dict["data"].get("sg_asset_type"):
             logging.debug(f"SG Parent is an Asset category.")
 
             ay_parent_entity = get_asset_category(
                 ayon_entity_hub,
                 ayon_entity_hub.project_entity,
-                sg_entity_dict.get("sg_asset_type").lower()
+                sg_ay_dict.get("sg_asset_type").lower()
             )
 
         else:
             # Find parent entity ID
             sg_parent_entity_dict = get_sg_entity_as_ay_dict(
                 sg_session,
-                sg_entity_dict["data"][sg_parent_field]["type"],
-                sg_entity_dict["data"][sg_parent_field]["id"],
+                sg_ay_dict["data"][sg_parent_field]["type"],
+                sg_ay_dict["data"][sg_parent_field]["id"],
                 project_code_field,
             )
 
@@ -158,41 +152,41 @@ def create_ay_entity_from_sg_event(
         # happen before this... but hey
         raise ValueError("Parent does not exist in Ayon, try doing a Project Sync.")
 
-    if sg_entity_dict["type"].lower() == "task":
+    if sg_ay_dict["type"].lower() == "task":
         ay_entity = ayon_entity_hub.add_new_task(
-            sg_entity_dict["task_type"],
-            name=sg_entity_dict["name"],
-            label=sg_entity_dict["label"],
-            entity_id=sg_entity_dict["data"][CUST_FIELD_CODE_ID],
+            sg_ay_dict["task_type"],
+            name=sg_ay_dict["name"],
+            label=sg_ay_dict["label"],
+            entity_id=sg_ay_dict["data"][CUST_FIELD_CODE_ID],
             parent_id=ay_parent_entity.id,
-            attribs=sg_entity_dict["attribs"]
+            attribs=sg_ay_dict["attribs"]
         )
     else:
         ay_entity = ayon_entity_hub.add_new_folder(
-            sg_entity_dict["folder_type"],
-            name=sg_entity_dict["name"],
-            label=sg_entity_dict["label"],
-            entity_id=sg_entity_dict["data"][CUST_FIELD_CODE_ID],
+            sg_ay_dict["folder_type"],
+            name=sg_ay_dict["name"],
+            label=sg_ay_dict["label"],
+            entity_id=sg_ay_dict["data"][CUST_FIELD_CODE_ID],
             parent_id=ay_parent_entity.id,
-            attribs=sg_entity_dict["attribs"]
+            attribs=sg_ay_dict["attribs"]
         )
 
     logging.debug(f"Created new AYON entity: {ay_entity}")
     ay_entity.attribs.set(
         SHOTGRID_ID_ATTRIB,
-        sg_entity_dict["attribs"].get(SHOTGRID_ID_ATTRIB, "")
+        sg_ay_dict["attribs"].get(SHOTGRID_ID_ATTRIB, "")
     )
     ay_entity.attribs.set(
         SHOTGRID_TYPE_ATTRIB,
-        sg_entity_dict["attribs"].get(SHOTGRID_TYPE_ATTRIB, "")
+        sg_ay_dict["attribs"].get(SHOTGRID_TYPE_ATTRIB, "")
     )
 
     try:
         ayon_entity_hub.commit_changes()
 
         sg_session.update(
-            sg_entity_dict["attribs"][SHOTGRID_TYPE_ATTRIB],
-            sg_entity_dict["attribs"][SHOTGRID_ID_ATTRIB],
+            sg_ay_dict["attribs"][SHOTGRID_TYPE_ATTRIB],
+            sg_ay_dict["attribs"][SHOTGRID_ID_ATTRIB],
             {
                 CUST_FIELD_CODE_ID: ay_entity.id
             }
@@ -224,7 +218,7 @@ def update_ayon_entity_from_sg_event(
         ay_entity (ayon_api.entity_hub.EntityHub.Entity): The modified entity.
 
     """
-    sg_entity_dict = get_sg_entity_as_ay_dict(
+    sg_ay_dict = get_sg_entity_as_ay_dict(
         sg_session,
         sg_event["entity_type"],
         sg_event["entity_id"],
@@ -232,12 +226,12 @@ def update_ayon_entity_from_sg_event(
         custom_attribs_map=custom_attribs_map
     )
 
-    if not sg_entity_dict["data"].get(CUST_FIELD_CODE_ID):
+    if not sg_ay_dict["data"].get(CUST_FIELD_CODE_ID):
         logging.warning("Shotgrid Missing Ayon ID")
 
     ay_entity = ayon_entity_hub.get_or_query_entity_by_id(
-        sg_entity_dict["data"].get(CUST_FIELD_CODE_ID),
-        [sg_entity_dict["type"]]
+        sg_ay_dict["data"].get(CUST_FIELD_CODE_ID),
+        [sg_ay_dict["type"]]
     )
 
     if not ay_entity:
@@ -246,39 +240,25 @@ def update_ayon_entity_from_sg_event(
 
     logging.debug(f"Updating Ayon Entity: {ay_entity.name}")
 
-    if int(ay_entity.attribs.get_attribute(SHOTGRID_ID_ATTRIB).value) != int(sg_entity_dict["attribs"].get(SHOTGRID_ID_ATTRIB)):
+    if int(ay_entity.attribs.get_attribute(SHOTGRID_ID_ATTRIB).value) != int(sg_ay_dict["attribs"].get(SHOTGRID_ID_ATTRIB)):
         logging.error("Mismatching Shotgrid IDs, aborting...")
         raise ValueError("Mismatching Shotgrid IDs, aborting...")
 
-    logging.debug("Updating Ayon entity with '%s'" % sg_entity_dict)
-    ay_entity.name = sg_entity_dict["name"]
-    ay_entity.label = sg_entity_dict["label"]
+    logging.debug("Updating Ayon entity with '%s'" % sg_ay_dict)
+    ay_entity.name = sg_ay_dict["name"]
+    ay_entity.label = sg_ay_dict["label"]
 
-    for attr, attr_value in sg_entity_dict["attribs"].items():
-        # TODO: add support for tags
-        if attr == "tags":
-            continue
-
-        ay_attr = next(
-            (
-                ay_attr for ay_attr in custom_attribs_map.keys()
-                if ay_attr == attr
-            ),
-            None
-        )
-        if attr == "status":
-            ay_entity.status = attr_value
-        elif ay_attr:
-            logging.info(
-                f"Setting attribute {ay_attr} with value {attr_value}")
-            ay_entity.attribs.set(ay_attr, attr_value)
+    # TODO: Only update the updated fields in the event
+    update_ay_entity_custom_attributes(
+        ay_entity, sg_ay_dict, custom_attribs_map
+    )
 
     ayon_entity_hub.commit_changes()
 
-    if sg_entity_dict["data"].get(CUST_FIELD_CODE_ID) != ay_entity.id:
+    if sg_ay_dict["data"].get(CUST_FIELD_CODE_ID) != ay_entity.id:
         sg_session.update(
-            sg_entity_dict["attribs"][SHOTGRID_TYPE_ATTRIB],
-            sg_entity_dict["attribs"][SHOTGRID_ID_ATTRIB],
+            sg_ay_dict["attribs"][SHOTGRID_TYPE_ATTRIB],
+            sg_ay_dict["attribs"][SHOTGRID_ID_ATTRIB],
             {
                 CUST_FIELD_CODE_ID: ay_entity.id
             }
@@ -295,7 +275,7 @@ def remove_ayon_entity_from_sg_event(sg_event, sg_session, ayon_entity_hub, proj
         sg_session (shotgun_api3.Shotgun): The Shotgrid API session.
         ayon_entity_hub (ayon_api.entity_hub.EntityHub): The AYON EntityHub.
     """
-    sg_entity_dict = get_sg_entity_as_ay_dict(
+    sg_ay_dict = get_sg_entity_as_ay_dict(
         sg_session,
         sg_event["entity_type"],
         sg_event["entity_id"],
@@ -303,25 +283,25 @@ def remove_ayon_entity_from_sg_event(sg_event, sg_session, ayon_entity_hub, proj
         retired_only=True
     )
 
-    logging.debug(f"SG Entity as Ay dict: {sg_entity_dict}")
-    if not sg_entity_dict:
+    logging.debug(f"SG Entity as Ay dict: {sg_ay_dict}")
+    if not sg_ay_dict:
         logging.warning(f"Entity {sg_event['entity_type']} <{sg_event['entity_id']}> no longer exists in SG.")
         raise ValueError(f"Entity {sg_event['entity_type']} <{sg_event['entity_id']}> no longer exists in SG.")
 
-    if not sg_entity_dict["data"].get(CUST_FIELD_CODE_ID):
+    if not sg_ay_dict["data"].get(CUST_FIELD_CODE_ID):
         logging.warning("Shotgrid Missing Ayon ID")
         raise ValueError("Shotgrid Missing Ayon ID")
 
     ay_entity = ayon_entity_hub.get_or_query_entity_by_id(
-        sg_entity_dict["data"].get(CUST_FIELD_CODE_ID),
-        ["task" if sg_entity_dict.get("type").lower() == "task" else "folder"]
+        sg_ay_dict["data"].get(CUST_FIELD_CODE_ID),
+        ["task" if sg_ay_dict.get("type").lower() == "task" else "folder"]
     )
 
     if not ay_entity:
         logging.error("Unable to update a non existing entity.")
         raise ValueError("Unable to update a non existing entity.")
 
-    if sg_entity_dict["data"].get(CUST_FIELD_CODE_ID) != ay_entity.id:
+    if sg_ay_dict["data"].get(CUST_FIELD_CODE_ID) != ay_entity.id:
         logging.error("Mismatching Shotgrid IDs, aborting...")
         raise ValueError("Mismatching Shotgrid IDs, aborting...")
 
