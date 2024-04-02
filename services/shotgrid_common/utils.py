@@ -155,7 +155,7 @@ def create_sg_entities_in_ay(
     shotgrid_project: dict,
     sg_enabled_entities: list,
 ):
-    """Ensure Ayon has all the SG Steps (to use as task types)
+    """Ensure AYON has all the SG Steps (to use as task types)
 
     and Folder types.
 
