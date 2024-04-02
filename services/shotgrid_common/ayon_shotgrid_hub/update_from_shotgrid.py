@@ -77,7 +77,7 @@ def create_ay_entity_from_sg_event(
         project_code_field,
         extra_fields=extra_fields,
     )
-    logging.debug(f"ShotGrid Entity as Ayon dict: {sg_entity_dict}")
+    logging.debug(f"ShotGrid Entity as AYON dict: {sg_entity_dict}")
     if not sg_entity_dict:
         logging.warning(
             "Entity {sg_event['entity_type']} <{sg_event['entity_id']}> "
