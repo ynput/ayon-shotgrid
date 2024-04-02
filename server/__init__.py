@@ -55,7 +55,9 @@ class ShotgridAddon(BaseServerAddon):
 
         shotgrid_attributes = await Postgres.fetch(
             "SELECT name from public.attributes "
-            f"WHERE (name = '{SG_ID_ATTRIB}' OR name = '{SG_TYPE_ATTRIB}' OR name = '{SG_PUSH_ATTRIB}') "  # noqa
+            f"WHERE (name = '{SG_ID_ATTRIB}'"
+            f" OR name = '{SG_TYPE_ATTRIB}'"
+            f" OR name = '{SG_PUSH_ATTRIB}') "
         )
 
         if not shotgrid_attributes or len(shotgrid_attributes) < 3:
