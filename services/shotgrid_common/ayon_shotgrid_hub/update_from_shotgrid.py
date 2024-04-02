@@ -44,7 +44,7 @@ def create_ay_entity_from_sg_event(
     sg_project,
     sg_session,
     ayon_entity_hub,
-    sg_enabled_entites,
+    sg_enabled_entities,
     project_code_field,
     custom_attribs_map=None,
 ):
@@ -57,8 +57,8 @@ def create_ay_entity_from_sg_event(
         ayon_entity_hub (ayon_api.entity_hub.EntityHub): The AYON EntityHub.
         sg_enabled_entities (list[str]): List of entity strings enabled.
         project_code_field (str): The Shotgrid project code field.
-        custom_attribs_map (dict): Dictionary that maps a list of attribute names from
-            Ayon to Shotgrid.
+        custom_attribs_map (dict): Dictionary that maps a list of attribute
+            names from AYON to Shotgrid.
 
     Returns:
         ay_entity (ayon_api.entity_hub.EntityHub.Entity): The newly
@@ -84,7 +84,7 @@ def create_ay_entity_from_sg_event(
         custom_attribs_map=custom_attribs_map,
         extra_fields=extra_fields,
     )
-    logging.debug(f"ShotGrid Entity as AYON dict: {sg_entity_dict}")
+    logging.debug(f"ShotGrid Entity as AYON dict: {sg_ay_dict}")
     if not sg_ay_dict:
         logging.warning(
             "Entity {sg_event['entity_type']} <{sg_event['entity_id']}> "
@@ -107,10 +107,10 @@ def create_ay_entity_from_sg_event(
             # Ensure Ayon Entity has the correct Shotgrid ID
             ay_shotgrid_id = str(
               sg_ay_dict["attribs"].get(SHOTGRID_ID_ATTRIB, ""))
-            if ayon_entity_sg_id != sg_entity_sg_id:
+            if ayon_entity_sg_id != ay_shotgrid_id:
                 ay_entity.attribs.set(
                     SHOTGRID_ID_ATTRIB,
-                    sg_entity_sg_id
+                    ay_shotgrid_id
                 )
                 ay_entity.attribs.set(
                     SHOTGRID_TYPE_ATTRIB,
@@ -249,7 +249,7 @@ def update_ayon_entity_from_sg_event(
     ayon_entity_sg_id = str(
         ay_entity.attribs.get_attribute(SHOTGRID_ID_ATTRIB).value)
     sg_entity_sg_id = str(
-        sg_entity_dict["attribs"].get(SHOTGRID_ID_ATTRIB, "")
+        sg_ay_dict["attribs"].get(SHOTGRID_ID_ATTRIB, "")
     )
     if ayon_entity_sg_id != sg_entity_sg_id:
         logging.error("Mismatching ShotGrid IDs, aborting...")
@@ -300,7 +300,7 @@ def remove_ayon_entity_from_sg_event(
         retired_only=True
     )
 
-    logging.debug(f"ShotGrid Entity as Ay dict: {sg_entity_dict}")
+    logging.debug(f"ShotGrid Entity as Ay dict: {sg_ay_dict}")
     if not sg_ay_dict:
         logging.warning(
             f"Entity {sg_event['entity_type']} <{sg_event['entity_id']}> "
@@ -311,7 +311,7 @@ def remove_ayon_entity_from_sg_event(
             "no longer exists in ShotGrid."
         )
 
-    if not sg_entity_dict["data"].get(CUST_FIELD_CODE_ID):
+    if not sg_ay_dict["data"].get(CUST_FIELD_CODE_ID):
         logging.warning("ShotGrid Missing Ayon ID")
         raise ValueError("ShotGrid Missing Ayon ID")
 

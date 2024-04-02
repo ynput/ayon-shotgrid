@@ -122,7 +122,7 @@ class ShotGridCompatibilitySettings(BaseSettingsModel):
         title="Folder Attributes Map",
         default_factory=get_default_folder_attributes,
         description=(
-          "AYON attributes <> Shotgrid fields (without 'sg_' prefix!) "
+          "AYON attributes <> ShotGrid fields (without 'sg_' prefix!) "
           "mapping. Empty ones will be ignored."
         ),
     )
