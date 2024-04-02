@@ -182,7 +182,7 @@ def _create_new_entity(
     sg_parent_entity,
     sg_enabled_entities,
     project_code_field,
-    custom_attribs_map=None,
+    custom_attribs_map,
 ):
     """Helper method to create entities in Shotgrid.
 
