@@ -18,7 +18,7 @@ import shotgun_api3
 
 
 def _sg_to_ay_dict(sg_entity: dict, project_code_field=None) -> dict:
-    """Morph a ShotGrid entity dict into an Ayon's Entity Hub compatible one.
+    """Morph a ShotGrid entity dict into an ayon-api Entity Hub compatible one.
 
     Create a dictionary that follows the Ayon Entity Hub schema and handle edge
     cases so it's ready for Ayon consumption.
