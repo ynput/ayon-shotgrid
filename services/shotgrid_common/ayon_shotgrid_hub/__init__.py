@@ -220,8 +220,6 @@ class AyonShotgridHub:
             self._ay_project = EntityHub(self.project_name)
             self._ay_project.query_entities_from_server()
 
-            # TODO: add custom attributes on creation
-
         self._ay_project.commit_changes()
 
         if self._sg_project is None:
@@ -246,8 +244,6 @@ class AyonShotgridHub:
                 "Project"
             )
             self._ay_project.commit_changes()
-            
-            # TODO: add custom attributes on creation
 
         self.create_sg_attributes()
         logging.info(f"Project {self.project_name} ({self.project_code}) available in SG and AYON.")

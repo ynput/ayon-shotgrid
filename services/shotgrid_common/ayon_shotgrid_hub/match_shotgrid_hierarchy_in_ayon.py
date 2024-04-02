@@ -183,6 +183,19 @@ def match_shotgrid_hierarchy_in_ayon(
         "Project"
     )
 
+    # Sync project attributes from Shotgrid to Ayon
+    if custom_attribs_map:
+        for ay_attrib, sg_attrib in custom_attribs_map.items():
+            attrib_value = sg_entity["attribs"].get(sg_attrib) \
+                or sg_entity["attribs"].get(f"sg_{sg_attrib}")
+            if attrib_value is None:
+                continue
+
+            entity_hub.project_entity.attribs.set(
+                ay_attrib,
+                attrib_value
+            )
+
     entity_hub.commit_changes()
 
     sg_session.update(
