@@ -148,14 +148,6 @@ def match_shotgrid_hierarchy_in_ayon(
                 )
 
             entity_id = sg_ay_dict["attribs"][SHOTGRID_ID_ATTRIB]
-            ay_entity.data.set(
-                CUST_FIELD_CODE_ID,
-                ay_entity.id
-            )
-            ay_entity.data.set(
-                CUST_FIELD_CODE_SYNC,
-                sg_entity_sync_status
-            )
 
         try:
             entity_hub.commit_changes()
