@@ -144,7 +144,7 @@ def update_sg_entity_from_ayon_event(
         new_attribs = ayon_event["payload"].get("newValue")
         # If payload newValue is a dict it means it's an attribute update
         if isinstance(new_attribs, dict):
-            new_attribs = {"attribs": new_attribs}
+            new_attribs = new_attribs["attribs"]
         # Otherwise it's a tag/status update
         else:
             if ayon_event["topic"].endswith("status_changed"):
@@ -342,7 +342,7 @@ def _create_sg_entity(
     # Fill up data with any extra attributes from Ayon we want to sync to SG
     data.update(get_sg_custom_attributes_data(
         sg_session,
-        ay_entity,
+        ay_entity.attribs.to_dict(),
         sg_type,
         custom_attribs_map
     ))

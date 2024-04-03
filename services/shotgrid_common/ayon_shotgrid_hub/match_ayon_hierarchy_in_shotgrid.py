@@ -80,37 +80,39 @@ def match_ayon_hierarchy_in_shotgrid(
             if sg_entity_type == "AssetCategory":
                 continue
 
-            if sg_entity_id:
-                if sg_entity_id in sg_ay_dicts:
-                    sg_ay_dict = sg_ay_dicts[sg_entity_id]
-                    logging.info(f"Entity already exists in Shotgrid {sg_ay_dict}")
-                                                
-                    if sg_ay_dict["data"][CUST_FIELD_CODE_ID] != ay_entity.id:
-                        logging.error("Shotgrid record for AYON id does not match...")
-                        try:
-                            sg_session.update(
-                                sg_ay_dict["attribs"][SHOTGRID_TYPE_ATTRIB],
-                                sg_ay_dict["attribs"][SHOTGRID_ID_ATTRIB],
-                                {
-                                    CUST_FIELD_CODE_ID: "",
-                                    CUST_FIELD_CODE_SYNC: "Failed"
-                                }
-                            )
-                        except Exception as e:
-                            log_traceback(e)
-                            ay_project_sync_status = "Failed"
-                    else:
-                        # Update SG entity custom attributes with AYON data
-                        data_to_update = get_sg_custom_attributes_data(
-                            sg_session, ay_entity, sg_entity_type, custom_attribs_map
+            if sg_entity_id in sg_ay_dicts:
+                sg_ay_dict = sg_ay_dicts[sg_entity_id]
+                logging.info(f"Entity already exists in Shotgrid {sg_ay_dict}")
+
+                if sg_ay_dict["data"][CUST_FIELD_CODE_ID] != ay_entity.id:
+                    logging.error("Shotgrid record for AYON id does not match...")
+                    try:
+                        sg_session.update(
+                            sg_ay_dict["attribs"][SHOTGRID_TYPE_ATTRIB],
+                            sg_ay_dict["attribs"][SHOTGRID_ID_ATTRIB],
+                            {
+                                CUST_FIELD_CODE_ID: "",
+                                CUST_FIELD_CODE_SYNC: "Failed"
+                            }
                         )
-                        if data_to_update:
-                            logging.info("Syncing custom attributes on entity.")
-                            sg_session.update(
-                                sg_entity_type,
-                                sg_entity_id,
-                                data_to_update
-                            )
+                    except Exception as e:
+                        log_traceback(e)
+                        ay_project_sync_status = "Failed"
+                else:
+                    # Update SG entity custom attributes with AYON data
+                    data_to_update = get_sg_custom_attributes_data(
+                        sg_session,
+                        ay_entity.attribs.to_dict(),
+                        sg_entity_type,
+                        custom_attribs_map
+                    )
+                    if data_to_update:
+                        logging.info("Syncing custom attributes on entity.")
+                        sg_session.update(
+                            sg_entity_type,
+                            sg_entity_id,
+                            data_to_update
+                        )
 
             if sg_ay_dict is None:
                 sg_parent_entity = sg_session.find_one(
@@ -154,7 +156,7 @@ def match_ayon_hierarchy_in_shotgrid(
     }
     data_to_update.update(get_sg_custom_attributes_data(
         sg_session,
-        entity_hub.project_entity,
+        entity_hub.project_entity.attribs.to_dict(),
         "Project",
         custom_attribs_map
     ))
@@ -243,7 +245,7 @@ def _create_new_entity(
     # Fill up data with any extra attributes from Ayon we want to sync to SG
     data.update(get_sg_custom_attributes_data(
         sg_session,
-        ay_entity,
+        ay_entity.attribs.to_dict(),
         sg_type,
         custom_attribs_map
     ))

@@ -409,14 +409,22 @@ def check_sg_attribute_exists(
     sg_session: shotgun_api3.Shotgun,
     sg_entity_type: str,
     field_code: str,
+    check_writable: bool = False,
 ) -> bool:
     """Validate whether given field code exists under that entity type"""
     try:
-        attribute_exists = sg_session.schema_field_read(
+        schema_field = sg_session.schema_field_read(
             sg_entity_type,
             field_name=field_code
         )
-        return attribute_exists
+        # If we are checking whether the attribute can be written to
+        # we check the "editable" key in the schema field
+        if check_writable:
+            is_writable = schema_field["editable"]["value"]
+            if not is_writable:
+                return False
+
+        return schema_field
     except Exception:
         # shotgun_api3.shotgun.Fault: API schema_field_read()
         pass
@@ -909,7 +917,7 @@ def get_sg_pipeline_steps(
 
 def get_sg_custom_attributes_data(
     sg_session: shotgun_api3.Shotgun,
-    ay_entity: dict,
+    ay_attribs: dict,
     sg_entity_type: str,
     custom_attribs_map: dict,
 ) -> dict:
@@ -917,28 +925,25 @@ def get_sg_custom_attributes_data(
     
     Args:
         sg_session (shotgun_api3.Shotgun): Instance of a Shotgrid API Session.
-        sg_entity (dict): Dictionary that holds the Ayon entity data that we
-            want to sync to ShotGrid.
+        ay_attribs (dict): Dictionary that contains the ground truth data of
+            attributes that we want to sync to SG.
+        sg_entity_type (str): ShotGrid Entity type.
         custom_attribs_map (dict): Dictionary that maps names of attributes in
             AYON to ShotGrid equivalents.
     """
     data_to_update = {}
     for ay_attrib, sg_attrib in custom_attribs_map.items():
-        if ay_attrib in ["status", "tags"]:
-            attrib_value = ay_entity.get(ay_attrib)
-        else:
-            attrib_value = ay_entity.get("attribs", {}).get(ay_attrib)
-        
+        attrib_value = ay_attribs.get(ay_attrib)
         if attrib_value is None:
             continue
         
         exists = check_sg_attribute_exists(
-            sg_session, sg_entity_type, sg_attrib
+            sg_session, sg_entity_type, sg_attrib, check_writable=True
         )
         if not exists:
             sg_attrib = f"sg_{sg_attrib}"
             exists = check_sg_attribute_exists(
-                sg_session, sg_entity_type, sg_attrib
+                sg_session, sg_entity_type, sg_attrib, check_writable=True
             )
         
         if exists:
