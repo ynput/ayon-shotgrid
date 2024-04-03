@@ -630,9 +630,9 @@ def get_sg_entity_parent_field(
     on projects and their Tracking Settings.
 
     Args:
-        sg_session (shotgun_api3.Shotgun): Shotgun Session object.
-        sg_project (dict): Shotgun Project dict representation.
-        sg_entity_type (str): Shotgun Entity type.
+        sg_session (shotgun_api3.Shotgun): ShotGrid Session object.
+        sg_project (dict): ShotGrid Project dict representation.
+        sg_entity_type (str): ShotGrid Entity type.
 
     Returns:
         sg_parent_field (str): The field that points to the entity parent.
@@ -809,13 +809,15 @@ def get_sg_statuses(
     sg_session: shotgun_api3.Shotgun,
     sg_entity_type: Optional[str] = None
 ) -> dict:
-    """ Get all Statuses on a ShotGrid project.
+    """ Get all supported ShotGrid Statuses.
 
     Args:
-        sg_session (shotgun_api3.Shotgun): Shotgun Session object.
+        sg_session (shotgun_api3.Shotgun): ShotGrid Session object.
+        sg_entity_type (str): ShotGrid Entity type.
 
     Returns:
-        sg_statuses (list[tuple()]): ShotGrid Project Statuses list of tuples.
+        sg_statuses (dict[str, str]): ShotGrid Project Statuses dictionary
+            mapping the status short code and its long name.
     """
     # If given an entity type, we filter out the statuses by just the ones
     # supported by that entity
@@ -833,6 +835,27 @@ def get_sg_statuses(
     }
     logging.debug(f"ShotGrid Statuses: {sg_statuses}")
     return sg_statuses
+
+
+def get_sg_tags(
+    sg_session: shotgun_api3.Shotgun
+) -> dict:
+    """ Get all tags on a ShotGrid project.
+
+    Args:
+        sg_session (shotgun_api3.Shotgun): ShotGrid Session object.
+        sg_entity_type (str): ShotGrid Entity type.
+
+    Returns:
+        sg_tags (dict[str, str]): ShotGrid Project tags dictionary
+            mapping the tag name to its id.
+    """
+    sg_tags = {
+        tags["name"].lower(): tags["id"]
+        for tags in sg_session.find("Tag", [], fields=["name", "id"])
+    }
+    logging.debug(f"ShotGrid tags: {sg_tags}")
+    return sg_tags
 
 
 def get_sg_pipeline_steps(
@@ -895,7 +918,7 @@ def get_sg_custom_attributes_data(
         if ay_attrib in ["status", "tags"]:
             attrib_value = ay_entity.get(ay_attrib)
         else:
-            attrib_value = ay_entity["attribs"].get(ay_attrib)
+            attrib_value = ay_entity.get("attribs", {}).get(ay_attrib)
         
         if attrib_value is None:
             continue
