@@ -128,9 +128,10 @@ def match_shotgrid_hierarchy_in_ayon(
             sg_ay_dict["data"][CUST_FIELD_CODE_ID] != ay_entity.id
             or sg_ay_dict["data"][CUST_FIELD_CODE_SYNC] != sg_entity_sync_status  # noqa
         ):
+            logging.debug("Updating AYON entity ID and sync status in SG and AYON")
             update_data = {
                 CUST_FIELD_CODE_ID: ay_entity.id,
-                CUST_FIELD_CODE_SYNC: sg_ay_dict["data"][CUST_FIELD_CODE_SYNC]  # noqa
+                CUST_FIELD_CODE_SYNC: sg_entity_sync_status
             }
             sg_session.update(
                 sg_ay_dict["attribs"][SHOTGRID_TYPE_ATTRIB],
@@ -145,7 +146,7 @@ def match_shotgrid_hierarchy_in_ayon(
             )
             ay_entity.data.set(
                 CUST_FIELD_CODE_SYNC,
-                sg_ay_dict["data"][CUST_FIELD_CODE_SYNC]
+                sg_entity_sync_status
             )
 
         try:
