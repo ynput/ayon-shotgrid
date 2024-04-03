@@ -285,11 +285,13 @@ def create_sg_entities_in_ay(
     }.values())
     project_entity.folder_types = new_folder_types
 
-    # Add ShotGrid Statuses to Project Entity
+    # Add ShotGrid Statuses to AYON Project Entity
     ay_status_codes = [s.short_name.lower() for s in list(project_entity.statuses)]
-    for status_code, status_name in get_sg_statuses(sg_session).items():
-        if status_code.lower() not in ay_status_codes:
-            project_entity.statuses.create(status_name, short_name=status_code)
+    for sg_entity_type in sg_enabled_entities:
+        for status_code, status_name in get_sg_statuses(sg_session, sg_entity_type).items():
+            if status_code.lower() not in ay_status_codes:
+                project_entity.statuses.create(status_name, short_name=status_code)
+                ay_status_codes.append(status_code)
 
     # Add Project task types by querying ShotGrid Pipeline steps
     sg_steps = [
