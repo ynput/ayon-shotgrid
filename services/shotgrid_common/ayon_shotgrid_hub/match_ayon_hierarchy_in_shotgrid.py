@@ -53,13 +53,13 @@ def match_ayon_hierarchy_in_shotgrid(
     sg_ay_dicts_deck = collections.deque()
 
     # Append the project's direct children.
-    for sg_ay_dict_child in entity_hub._entities_by_parent_id[entity_hub.project_name]:
+    for ay_entity_child in entity_hub._entities_by_parent_id[entity_hub.project_name]:
         sg_ay_dicts_deck.append((
             get_sg_entity_as_ay_dict(
                 sg_session, "Project", sg_project["id"], project_code_field,
                 custom_attribs_map=custom_attribs_map
             ),
-            sg_ay_dict_child
+            ay_entity_child
         ))
 
     ay_project_sync_status = "Synced"
