@@ -288,6 +288,9 @@ def create_sg_entities_in_ay(
     # Add ShotGrid Statuses to AYON Project Entity
     ay_status_codes = [s.short_name.lower() for s in list(project_entity.statuses)]
     for sg_entity_type in sg_enabled_entities:
+        if sg_entity_type == "Project":
+            # Skipping statuses from SG project as they are irrelevant in AYON
+            continue
         for status_code, status_name in get_sg_statuses(sg_session, sg_entity_type).items():
             if status_code.lower() not in ay_status_codes:
                 project_entity.statuses.create(status_name, short_name=status_code)
@@ -826,7 +829,11 @@ def get_sg_statuses(
     # NOTE: this is a limitation in Ayon as the statuses are global and not
     # per entity
     if sg_entity_type:
-        entity_status = sg_session.schema_field_read(sg_entity_type, "sg_status_list")
+        if sg_entity_type == "Project":
+            status_field = "sg_status"
+        else:
+            status_field = "sg_status_list"
+        entity_status = sg_session.schema_field_read(sg_entity_type, status_field)
         sg_statuses = entity_status["sg_status_list"]["properties"]["display_values"]["value"]
         logging.debug(f"ShotGrid Statuses supported by {sg_entity_type}: {sg_statuses}")
         return sg_statuses
