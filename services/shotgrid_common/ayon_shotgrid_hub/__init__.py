@@ -338,6 +338,10 @@ class AyonShotgridHub:
             sg_event (dict): The `meta` key of a ShotGrid Event, describing what
                 the change encompasses, i.e. a new shot, new asset, etc.
         """
+        if not self._ay_project:
+            logging.info(f"Ignoring event, AYON project {self.project_name} not found.")
+            return
+
         match sg_event["type"]:
             case "new_entity" | "entity_revival":
                 create_ay_entity_from_sg_event(
