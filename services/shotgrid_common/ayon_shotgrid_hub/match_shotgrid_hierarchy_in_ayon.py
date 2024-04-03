@@ -75,6 +75,9 @@ def match_shotgrid_hierarchy_in_ayon(
             for child in ay_parent_entity.children:
                 if child.name.lower() == name.lower():
                     ay_entity = child
+                    logging.debug(
+                        f"Found another entity with the same name: {ay_entity.name} <{ay_entity.id}>."
+                    )
                     break
 
         # If we couldn't find it we create it.
@@ -95,7 +98,7 @@ def match_shotgrid_hierarchy_in_ayon(
         else:
             logging.debug(
                 f"Entity {ay_entity.name} <{ay_entity.id}> exists in AYON. "
-                "Making sure the stored Shotgrid Data matches."
+                "Making sure the stored ShotGrid Data matches."
             )
 
             ay_sg_id_attrib = ay_entity.attribs.get(
@@ -105,7 +108,7 @@ def match_shotgrid_hierarchy_in_ayon(
             if ay_sg_id_attrib != str(sg_ay_dict["attribs"][SHOTGRID_ID_ATTRIB]): # noqa
                 logging.error(
                     f"The AYON entity {ay_entity.name} <{ay_entity.id}> has the "  # noqa
-                    f"ShotgridId {ay_sg_id_attrib}, while the Shotgrid ID "  # noqa
+                    f"ShotgridId {ay_sg_id_attrib}, while the ShotGrid ID "  # noqa
                     f"should be {sg_ay_dict['attribs'][SHOTGRID_ID_ATTRIB]}"
                 )
                 sg_entity_sync_status = "Failed"
@@ -121,23 +124,29 @@ def match_shotgrid_hierarchy_in_ayon(
 
         entity_id = sg_ay_dict["name"]
 
-        if sg_ay_dict["attribs"][SHOTGRID_TYPE_ATTRIB] not in [
-                "Folder", "AssetCategory"]:
-            if (
-                sg_ay_dict["data"][CUST_FIELD_CODE_ID] != ay_entity.id
-                or sg_ay_dict["data"][CUST_FIELD_CODE_SYNC] != sg_entity_sync_status  # noqa
-            ):
-                update_data = {
-                    CUST_FIELD_CODE_ID: ay_entity.id,
-                    CUST_FIELD_CODE_SYNC: sg_ay_dict["data"][CUST_FIELD_CODE_SYNC]  # noqa
-                }
-                sg_session.update(
-                    sg_ay_dict["attribs"][SHOTGRID_TYPE_ATTRIB],
-                    sg_ay_dict["attribs"][SHOTGRID_ID_ATTRIB],
-                    update_data
-                )
+        if (
+            sg_ay_dict["data"][CUST_FIELD_CODE_ID] != ay_entity.id
+            or sg_ay_dict["data"][CUST_FIELD_CODE_SYNC] != sg_entity_sync_status  # noqa
+        ):
+            update_data = {
+                CUST_FIELD_CODE_ID: ay_entity.id,
+                CUST_FIELD_CODE_SYNC: sg_ay_dict["data"][CUST_FIELD_CODE_SYNC]  # noqa
+            }
+            sg_session.update(
+                sg_ay_dict["attribs"][SHOTGRID_TYPE_ATTRIB],
+                sg_ay_dict["attribs"][SHOTGRID_ID_ATTRIB],
+                update_data
+            )
 
             entity_id = sg_ay_dict["attribs"][SHOTGRID_ID_ATTRIB]
+            ay_entity.data.set(
+                CUST_FIELD_CODE_ID,
+                ay_entity.id
+            )
+            ay_entity.data.set(
+                CUST_FIELD_CODE_SYNC,
+                sg_ay_dict["data"][CUST_FIELD_CODE_SYNC]
+            )
 
         try:
             entity_hub.commit_changes()
@@ -208,6 +217,8 @@ def _create_new_entity(entity_hub, parent_entity, sg_ay_dict):
             parent_id=parent_entity.id,
             attribs=sg_ay_dict["attribs"],
             data=sg_ay_dict["data"],
+            status=sg_ay_dict["attribs"].get("status"),
+            tags=sg_ay_dict["attribs"].get("tags"),
         )
     else:
         ay_entity = entity_hub.add_new_folder(
@@ -218,6 +229,8 @@ def _create_new_entity(entity_hub, parent_entity, sg_ay_dict):
             parent_id=parent_entity.id,
             attribs=sg_ay_dict["attribs"],
             data=sg_ay_dict["data"],
+            status=sg_ay_dict["attribs"].get("status"),
+            tags=sg_ay_dict["attribs"].get("tags"),
         )
 
     logging.debug(f"Created new entity: {ay_entity.name} ({ay_entity.id})")
