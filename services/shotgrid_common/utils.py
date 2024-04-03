@@ -939,6 +939,7 @@ def update_ay_entity_custom_attributes(
 
         if ay_attrib == "tags":
             logging.warning("Tags update is not supported yet.")
+            ay_entity.tags = [tag["name"] for tag in attrib_value]
         elif ay_attrib == "status":
             ay_entity.status = attrib_value
         else:
