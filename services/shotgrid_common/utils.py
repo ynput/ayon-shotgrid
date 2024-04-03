@@ -506,7 +506,7 @@ def get_sg_entities(
 
                 if (
                     parent_field != "project"
-                    and entity[parent_field]
+                    and sg_entity[parent_field]
                     and entity_name != "Asset"
                 ):
                     parent_id = sg_entity[parent_field]["id"]
@@ -606,7 +606,6 @@ def get_sg_entity_as_ay_dict(
         sg_entity, project_code_field, custom_attribs_map
     )
 
-    # TODO: add missing sg_status_list?
     for field in extra_fields:
         sg_value = sg_entity.get(field)
         # If no value in SG entity skip
