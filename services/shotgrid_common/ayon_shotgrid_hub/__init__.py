@@ -275,8 +275,7 @@ class AyonShotgridHub:
                     for entity_name, _ in get_sg_project_enabled_entities(
                         self._sg,
                         self._sg_project,
-                        self.sg_enabled_entities,
-                        self.custom_attribs_map
+                        self.sg_enabled_entities
                     )
                 ]
 
