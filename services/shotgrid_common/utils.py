@@ -95,6 +95,8 @@ def _sg_to_ay_dict(
     elif folder_type:
         sg_ay_dict["folder_type"] = folder_type
 
+    logging.debug(f"Transformed sg_entity as ayon dict: {sg_ay_dict}")
+    
     return sg_ay_dict
 
 
@@ -192,6 +194,9 @@ def create_ay_custom_attribs_in_sg_entity(
         # If it doesn't exist, we create a custom attribute on the
         # SG entity by prefixing it with "sg_"
         if not exists:
+            logging.debug(
+                f"Creating ShotGrid field for {sg_attrib} on entity {sg_entity_type}"
+            )
             get_or_create_sg_field(
                 sg_session,
                 sg_entity_type,
@@ -488,6 +493,8 @@ def get_sg_entities(
     sg_ay_dicts_parents: Dict[str, list] = (
         collections.defaultdict(list)
     )
+
+    logging.debug("---- Query fields %s" % query_fields)
 
     for enabled_entity in project_enabled_entities:
         entity_name, parent_field = enabled_entity
