@@ -40,9 +40,8 @@ class ShotgridTransmitter:
             self.sg_url = self.settings["shotgrid_server"]
             self.sg_project_code_field = self.settings["shotgrid_project_code_field"]
 
-            sg_secret = ayon_api.get_secret(self.settings["shotgrid_api_secret"])
-            self.sg_script_name = sg_secret.get("name")
-            self.sg_api_key = sg_secret.get("value")
+            self.sg_script_name = self.settings["shotgrid_api_name"]
+            self.sg_api_key = self.settings["shotgrid_api_key"]
             self.ayon_service_user = self.settings["service_settings"]["ayon_service_user"]
 
             try:

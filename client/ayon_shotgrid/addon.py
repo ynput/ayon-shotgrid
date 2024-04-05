@@ -17,9 +17,8 @@ class ShotgridAddon(AYONAddon, IPluginPaths):
         addon_settings = studio_settings.get(self.name, dict())
         self._shotgrid_server_url = addon_settings.get("shotgrid_server")
 
-        sg_secret = ayon_api.get_secret(addon_settings["shotgrid_api_secret"])
-        self._shotgrid_script_name = sg_secret.get("name")
-        self._shotgrid_api_key = sg_secret.get("value")
+        self._shotgrid_script_name = addon_settings["shotgrid_api_name"]
+        self._shotgrid_api_key = addon_settings["shotgrid_api_key"]
         self._enable_local_storage = addon_settings.get("enable_shotgrid_local_storage")
         self._local_storage_key = addon_settings.get("local_storage_key")
 

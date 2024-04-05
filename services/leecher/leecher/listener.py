@@ -48,9 +48,8 @@ class ShotgridListener:
             self.sg_url = self.settings["shotgrid_server"]
             self.sg_project_code_field = self.settings["shotgrid_project_code_field"]
 
-            shotgrid_secret = ayon_api.get_secret(self.settings["shotgrid_api_secret"])
-            self.sg_script_name = shotgrid_secret.get("name")
-            self.sg_api_key = shotgrid_secret.get("value")
+            self.sg_script_name = self.settings["shotgrid_api_name"]
+            self.sg_api_key = self.settings["shotgrid_api_key"]
 
             try:
                 self.shotgrid_polling_frequency = int(

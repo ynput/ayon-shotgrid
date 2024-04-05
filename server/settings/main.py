@@ -37,11 +37,25 @@ class ShotgridSettings(BaseSettingsModel):
         description="The URL to the Shotgrid Server we want to interact with.",
         example="https://my-site.shotgrid.autodesk.com"
     )
-    shotgrid_api_secret: str = Field(
+    shotgrid_api_name: str = Field(
         default="",
-        enum_resolver=secrets_enum,
-        title="Shotgrid API Secret",
-        description="An AYON Secret where the key is the `script_name` and the value is the `api_key` from Shotgrid. See more at: https://developer.shotgridsoftware.com/python-api/authentication.html#setting-up-shotgrid"
+        title="ShotGrid API Script Name",
+        description=(
+            "The script_name that contains the API key to access ShotGrid."
+            "See more at: "
+            "https://developer.shotgridsoftware.com/python-api/authentication"
+            ".html#setting-up-shotgrid"
+        )
+    )
+    shotgrid_api_key: str = Field(
+        default="",
+        title="ShotGrid API Key",
+        description=(
+            "The API key corresponding to the Script Name to access ShotGrid."
+            "See more at: "
+            "https://developer.shotgridsoftware.com/python-api/authentication"
+            ".html#setting-up-shotgrid"
+        )
     )
     shotgrid_project_code_field: str = Field(
         default="code",
