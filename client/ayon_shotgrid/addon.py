@@ -2,15 +2,15 @@ import os
 
 import ayon_api
 
-from openpype.modules import (
-    OpenPypeModule,
+from ayon_core.addon import (
+    AYONAddon,
     IPluginPaths,
 )
 
 SHOTGRID_MODULE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
-class ShotgridAddon(OpenPypeModule, IPluginPaths):
+class ShotgridAddon(AYONAddon, IPluginPaths):
     name = "shotgrid"
     enabled = True
 
