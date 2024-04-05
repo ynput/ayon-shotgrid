@@ -140,20 +140,24 @@ def create_sg_entities_in_ay(
         sg_session (shotgun_api3.Shotgun): Shotgun Session object.
         shotgrid_project (dict): The project owning the Tasks.
     """
+   
+    # Types of SG entities to ignore as Ayon folders
+    ignored_folder_types = {"task", "version"}
 
-    # Add Shotgrid Entities to Project Entity
-    sg_entities = [
+    # Find Shotgrid Entities that are to be treated as folders
+    sg_folder_entities = [
         {"name": entity_type}
         for entity_type, _ in get_sg_project_enabled_entities(
             sg_session,
             shotgrid_project
-        )
+        ) if entity_type.lower() not in ignored_folder_types
     ]
 
-    new_folder_types = sg_entities + project_entity.folder_types
+    new_folder_types = sg_folder_entities + project_entity.folder_types
     # So we can have a specific folder for AssetCategory
     new_folder_types.append({"name": "AssetCategory"})
 
+    # Make sure list items are unique
     new_folder_types = list({
         entity['name']: entity
         for entity in new_folder_types
@@ -180,7 +184,7 @@ def create_sg_entities_in_ay(
     }.values())
     project_entity.task_types = new_task_types
 
-    return sg_entities, sg_steps
+    return sg_folder_entities, sg_steps
 
 
 def get_asset_category(entity_hub, parent_entity, asset_category_name):
@@ -593,10 +597,6 @@ def get_sg_project_enabled_entities(
         if sg_entity_type == "Project":
             continue
 
-        if sg_entity_type == "Version":
-            project_entities.append((sg_entity_type, "entity"))
-            continue
-
         is_entity_enabled = sg_project_schema.get(
             sg_entity_type, {}
         ).get("visible", {}).get("value", False)
@@ -606,7 +606,7 @@ def get_sg_project_enabled_entities(
 
             if parent_field and parent_field != "__flat__":
                 if "," in parent_field:
-                    # This catches instances where the Hirearchy is set to 
+                    # This catches instances where the Hierarchy is set to 
                     # something like "Seq > Secene > Shot" which returns a string
                     # like so: 'sg_scene,Scene.sg_sequence' and confusing enough
                     # we want the first element to be the parent.
