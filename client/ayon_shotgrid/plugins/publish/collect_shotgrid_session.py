@@ -1,6 +1,6 @@
 import os
 
-from openpype.pipeline import KnownPublishError
+from ayon_core.pipeline import KnownPublishError
 import pyblish.api
 
 
@@ -12,6 +12,7 @@ class CollectShotgridSession(pyblish.api.ContextPlugin):
 
     def process(self, context):
         user_login = os.getenv("AYON_SG_USERNAME")
+        self.log.info(f"User login: {user_login}")
         if not user_login:
             raise KnownPublishError(
                 "Have you logged in into Ayon Tray > Shotgrid?"
@@ -28,7 +29,7 @@ class CollectShotgridSession(pyblish.api.ContextPlugin):
 
         try:
             sg_session = shotgrid_module.create_shotgrid_session()
-            self.log.info("Succesfully logged in into the Shotgrid API.")
+            self.log.info("Successfully logged in into the Shotgrid API.")
         except Exception as e:
             self.log.error("Failed to connect to Shotgrid.", exc_info=True)
             raise KnownPublishError(
@@ -39,8 +40,8 @@ class CollectShotgridSession(pyblish.api.ContextPlugin):
         if sg_session is None:
             raise KnownPublishError(
                 "Could not connect to Shotgrid {0} with user {1}.".format(
-                shotgrid_url,
-                user_login
+                    shotgrid_url,
+                    user_login
                 )
             )
 
@@ -54,4 +55,3 @@ class CollectShotgridSession(pyblish.api.ContextPlugin):
             local_storage_key = shotgrid_module.get_local_storage_key()
             self.log.info(f"Using local storage entry {local_storage_key}")
             context.data["shotgridLocalStorageKey"] = local_storage_key
-        

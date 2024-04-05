@@ -29,10 +29,9 @@ const init = () => {
       .then((result) => result.data);
 
     addonSecrets = await ayonAPI
-      .get(`/api/secrets/${addonSettings.shotgrid_api_secret}`)
+      .get(`/api/secrets/${addonSettings.server_sg_script_key}`)
       .then((result) => result.data);
 
-    addonSettings.shotgrid_script_name = addonSecrets.name
     addonSettings.shotgrid_api_key = addonSecrets.value
   } // end of window.onmessage
 } // end of init
@@ -128,9 +127,9 @@ const getShotgridProjects = async () => {
   const sgBaseUrl = `${addonSettings.shotgrid_server.replace(/\/+$/, '')}/api/v1`
   sgAuthToken = await axios
     .post(`${sgBaseUrl}/auth/access_token`, {
-        client_id: addonSettings.shotgrid_script_name,
-        client_secret: addonSettings.shotgrid_api_key,
-        grant_type: "client_credentials",
+      client_id: `${addonSettings.server_sg_script_name}`,
+      client_secret: addonSettings.shotgrid_api_key,
+      grant_type: "client_credentials",
     }, {
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',

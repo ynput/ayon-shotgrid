@@ -42,11 +42,25 @@ class ShotgridProcessor:
             self.settings = ayon_api.get_service_addon_settings()
 
             self.sg_url = self.settings["shotgrid_server"]
-            self.sg_project_code_field = self.settings["shotgrid_project_code_field"]
+            self.sg_project_code_field = self.settings[
+                "shotgrid_project_code_field"]
 
-            sg_secret = ayon_api.get_secret(self.settings["shotgrid_api_secret"])
-            self.sg_script_name = sg_secret.get("name")
-            self.sg_api_key = sg_secret.get("value")
+            # get server op related ShotGrid script api properties
+            shotgrid_secret = ayon_api.get_secret(
+                self.settings["server_sg_script_key"])
+            self.sg_api_key = shotgrid_secret.get("value")
+            if not self.sg_api_key:
+                raise ValueError(
+                    "Shotgrid API Key not found. Make sure to set it in the "
+                    "Addon System settings."
+                )
+
+            self.sg_script_name = self.settings["server_sg_script_name"]
+            if not self.sg_script_name:
+                raise ValueError(
+                    "Shotgrid Script Name not found. Make sure to set it in "
+                    "the Addon System settings."
+                )
 
             try:
                 self.sg_polling_frequency = int(
