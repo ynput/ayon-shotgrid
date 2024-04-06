@@ -4,6 +4,10 @@ import re
 import pyblish.api
 
 from ayon_core.pipeline.publish import get_publish_repre_path
+from ayon_core.lib.transcoding import (
+    VIDEO_EXTENSIONS,
+    IMAGE_EXTENSIONS
+)
 
 
 class IntegrateShotgridVersion(pyblish.api.InstancePlugin):
@@ -46,8 +50,7 @@ class IntegrateShotgridVersion(pyblish.api.InstancePlugin):
                 instance, representation, False
             )
 
-            # TODO: add check against transcode video extensions
-            if representation["ext"] in ["mp4", "mov", "avi"]:
+            if f".{representation['ext']}" in VIDEO_EXTENSIONS:
                 data_to_update["sg_path_to_movie"] = local_path
                 if (
                     "slate" in instance.data["families"]
@@ -55,7 +58,7 @@ class IntegrateShotgridVersion(pyblish.api.InstancePlugin):
                 ):
                     data_to_update["sg_movie_has_slate"] = True
 
-            elif representation["ext"] in ["jpg", "png", "exr", "tga"]:
+            elif f".{representation['ext']}" in IMAGE_EXTENSIONS:
                 # Replace the frame number with '%04d'
                 path_to_frame = re.sub(r"\.\d+\.", ".%04d.", local_path)
 
@@ -118,15 +121,19 @@ class IntegrateShotgridVersion(pyblish.api.InstancePlugin):
             )
 
         # Update frame start/end on the version
-        frame_start = instance.data.get("frameStart", context.data.get("frameStart"))
-        handle_start = instance.data.get("handleStart", context.data.get("handleStart"))
+        frame_start = instance.data.get(
+            "frameStart", context.data.get("frameStart"))
+        handle_start = instance.data.get(
+            "handleStart", context.data.get("handleStart"))
         if frame_start is not None and handle_start is not None:
             frame_start = int(frame_start)
             handle_start = int(handle_start)
             data_to_update["sg_first_frame"] = frame_start - handle_start
 
-        frame_end = instance.data.get("frameEnd", context.data.get("frameEnd"))
-        handle_end = instance.data.get("handleEnd", context.data.get("handleEnd"))
+        frame_end = instance.data.get(
+            "frameEnd", context.data.get("frameEnd"))
+        handle_end = instance.data.get(
+            "handleEnd", context.data.get("handleEnd"))
         if frame_end is not None and handle_end is not None:
             frame_end = int(frame_end)
             handle_end = int(handle_end)
@@ -137,7 +144,8 @@ class IntegrateShotgridVersion(pyblish.api.InstancePlugin):
             field_value = (
                 instance.data.get(ay_field) or context.data.get(ay_field))
             if field_value:
-                # Break sg_field tuple into whatever type of data it is and its name
+                # Break sg_field tuple into whatever type of data it
+                # is and its name
                 type_, field_name = sg_field
 
                 data_to_update[field_name] = type_(field_value)
@@ -174,7 +182,8 @@ class IntegrateShotgridVersion(pyblish.api.InstancePlugin):
         ]
 
         if instance.data.get("shotgridTask"):
-            filters.append(["sg_task", "is", instance.data.get("shotgridTask")])
+            filters.append(
+                ["sg_task", "is", instance.data.get("shotgridTask")])
 
         return instance.context.data["shotgridSession"].find_one(
             "Version",

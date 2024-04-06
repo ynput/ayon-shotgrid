@@ -2,7 +2,7 @@ import os
 import ayon_api
 from ayon_core.modules import (
     AYONAddon,
-    ITrayModule,
+    ITrayAddon,
     IPluginPaths,
 )
 from ayon_core.lib import Logger
@@ -12,7 +12,7 @@ log = Logger.get_logger(__name__)
 SHOTGRID_MODULE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
-class ShotgridAddon(AYONAddon, ITrayModule, IPluginPaths):
+class ShotgridAddon(AYONAddon, ITrayAddon, IPluginPaths):
     name = "shotgrid"
     enabled = True
     tray_wrapper = None
