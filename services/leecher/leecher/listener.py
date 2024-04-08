@@ -10,6 +10,7 @@ import time
 import signal
 import socket
 from typing import Any, Callable, Union
+from nxtools import logging, log_traceback
 
 from constants import (
     AYON_SHOTGRID_ENTITY_TYPE_MAP,
@@ -19,7 +20,6 @@ from constants import (
 )
 
 import ayon_api
-from nxtools import logging, log_traceback
 import shotgun_api3
 
 

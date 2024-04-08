@@ -5,20 +5,13 @@ This service will continually run and query the Ayon Events Server in order to
 entroll the events of topic `entity.folder` and `entity.task` when any of the
 two are `created`, `renamed` or `deleted`.
 """
-# import importlib
-import os
-import sys
 import time
-# import types
-import signal
 import socket
-
-from ayon_shotgrid_hub import AyonShotgridHub
+from nxtools import logging, log_traceback
 
 import ayon_api
-from ayon_api.entity_hub import EntityHub
-from nxtools import logging, log_traceback
-import shotgun_api3
+
+from ayon_shotgrid_hub import AyonShotgridHub
 
 
 class ShotgridTransmitter:

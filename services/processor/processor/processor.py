@@ -10,9 +10,9 @@ import os
 import time
 import types
 import socket
+from nxtools import logging, log_traceback
 
 import ayon_api
-from nxtools import logging, log_traceback
 
 
 class ShotgridProcessor:
