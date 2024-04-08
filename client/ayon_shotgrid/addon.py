@@ -49,7 +49,7 @@ class ShotgridAddon(AYONAddon, IPluginPaths):
         from .lib import credentials
 
         sg_username = os.getenv("AYON_SG_USERNAME")
-        proxy = os.environ.get("HTTPS_PROXY", "").lstrip("https://")
+        proxy = os.environ.get("HTTPS_PROXY", "").replace("https://", "")
 
         return credentials.create_sg_session(
             self._shotgrid_server_url,
