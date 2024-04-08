@@ -3,6 +3,23 @@ from ayon_server.settings import BaseSettingsModel, SettingsField
 from ayon_server.settings.enum import secrets_enum, anatomy_presets_enum
 
 
+def default_shotgrid_entities():
+    """The entity types enabled in ShotGrid.
+
+    Return a list to be consumed by the `enum_resolver` in
+    `ShotgridCompatibilitySettings.shotgrid_enabled_entities`.
+    """
+    return [
+        "Project",
+        "Episode",
+        "Sequence",
+        "Scene",
+        "Shot",
+        "Asset",
+        "Task",
+    ]
+
+
 def get_default_folder_attributes():
     """Get AYON's Folder attributes
 
@@ -30,23 +47,6 @@ def get_default_folder_attributes():
             attributes.append(attr_map)
 
     return attributes
-
-
-def default_shotgrid_entities():
-    """The entity types enabled in ShotGrid.
-
-    Return a list to be consumed by the `enum_resolver` in
-    `ShotgridCompatibilitySettings.shotgrid_enabled_entities`.
-    """
-    return [
-        "Project",
-        "Episode",
-        "Sequence",
-        "Scene",
-        "Shot",
-        "Asset",
-        "Task",
-    ]
 
 
 class ShotgridServiceSettings(BaseSettingsModel):
@@ -89,23 +89,12 @@ class AttributesMappingModel(BaseSettingsModel):
     )
 
 
-def _default_entities():
-    return [
-        "Project",
-        "Episode",
-        "Sequence",
-        "Shot",
-        "Asset",
-        "Task",
-    ]
-
-
 class ShotgridCompatibilitySettings(BaseSettingsModel):
     """ Settings to define relationships between ShotGrid and AYON.
     """
     shotgrid_enabled_entities: list[str] = SettingsField(
         title="ShotGrid Enabled Entities",
-        default_factory=_default_entities,
+        default_factory=default_shotgrid_entities,
         enum_resolver=default_shotgrid_entities,
         description=(
             "The Entities that are enabled in ShotGrid, disable "
