@@ -55,9 +55,14 @@ class ShotgridProcessor:
             except Exception:
                 self.sg_polling_frequency = 10
 
-            self.custom_attributes_map = {
+            self.custom_attribs_map = {
                 attr["ayon"]: attr["sg"]
-                for attr in self.settings["compatibility_settings"]["custom_attributes_map"]
+                for attr in self.settings["compatibility_settings"]["custom_attribs_map"]
+                if attr["sg"]
+            }
+            self.custom_attribs_types = {
+                attr["sg"]: (attr["type"], attr["scope"])
+                for attr in self.settings["compatibility_settings"]["custom_attribs_map"]
                 if attr["sg"]
             }
             self.sg_enabled_entities = self.settings["compatibility_settings"]["shotgrid_enabled_entities"]
@@ -77,7 +82,7 @@ class ShotgridProcessor:
         if not self.handlers_map:
             logging.error("No handlers found for the processor, aborting.")
         else:
-            logging.debug(f"Found the these handlers: {self.handlers_map}")
+            logging.debug(f"Found these handlers: {self.handlers_map}")
 
     def _get_handlers(self):
         """ Import the handlers found in the `handlers` directory.

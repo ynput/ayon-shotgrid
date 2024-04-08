@@ -2,7 +2,10 @@
 """
 
 from utils import (
-    get_sg_entity_parent_field
+    get_sg_entity_parent_field,
+    get_sg_statuses,
+    get_sg_tags,
+    get_sg_custom_attributes_data
 )
 from constants import (
     CUST_FIELD_CODE_ID,  # Shotgrid Field for the Ayon ID.
@@ -19,6 +22,7 @@ def create_sg_entity_from_ayon_event(
     ayon_entity_hub,
     sg_project,
     sg_enabled_entities,
+    custom_attribs_map,
 ):
     """Create a Shotgrid entity from an AYON event.
 
@@ -28,6 +32,8 @@ def create_sg_entity_from_ayon_event(
         ayon_entity_hub (ayon_api.entity_hub.EntityHub): The AYON EntityHub.
         sg_project (dict): The Shotgrid project.
         sg_enabled_entities (list): List of Shotgrid entities to be enabled.
+        custom_attribs_map (dict): Dictionary that maps a list of attribute names from
+            Ayon to Shotgrid.
 
     Returns:
         ay_entity (ayon_api.entity_hub.EntityHub.Entity): The newly
@@ -73,6 +79,7 @@ def create_sg_entity_from_ayon_event(
             sg_project,
             sg_type,
             sg_enabled_entities,
+            custom_attribs_map,
         )
         logging.info(f"Created Shotgrid entity: {sg_entity}")
 
@@ -94,7 +101,7 @@ def update_sg_entity_from_ayon_event(
     ayon_event,
     sg_session,
     ayon_entity_hub,
-    custom_attribs_map=None
+    custom_attribs_map,
 ):
     """Try to update a Shotgrid entity from an AYON event.
 
@@ -122,36 +129,77 @@ def update_sg_entity_from_ayon_event(
     logging.debug(f"Processing entity {ay_entity}")
 
     sg_id = ay_entity.attribs.get("shotgridId")
-    sg_type = ay_entity.attribs.get("shotgridType")
+    sg_entity_type = ay_entity.attribs.get("shotgridType")
 
     try:
         sg_field_name = "code"
         if ay_entity["entity_type"] == "task":
             sg_field_name = "content"
 
-        dict_to_update = {
+        data_to_update = {
             sg_field_name: ay_entity["name"],
             CUST_FIELD_CODE_ID: ay_entity["id"]
         }
         # Add any possible new values to update
-        if custom_attribs_map:
-            new_attribs = ayon_event["payload"].get("newValue", {})
-            for key, value in new_attribs.items():
-                if key not in custom_attribs_map or not value:
-                    logging.warning(f"Attribute {key} not supported in SG")
-                    continue
-                sg_key = custom_attribs_map[key]
-                dict_to_update[sg_key] = value
+        new_attribs = ayon_event["payload"].get("newValue")
+        # If payload newValue is a dict it means it's an attribute update
+        if isinstance(new_attribs, dict):
+            new_attribs = new_attribs["attribs"]
+        # Otherwise it's a tag/status update
+        else:
+            if ayon_event["topic"].endswith("status_changed"):
+                sg_statuses = get_sg_statuses(sg_session, sg_entity_type)
+                for sg_status_code, sg_status_name in sg_statuses.items():
+                    if new_attribs.lower() == sg_status_name.lower():
+                        new_attribs = {"status": sg_status_code}
+                        break
+                else:
+                    logging.error(
+                        f"Unable to update '{sg_entity_type}' with status "
+                        f"'{new_attribs}' in Shotgrid as it's not compatible! "
+                        f"It should be one of: {sg_statuses}"
+                    )
+                    return
+            elif ayon_event["topic"].endswith("tags_changed"):
+                tags_event_list = new_attribs
+                new_attribs = {"tags": []}
+                sg_tags = get_sg_tags(sg_session)
+                for tag_name in tags_event_list:
+                    if tag_name.lower() in sg_tags:
+                        tag_id = sg_tags[tag_name]
+                    else:
+                        logging.info(
+                            f"Tag '{tag_name}' not found in ShotGrid, "
+                            "creating a new one."
+                        )
+                        new_tag = sg_session.create("Tag", {'name': tag_name})
+                        tag_id = new_tag["id"]
+                    
+                    new_attribs["tags"].append(
+                        {"name": tag_name, "id": tag_id, "type": "Tag"}
+                    )
+
+            else:
+                logging.warning("Unknown event type, skipping update of custom attribs.")
+                new_attribs = None
+
+        if new_attribs:
+            data_to_update.update(get_sg_custom_attributes_data(
+                sg_session,
+                new_attribs,
+                sg_entity_type,
+                custom_attribs_map
+            ))
 
         sg_entity = sg_session.update(
-            sg_type,
+            sg_entity_type,
             int(sg_id),
-            dict_to_update
+            data_to_update
         )
         logging.info(f"Updated Shotgrid entity: {sg_entity}")
         return sg_entity
     except Exception as e:
-        logging.error(f"Unable to update {sg_type} <{sg_id}> in Shotgrid!")
+        logging.error(f"Unable to update {sg_entity_type} <{sg_id}> in Shotgrid!")
         log_traceback(e)
 
 
@@ -212,6 +260,7 @@ def _create_sg_entity(
     sg_project,
     sg_type,
     sg_enabled_entities,
+    custom_attribs_map,
 ):
     """ Create a new Shotgrid entity.
 
@@ -221,6 +270,7 @@ def _create_sg_entity(
         sg_project (dict): The Shotgrid Project.
         sg_type (str): The Shotgrid type of the new entity.
         sg_enabled_entities (list): List of Shotgrid entities to be enabled.
+        custom_attribs_map (dict): Dictionary of extra attributes to store in the SG entity.
     """
     sg_field_name = "code"
     sg_step = None
@@ -289,11 +339,19 @@ def _create_sg_entity(
                 CUST_FIELD_CODE_ID: ay_entity.id,
             }
 
+    # Fill up data with any extra attributes from Ayon we want to sync to SG
+    data.update(get_sg_custom_attributes_data(
+        sg_session,
+        ay_entity.attribs.to_dict(),
+        sg_type,
+        custom_attribs_map
+    ))
+
     logging.debug(f"Creating Shotgrid entity {sg_type} with data: {data}")
 
     try:
-        new_sg_entity = sg_session.create(sg_type, data)
-        return new_sg_entity
+        sg_entity = sg_session.create(sg_type, data)
+        return sg_entity
     except Exception as e:
         logging.error(
             f"Unable to create SG entity {sg_type} with data: {data}")
