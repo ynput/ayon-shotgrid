@@ -119,31 +119,6 @@ class ShotgridSettings(BaseSettingsModel):
         example="https://my-site.shotgrid.autodesk.com",
         scope=["studio"]
     )
-    server_sg_script_key: str = SettingsField(
-        default="",
-        enum_resolver=secrets_enum,
-        title="Shotgrid API Script key",
-        description=(
-            "Ayon Secret used for Server and Services related  operations "
-            "Secret should lead to ShotGrid's Script api key. "
-            "See more at: https://developer.shotgridsoftware.com/python-api/"
-            "authentication.html#setting-up-shotgrid"
-        ),
-        scope=["studio"],
-        section="---",
-    )
-    server_sg_script_name: str = SettingsField(
-        default="",
-        placeholder="Create and Paste a script name here",
-        title="Shotgrid API Script Name",
-        description=(
-            "Server and Services related  operations "
-            "Secret should lead to ShotGrid's Script Name. "
-            "See more at: https://developer.shotgridsoftware.com/python-api/"
-            "authentication.html#setting-up-shotgrid"
-        ),
-        scope=["studio"]
-    )
     client_login: ClientLoginModel = SettingsField(
         default_factory=ClientLoginModel,
         title="Client login settings",

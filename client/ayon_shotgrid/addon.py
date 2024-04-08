@@ -27,26 +27,37 @@ class ShotgridAddon(AYONAddon, ITrayAddon, IPluginPaths):
         self._client_login_type = addon_settings.get(
             "client_login", {}).get("type")
 
-        sg_secret = ayon_api.get_secret(addon_settings["server_sg_script_key"])
-        self._shotgrid_api_key = sg_secret.get("value")
-        self._shotgrid_script_name = addon_settings["server_sg_script_name"]
+        self._shotgrid_api_key = None
+        self._shotgrid_script_name = None
 
         # reconfigure for client user api key since studio might need to
         # use a different api key with different permissions access
-        if self._client_login_type == "tray_api_key":
+        if self._client_login_type == "env":
+            self._shotgrid_script_name = (
+                addon_settings
+                .get("client_login", {})
+                .get("env", {})
+                .get("client_sg_script_name")
+            )
+            self._shotgrid_api_key = (
+                addon_settings
+                .get("client_login", {})
+                .get("env", {})
+                .get("client_sg_script_key")
+            )
+        elif self._client_login_type == "tray_api_key":
             self._shotgrid_script_name = (
                 addon_settings
                 .get("client_login", {})
                 .get("tray_api_key", {})
                 .get("client_sg_script_name")
             )
-            sg_client_secret = ayon_api.get_secret((
+            self._shotgrid_api_key = (
                 addon_settings
                 .get("client_login", {})
                 .get("tray_api_key", {})
                 .get("client_sg_script_key")
-            ))
-            self._shotgrid_api_key = sg_client_secret.get("value")
+            )
 
         self._enable_local_storage = addon_settings.get(
             "enable_shotgrid_local_storage")
