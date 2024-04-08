@@ -96,7 +96,7 @@ class ShotgridAddon(AYONAddon, ITrayAddon, IPluginPaths):
             "shotgrid_url": self._shotgrid_server_url,
         }
 
-        proxy = os.environ.get("HTTPS_PROXY", "").lstrip("https://")
+        proxy = os.environ.get("HTTPS_PROXY", "").replace("https://", "")
         if proxy:
             kwargs["proxy"] = proxy
 
