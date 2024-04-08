@@ -75,19 +75,23 @@ class AttributesMappingModel(BaseSettingsModel):
     sg: str = SettingsField(title="ShotGrid")
 
 
+def _default_entities():
+    return [
+        "Project",
+        "Episode",
+        "Sequence",
+        "Shot",
+        "Asset",
+        "Task",
+    ]
+
+
 class ShotgridCompatibilitySettings(BaseSettingsModel):
     """ Settings to define relationships between ShotGrid and AYON.
     """
     shotgrid_enabled_entities: list[str] = SettingsField(
         title="ShotGrid Enabled Entities",
-        default=[
-            "Project",
-            "Episode",
-            "Sequence",
-            "Shot",
-            "Asset",
-            "Task",
-        ],
+        default_factory=_default_entities,
         enum_resolver=default_shotgrid_entities,
         description=(
             "The Entities that are enabled in ShotGrid, disable "
