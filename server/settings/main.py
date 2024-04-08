@@ -59,15 +59,6 @@ class ShotgridServiceSettings(BaseSettingsModel):
         validate_default=False,
     )
 
-    ayon_service_user: str = SettingsField(
-        default="service",
-        title="AYON service user",
-        description=(
-            "The AYON user used in the services (the user corresponding to "
-            "the `AYON_API_KEY` set in the service)"
-        ),
-    )
-
 
 class AttributesMappingModel(BaseSettingsModel):
     _layout = "compact"

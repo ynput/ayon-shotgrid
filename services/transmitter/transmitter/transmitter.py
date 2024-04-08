@@ -38,8 +38,6 @@ class ShotgridTransmitter:
                 self.settings["shotgrid_api_secret"])
             self.sg_script_name = sg_secret.get("name")
             self.sg_api_key = sg_secret.get("value")
-            self.ayon_service_user = \
-                self.settings["service_settings"]["ayon_service_user"]
 
             # Compatibility settings
             custom_attributes_map = self.settings["compatibility_settings"][
@@ -101,12 +99,21 @@ class ShotgridTransmitter:
                 continue
 
             try:
-                # TODO: Enroll with a "events_filter" to narrow down the query
+                # get all service users
+                service_users = [
+                    user["name"]
+                    for user in ayon_api.get_users(
+                        fields={"accessGroups", "isService", "name"})
+                    if user["isService"]
+                ]
+                # enrolling only events which were not created by any
+                # of service users so loopback is avoided
                 event = ayon_api.enroll_event_job(
                     "entity.*",
                     "shotgrid.push",
                     socket.gethostname(),
-                    description="Handle AYON entity changes and sync them to Shotgrid.",
+                    description=(
+                        "Handle AYON entity changes and sync them to Shotgrid."),
                     events_filter={
                         "conditions": [
                             {
@@ -116,8 +123,8 @@ class ShotgridTransmitter:
                             },
                             {
                                 "key": "user",
-                                "value": self.ayon_service_user,
-                                "operator": "ne",
+                                "value": service_users,
+                                "operator": "notin",
                             },
                             {
                                 "key": "project",
