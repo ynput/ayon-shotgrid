@@ -75,7 +75,7 @@ class AttributesMappingModel(BaseSettingsModel):
     sg: str = SettingsField(title="ShotGrid")
 
 
-class ShotGridCompatibilitySettings(BaseSettingsModel):
+class ShotgridCompatibilitySettings(BaseSettingsModel):
     """ Settings to define relationships between ShotGrid and AYON.
     """
     shotgrid_enabled_entities: list[str] = SettingsField(
@@ -105,7 +105,7 @@ class ShotGridCompatibilitySettings(BaseSettingsModel):
     )
 
 
-class ShotGridSettings(BaseSettingsModel):
+class ShotgridSettings(BaseSettingsModel):
     """ShotGrid integration settings.
 
     Main setting for the AYON x ShotGrid integration, these need to be filled
@@ -166,8 +166,8 @@ class ShotGridSettings(BaseSettingsModel):
         enum_resolver=anatomy_presets_enum
     )
 
-    compatibility_settings: ShotGridCompatibilitySettings = SettingsField(
-        default_factory=ShotGridCompatibilitySettings,
+    compatibility_settings: ShotgridCompatibilitySettings = SettingsField(
+        default_factory=ShotgridCompatibilitySettings,
         title="ShotGrid <-> AYON compatibility Settings",
         description=(
             "All the settings that allow us to fine-grain the relation "

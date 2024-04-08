@@ -4,5 +4,5 @@ from .main import (
 
 
 __all__ = (
-    "ShotGridSettings",
+    "ShotgridSettings",
 )
