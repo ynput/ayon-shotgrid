@@ -1,5 +1,5 @@
 import os
-import ayon_api
+
 from ayon_core.modules import (
     AYONAddon,
     ITrayAddon,
