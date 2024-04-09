@@ -3,25 +3,25 @@ import os
 import ayon_api
 
 from openpype.modules import (
-    OpenPypeModule,
+    AYONAddon,
     IPluginPaths,
 )
 
 SHOTGRID_MODULE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
-class ShotgridAddon(OpenPypeModule, IPluginPaths):
+class ShotgridAddon(AYONAddon, IPluginPaths):
     name = "shotgrid"
-    enabled = True
 
-    def initialize(self, modules_settings):
-        module_settings = modules_settings.get(self.name, dict())
-        self._shotgrid_server_url = module_settings.get("shotgrid_server")
-        sg_secret = ayon_api.get_secret(module_settings["shotgrid_api_secret"])
+    def initialize(self, studio_settings):
+        addon_settings = studio_settings.get(self.name, dict())
+        self._shotgrid_server_url = addon_settings.get("shotgrid_server")
+
+        sg_secret = ayon_api.get_secret(addon_settings["shotgrid_api_secret"])
         self._shotgrid_script_name = sg_secret.get("name")
         self._shotgrid_api_key = sg_secret.get("value")
-        self._enable_local_storage = module_settings.get("enable_shotgrid_local_storage")
-        self._local_storage_key = module_settings.get("local_storage_key")
+        self._enable_local_storage = addon_settings.get("enable_shotgrid_local_storage")
+        self._local_storage_key = addon_settings.get("local_storage_key")
 
     def get_sg_url(self):
         return self._shotgrid_server_url if self._shotgrid_server_url else None
@@ -48,8 +48,8 @@ class ShotgridAddon(OpenPypeModule, IPluginPaths):
     def create_shotgrid_session(self):
         from .lib import credentials
 
-        sg_username = os.getenv("AYON_SG_USERNAME") or os.getenv("USER")
-        proxy = os.environ.get("HTTPS_PROXY", "").lstrip("https://")
+        sg_username = os.getenv("AYON_SG_USERNAME")
+        proxy = os.environ.get("HTTPS_PROXY", "").replace("https://", "")
 
         return credentials.create_sg_session(
             self._shotgrid_server_url,
