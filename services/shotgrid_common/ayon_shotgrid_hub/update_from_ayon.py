@@ -146,42 +146,42 @@ def update_sg_entity_from_ayon_event(
         if isinstance(new_attribs, dict):
             new_attribs = new_attribs["attribs"]
         # Otherwise it's a tag/status update
-        else:
-            if ayon_event["topic"].endswith("status_changed"):
-                sg_statuses = get_sg_statuses(sg_session, sg_entity_type)
-                for sg_status_code, sg_status_name in sg_statuses.items():
-                    if new_attribs.lower() == sg_status_name.lower():
-                        new_attribs = {"status": sg_status_code}
-                        break
-                else:
-                    logging.error(
-                        f"Unable to update '{sg_entity_type}' with status "
-                        f"'{new_attribs}' in Shotgrid as it's not compatible! "
-                        f"It should be one of: {sg_statuses}"
-                    )
-                    return
-            elif ayon_event["topic"].endswith("tags_changed"):
-                tags_event_list = new_attribs
-                new_attribs = {"tags": []}
-                sg_tags = get_sg_tags(sg_session)
-                for tag_name in tags_event_list:
-                    if tag_name.lower() in sg_tags:
-                        tag_id = sg_tags[tag_name]
-                    else:
-                        logging.info(
-                            f"Tag '{tag_name}' not found in ShotGrid, "
-                            "creating a new one."
-                        )
-                        new_tag = sg_session.create("Tag", {'name': tag_name})
-                        tag_id = new_tag["id"]
-                    
-                    new_attribs["tags"].append(
-                        {"name": tag_name, "id": tag_id, "type": "Tag"}
-                    )
-
+        elif ayon_event["topic"].endswith("status_changed"):
+            sg_statuses = get_sg_statuses(sg_session, sg_entity_type)
+            for sg_status_code, sg_status_name in sg_statuses.items():
+                if new_attribs.lower() == sg_status_name.lower():
+                    new_attribs = {"status": sg_status_code}
+                    break
             else:
-                logging.warning("Unknown event type, skipping update of custom attribs.")
-                new_attribs = None
+                logging.error(
+                    f"Unable to update '{sg_entity_type}' with status "
+                    f"'{new_attribs}' in Shotgrid as it's not compatible! "
+                    f"It should be one of: {sg_statuses}"
+                )
+                return
+        elif ayon_event["topic"].endswith("tags_changed"):
+            tags_event_list = new_attribs
+            new_attribs = {"tags": []}
+            sg_tags = get_sg_tags(sg_session)
+            for tag_name in tags_event_list:
+                if tag_name.lower() in sg_tags:
+                    tag_id = sg_tags[tag_name]
+                else:
+                    logging.info(
+                        f"Tag '{tag_name}' not found in ShotGrid, "
+                        "creating a new one."
+                    )
+                    new_tag = sg_session.create("Tag", {'name': tag_name})
+                    tag_id = new_tag["id"]
+
+                new_attribs["tags"].append(
+                    {"name": tag_name, "id": tag_id, "type": "Tag"}
+                )
+
+        else:
+            logging.warning(
+                "Unknown event type, skipping update of custom attribs.")
+            new_attribs = None
 
         if new_attribs:
             data_to_update.update(get_sg_custom_attributes_data(
