@@ -181,7 +181,7 @@ def create_ay_custom_attribs_in_sg_entity(
         # If SG entity type is not in the scope set on the attribute, skip it
         if sg_entity_type not in ent_scope:
             continue
-        
+
         field_type = AYON_SHOTGRID_ATTRIBUTES_MAP[data_type]["name"]
 
         # First we simply validate whether the built-in attribute
@@ -378,7 +378,8 @@ def get_or_create_sg_field(
     if not field_code:
         field_code = f"sg_{field_name.lower().replace(' ', '_')}"
 
-    attribute_exists = check_sg_attribute_exists(sg_session, sg_entity_type, field_code)
+    attribute_exists = check_sg_attribute_exists(
+        sg_session, sg_entity_type, field_code)
 
     if not attribute_exists:
         logging.debug(
@@ -420,7 +421,8 @@ def check_sg_attribute_exists(
         # If we are checking whether the attribute can be written to
         # we check the "editable" key in the schema field
         if check_writable:
-            is_writable = schema_field["editable"]["value"]
+            is_writable = schema_field[field_code].get(
+                "editable", {}).get("value")
             if not is_writable:
                 return False
 
@@ -507,7 +509,7 @@ def get_sg_entities(
 
         if entity_name in entities_to_ignore:
             continue
-        
+
         sg_entities = sg_session.find(
             entity_name,
             filters=[["project", "is", sg_project]],
@@ -624,7 +626,7 @@ def get_sg_entity_as_ay_dict(
         # If no value in SG entity skip
         if sg_value is None:
             continue
-        
+
         sg_ay_dict["data"][field] = sg_value
 
     return sg_ay_dict
@@ -845,7 +847,7 @@ def get_sg_statuses(
         sg_statuses = entity_status["sg_status_list"]["properties"]["display_values"]["value"]
         logging.debug(f"ShotGrid Statuses supported by {sg_entity_type}: {sg_statuses}")
         return sg_statuses
-    
+
     sg_statuses = {
         status["code"]: status["name"]
         for status in sg_session.find("Status", [], fields=["name", "code"])
@@ -922,7 +924,7 @@ def get_sg_custom_attributes_data(
     custom_attribs_map: dict,
 ) -> dict:
     """Get a dictionary with all the extra attributes we want to sync to SG
-    
+
     Args:
         sg_session (shotgun_api3.Shotgun): Instance of a Shotgrid API Session.
         ay_attribs (dict): Dictionary that contains the ground truth data of
@@ -937,9 +939,11 @@ def get_sg_custom_attributes_data(
         if attrib_value is None:
             continue
         
+        # try it first without `sg_` prefix since some are built-in
         exists = check_sg_attribute_exists(
             sg_session, sg_entity_type, sg_attrib, check_writable=True
         )
+        # and then with the prefix
         if not exists:
             sg_attrib = f"sg_{sg_attrib}"
             exists = check_sg_attribute_exists(
@@ -948,7 +952,7 @@ def get_sg_custom_attributes_data(
         
         if exists:
             data_to_update[sg_attrib] = attrib_value
-    
+
     return data_to_update
 
 
@@ -962,7 +966,7 @@ def update_ay_entity_custom_attributes(
     for ay_attrib, _ in custom_attribs_map.items():
         if values_to_update and ay_attrib not in values_to_update:
             continue
-        
+
         attrib_value = sg_ay_dict["attribs"].get(ay_attrib)
         if attrib_value is None:
             continue

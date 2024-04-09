@@ -142,9 +142,14 @@ def update_sg_entity_from_ayon_event(
         }
         # Add any possible new values to update
         new_attribs = ayon_event["payload"].get("newValue")
-        # If payload newValue is a dict it means it's an attribute update
+
         if isinstance(new_attribs, dict):
-            new_attribs = new_attribs["attribs"]
+            # If payload newValue is a dict it means it's an attribute update
+            # but this only apply to case were attribs key is in the
+            # newValue dict
+            if "attribs" in new_attribs:
+                new_attribs = new_attribs["attribs"]
+
         # Otherwise it's a tag/status update
         elif ayon_event["topic"].endswith("status_changed"):
             sg_statuses = get_sg_statuses(sg_session, sg_entity_type)
@@ -191,15 +196,17 @@ def update_sg_entity_from_ayon_event(
                 custom_attribs_map
             ))
 
+
         sg_entity = sg_session.update(
             sg_entity_type,
             int(sg_id),
             data_to_update
         )
-        logging.info(f"Updated Shotgrid entity: {sg_entity}")
+        logging.info(f"Updated ShotGrid entity: {sg_entity}")
         return sg_entity
     except Exception as e:
-        logging.error(f"Unable to update {sg_entity_type} <{sg_id}> in Shotgrid!")
+        logging.error(
+            f"Unable to update {sg_entity_type} <{sg_id}> in ShotGrid!")
         log_traceback(e)
 
 
