@@ -39,6 +39,7 @@ from constants import (
 
 from nxtools import logging
 
+
 def create_ay_entity_from_sg_event(
     sg_event,
     sg_project,
@@ -116,46 +117,54 @@ def create_ay_entity_from_sg_event(
                     SHOTGRID_TYPE_ATTRIB,
                     sg_ay_dict["type"]
                 )
-            
+
             update_ay_entity_custom_attributes(
                 ay_entity, sg_ay_dict, custom_attribs_map
             )
 
             return ay_entity
 
-    if sg_ay_dict["data"][sg_parent_field] is None:
+    # INFO: Parent entity might not be added in SG so this needs to be handled
+    #       with optional way.
+    if sg_ay_dict["data"].get(sg_parent_field) is None:
         # Parent is the project
         logging.debug(f"ShotGrid Parent is the Project: {sg_project}")
         ay_parent_entity = ayon_entity_hub.project_entity
+    elif (
+        sg_ay_dict["attribs"][SHOTGRID_TYPE_ATTRIB] == "Asset"
+        and sg_ay_dict["data"].get("sg_asset_type")
+    ):
+        logging.debug("ShotGrid Parent is an Asset category.")
+
+        ay_parent_entity = get_asset_category(
+            ayon_entity_hub,
+            ayon_entity_hub.project_entity,
+            sg_ay_dict.get("sg_asset_type").lower()
+        )
+
     else:
-        if sg_ay_dict["attribs"][SHOTGRID_TYPE_ATTRIB] == "Asset" and sg_ay_dict["data"].get("sg_asset_type"):
-            logging.debug(f"ShotGrid Parent is an Asset category.")
+        # Find parent entity ID
+        sg_parent_entity_dict = get_sg_entity_as_ay_dict(
+            sg_session,
+            sg_ay_dict["data"][sg_parent_field]["type"],
+            sg_ay_dict["data"][sg_parent_field]["id"],
+            project_code_field,
+        )
 
-            ay_parent_entity = get_asset_category(
-                ayon_entity_hub,
-                ayon_entity_hub.project_entity,
-                sg_ay_dict.get("sg_asset_type").lower()
-            )
-
-        else:
-            # Find parent entity ID
-            sg_parent_entity_dict = get_sg_entity_as_ay_dict(
-                sg_session,
-                sg_ay_dict["data"][sg_parent_field]["type"],
-                sg_ay_dict["data"][sg_parent_field]["id"],
-                project_code_field,
-            )
-
-            logging.debug(f"ShotGrid Parent entity: {sg_parent_entity_dict}")
-            ay_parent_entity = ayon_entity_hub.get_or_query_entity_by_id(
-                sg_parent_entity_dict["data"].get(CUST_FIELD_CODE_ID),
-                ["task" if sg_parent_entity_dict["data"].get(CUST_FIELD_CODE_ID).lower() == "task" else "folder"]
-            )
+        logging.debug(f"ShotGrid Parent entity: {sg_parent_entity_dict}")
+        ay_parent_entity = ayon_entity_hub.get_or_query_entity_by_id(
+            sg_parent_entity_dict["data"].get(CUST_FIELD_CODE_ID),
+            [
+                "task" if sg_parent_entity_dict["data"].get(
+                    CUST_FIELD_CODE_ID).lower() == "task" else "folder"
+            ]
+        )
 
     if not ay_parent_entity:
         # This really should be an edge  ase, since any parent event would
         # happen before this... but hey
-        raise ValueError("Parent does not exist in Ayon, try doing a Project Sync.")
+        raise ValueError(
+            "Parent does not exist in Ayon, try doing a Project Sync.")
 
     if sg_ay_dict["type"].lower() == "task":
         ay_entity = ayon_entity_hub.add_new_task(
