@@ -38,6 +38,7 @@ def get_default_folder_attributes():
         attr_map = {
             "ayon": attr_name,
             "sg": "",
+            "type": [attr_dict["type"]],
             "scope": default_shotgrid_entities()
         }
 
