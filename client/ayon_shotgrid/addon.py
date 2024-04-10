@@ -28,7 +28,7 @@ class ShotgridAddon(AYONAddon, IPluginPaths):
 
     def get_sg_script_name(self):
         return self._shotgrid_script_name if self._shotgrid_script_name else None
-    
+
     def get_sg_api_key(self):
         return self._shotgrid_api_key if self._shotgrid_api_key else None
 
@@ -41,10 +41,10 @@ class ShotgridAddon(AYONAddon, IPluginPaths):
 
     def is_local_storage_enabled(self):
         return self._enable_local_storage if self._enable_local_storage else False
-    
+
     def get_local_storage_key(self):
         return self._local_storage_key if self._local_storage_key else None
-    
+
     def create_shotgrid_session(self):
         from .lib import credentials
 

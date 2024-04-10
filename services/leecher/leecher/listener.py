@@ -12,8 +12,6 @@ import socket
 from typing import Any, Callable, Union
 
 from constants import (
-    AYON_SHOTGRID_ENTITY_TYPE_MAP,
-    SG_EVENT_CHANGE_ATTR_FIELDS,
     SG_EVENT_TYPES,
     SG_EVENT_QUERY_FIELDS,
 )
@@ -48,9 +46,21 @@ class ShotgridListener:
             self.sg_url = self.settings["shotgrid_server"]
             self.sg_project_code_field = self.settings["shotgrid_project_code_field"]
 
-            shotgrid_secret = ayon_api.get_secret(self.settings["shotgrid_api_secret"])
-            self.sg_script_name = shotgrid_secret.get("name")
-            self.sg_api_key = shotgrid_secret.get("value")
+            sg_secret = ayon_api.get_secret(self.settings["shotgrid_api_secret"])
+            self.sg_script_name = sg_secret.get("name")
+            self.sg_api_key = sg_secret.get("value")
+
+            self.custom_attribs_map = {
+                attr["ayon"]: attr["sg"]
+                for attr in self.settings["compatibility_settings"]["custom_attribs_map"]
+                if attr["sg"]
+            }
+            self.custom_attribs_map.update({
+                "status": "status_list",
+                "tags": "tags"
+            })
+
+            self.sg_enabled_entities = self.settings["compatibility_settings"]["shotgrid_enabled_entities"]
 
             try:
                 self.shotgrid_polling_frequency = int(
@@ -109,7 +119,7 @@ class ShotgridListener:
 
         # TODO: Create a complex filter so skip event types "_Change" that
         # we don't handle.
-        for entity_type in AYON_SHOTGRID_ENTITY_TYPE_MAP.keys():
+        for entity_type in self.sg_enabled_entities:
             for event_name in SG_EVENT_TYPES:
                 sg_event_types.append(event_name.format(entity_type))
 
@@ -188,11 +198,13 @@ class ShotgridListener:
                     if not event:
                         continue
 
+                    # Filter out events we do not know how to handle
                     if (
                         event["event_type"].endswith("_Change")
-                        and event["attribute_name"] not in SG_EVENT_CHANGE_ATTR_FIELDS
+                        and event["attribute_name"].replace("sg_", "") not in list(self.custom_attribs_map.values())
                     ):
-                        # Skip change events we cannot handle yet...
+                        logging.debug(f"Skipping event for attribute change '{event['attribute_name'].replace('sg_', '')}', as we can't handle it.")
+                        last_event_id = event.get("id", None)
                         continue
 
                     last_event_id = self.func(event)
@@ -212,7 +224,6 @@ class ShotgridListener:
         Returns:
             int: The Shotgrid Event ID.
         """
-        logging.info(f"Processing Shotgrid Event {payload}")
         description = f"Leeched {payload['event_type']}"
         user_name = payload.get("user", {}).get("name", "Undefined")
 
@@ -222,8 +233,6 @@ class ShotgridListener:
         # fix non serializable datetime
         payload["created_at"] = payload["created_at"].isoformat()
 
-        logging.info(description)
-
         if payload.get("meta", {}).get("entity_type", "Undefined") == "Project":
             project_name = payload.get("entity", {}).get("name", "Undefined")
             project_id = payload.get("entity", {}).get("id", "Undefined")
@@ -231,12 +240,9 @@ class ShotgridListener:
             project_name = payload.get("project", {}).get("name", "Undefined")
             project_id = payload.get("project", {}).get("id", "Undefined")
 
-        logging.info(f"Event is from Project {project_name} ({project_id})")
-
         sg_project = self.sg_session.find_one(
             "Project", [["id", "is", project_id]], fields=[self.sg_project_code_field]
         )
-        logging.debug(f"Found Shotgrid Project {sg_project}")
 
         ayon_api.dispatch_event(
             "shotgrid.event",
@@ -256,6 +262,6 @@ class ShotgridListener:
             },
         )
 
-        logging.info("Dispatched Ayon event ", payload["event_type"])
+        logging.info("Dispatched Ayon event with payload:", payload)
 
         return payload["id"]

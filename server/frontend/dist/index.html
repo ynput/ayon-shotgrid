@@ -2,24 +2,24 @@
 <html>
   <head>
     <meta charset="utf-8">
-    <title>Shotgrid Integration</title>
+    <title>ShotGrid Integration</title>
     <link rel="stylesheet" type="text/css" href="shotgrid-addon.css">
     <script src="axios.min.js"></script>
   </head>
 
   <body>
-    <h1>Shotgrid Sync</h1>
+    <h1>ShotGrid Sync</h1>
     <p>
-        From this page you can Import projects from Shotgrid or trigger a project Sync!<br>
-        In order for the Syncronization to work, a <b><code>ShotgridProcessor</code> <a target="_parent" href="/services">service</a> must be running</b>, this page will only create <a target="_parent" href="/events"> events (with the topic: "shotgrid.event") </a> for the processor to handle.
+        From this page you can Import projects from ShotGrid or trigger a project Sync!<br>
+        In order for the Synchronization to work, a <b><code>ShotgridProcessor</code> <a target="_parent" href="/services">service</a> must be running</b>, this page will only create <a target="_parent" href="/events"> events (with the topic: "shotgrid.event") </a> for the processor to handle.
     </p>
-    <p>To be able to import a project from Shotgrid, there are two minimum requirements on Shotgrid:</p>
+    <p>To be able to import a project from ShotGrid, there are two minimum requirements on ShotGrid:</p>
         <ul>
             <li> The Project name cannot contain spaces. </li>
             <li> The Project has to have a code, has to be lowercase and cannot start with a number. (You can choose what the field code is in the Addon Settings), </li>
         </ul>
     <p>If the above criteria isn't met, the Synchronization button will be greyed out.</p>
-    <p>But first we need to fetch data from Shotgrid, press the button below:</p>
+    <p>But first we need to fetch data from ShotGrid, press the button below:</p>
     <button id="populate-table-button"  class="populate-table-button" onclick="populateTable();">Populate Table</button>
 
     <p id="call-result"> </p>
@@ -30,8 +30,8 @@
                 <th>Name</th>
                 <th>Code</th>
                 <th>In AYON?</th>
-                <th>In Shotgrid?</th>
-                <th>Syncronize</th>
+                <th>In ShotGrid?</th>
+                <th>Synchronize</th>
             </tr>
         </thead>
         <tbody class="sg-addon-projects-table-body" id="sg-addon-projects-table-body">
@@ -41,4 +41,3 @@
     <script type="text/javascript" src="shotgrid-addon.js"></script>
   </body>
 </html>
-
