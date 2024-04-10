@@ -71,7 +71,10 @@ def match_ayon_hierarchy_in_shotgrid(
         sg_ay_dict = None
 
         if (
-            (ay_entity.entity_type == "folder" and ay_entity.folder_type != "Folder")
+            (
+                ay_entity.entity_type == "folder"
+                and ay_entity.folder_type != "Folder"
+            )
             or ay_entity.entity_type == "task"
         ):
             sg_entity_id = ay_entity.attribs.get(SHOTGRID_ID_ATTRIB, None)
@@ -85,7 +88,8 @@ def match_ayon_hierarchy_in_shotgrid(
                 logging.info(f"Entity already exists in Shotgrid {sg_ay_dict}")
 
                 if sg_ay_dict["data"][CUST_FIELD_CODE_ID] != ay_entity.id:
-                    logging.error("Shotgrid record for AYON id does not match...")
+                    logging.error(
+                        "Shotgrid record for AYON id does not match...")
                     try:
                         sg_session.update(
                             sg_ay_dict["attribs"][SHOTGRID_TYPE_ATTRIB],
@@ -117,7 +121,11 @@ def match_ayon_hierarchy_in_shotgrid(
             if sg_ay_dict is None:
                 sg_parent_entity = sg_session.find_one(
                     sg_ay_parent_entity["attribs"][SHOTGRID_TYPE_ATTRIB],
-                    filters=[["id", "is", sg_ay_parent_entity["attribs"][SHOTGRID_ID_ATTRIB]]]
+                    filters=[[
+                        "id",
+                        "is",
+                        sg_ay_parent_entity["attribs"][SHOTGRID_ID_ATTRIB]
+                    ]]
                 )
                 sg_ay_dict = _create_new_entity(
                     ay_entity,
@@ -138,7 +146,7 @@ def match_ayon_hierarchy_in_shotgrid(
             )
             ay_entity.attribs.set(
                 SHOTGRID_TYPE_ATTRIB,
-                sg_ay_dict["type"]
+                sg_ay_dict["attribs"][SHOTGRID_TYPE_ATTRIB]
             )
             entity_hub.commit_changes()
 
@@ -146,9 +154,11 @@ def match_ayon_hierarchy_in_shotgrid(
             # Shotgrid doesn't have the concept of "Folders"
             sg_ay_dict = sg_ay_parent_entity
 
-        for ay_entity_child in entity_hub._entities_by_parent_id.get(ay_entity.id, []):
+        for ay_entity_child in entity_hub._entities_by_parent_id.get(
+            ay_entity.id, []
+        ):
             sg_ay_dicts_deck.append((sg_ay_dict, ay_entity_child))
-    
+
     # Sync project attributes from AYON to ShotGrid
     data_to_update = {
         CUST_FIELD_CODE_ID: entity_hub.project_name,
@@ -257,7 +267,7 @@ def _create_new_entity(
             f"Unable to create SG entity {sg_type} with data: {data}")
         log_traceback(e)
         raise e
-    
+
     logging.debug(f"Created new entity: {sg_entity}")
     logging.debug(f"Parent is: {sg_parent_entity}")
 
