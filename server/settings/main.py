@@ -38,7 +38,7 @@ def get_default_folder_attributes():
         attr_map = {
             "ayon": attr_name,
             "sg": "",
-            "type": [attr_dict["type"]],
+            "type": attr_dict["type"],
             "scope": default_shotgrid_entities()
         }
 
@@ -67,6 +67,10 @@ class ShotgridServiceSettings(BaseSettingsModel):
 class AttributesMappingModel(BaseSettingsModel):
     _layout = "compact"
     ayon: str = SettingsField(title="AYON")
+    type: str = SettingsField(
+        title="Field type",
+        disabled=True,
+    )
     sg: str = SettingsField(title="SG")
     scope: list[str] = SettingsField(
         title="Scope",
@@ -126,6 +130,7 @@ class ShotgridSettings(BaseSettingsModel):
     shotgrid_project_code_field: str = SettingsField(
         default="code",
         title="ShotGrid Project Code field name",
+        disabled=True,
         description=(
             "In order to create AYON projects, we need a Project Code, you "
             "can specify here which field in the ShotGrid Project "
