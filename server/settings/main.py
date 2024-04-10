@@ -13,7 +13,6 @@ def default_shotgrid_entities():
         "Project",
         "Episode",
         "Sequence",
-        "Scene",
         "Shot",
         "Asset",
         "Task",
