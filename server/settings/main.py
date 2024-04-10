@@ -38,7 +38,6 @@ def get_default_folder_attributes():
         attr_map = {
             "ayon": attr_name,
             "sg": "",
-            "type": [attr_dict["type"]],
             "scope": default_shotgrid_entities()
         }
 
@@ -68,19 +67,6 @@ class AttributesMappingModel(BaseSettingsModel):
     _layout = "compact"
     ayon: str = SettingsField(title="AYON")
     sg: str = SettingsField(title="SG")
-    # TODO: how do you make this a single selectable entry
-    type: list[str] = SettingsField(
-        title="Type",
-        default_factory=list,
-        enum_resolver=lambda: [
-            "string",
-            "integer",
-            "float",
-            "list_of_strings",
-            "boolean",
-            "datetime",
-        ]
-    )
     scope: list[str] = SettingsField(
         title="Scope",
         default_factory=list,
@@ -105,8 +91,9 @@ class ShotgridCompatibilitySettings(BaseSettingsModel):
         title="Folder Attributes Map",
         default_factory=get_default_folder_attributes,
         description=(
-          "AYON attributes <> ShotGrid fields (without 'sg_' prefix!) "
-          "mapping. Empty ones will be ignored."
+            "AYON attributes <> ShotGrid fields (without 'sg_' prefix!) "
+            "mapping. Empty ones will be ignored. Scope is the list of "
+            "ShotGrid entities that the mapping applies to. Disable any."
         ),
     )
 
