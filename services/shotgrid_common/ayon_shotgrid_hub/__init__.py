@@ -60,6 +60,12 @@ class AyonShotgridHub:
         sg_url (str): The URL of the Shotgrid instance.
         sg_api_key (str): The API key of the Shotgrid instance.
         sg_script_name (str): The Script Name of the Shotgrid instance.
+        sg_project_code_field (str): The field in the Shotgrid Project entity
+            that represents the project code.
+        custom_attribs_map (dict): A dictionary mapping AYON attributes to
+            Shotgrid fields, without the `sg_` prefix.
+        custom_attribs_types (dict): A dictionary mapping AYON attribute types
+            to Shotgrid field types.
     """
     def __init__(self,
         project_name,
@@ -93,14 +99,14 @@ class AyonShotgridHub:
             self.sg_project_code_field = sg_project_code_field
         else:
             self.sg_project_code_field = "code"
-            
+
         self.custom_attribs_map = {
             "status": "status_list",
             "tags": "tags"
         }
         if custom_attribs_map:
             self.custom_attribs_map.update(custom_attribs_map)
-        
+
         if custom_attribs_types:
             self.custom_attribs_types = custom_attribs_types
 
@@ -244,7 +250,7 @@ class AyonShotgridHub:
                 "Project"
             )
             self._ay_project.commit_changes()
-            
+
         self.create_sg_attributes()
         logging.info(f"Project {self.project_name} ({self.project_code}) available in SG and AYON.")
 

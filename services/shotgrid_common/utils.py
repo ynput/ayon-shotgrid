@@ -13,6 +13,8 @@ from constants import (
 
 from ayon_api.entity_hub import ProjectEntity
 from ayon_api.utils import slugify_string
+from ayon_api import get_attributes_for_type
+
 from nxtools import logging
 import shotgun_api3
 
@@ -87,7 +89,7 @@ def _sg_to_ay_dict(
             # If no value in SG entity skip
             if sg_value is None:
                 continue
-            
+
             sg_ay_dict["attribs"][ay_attrib] = sg_value
 
     if task_type:
@@ -96,7 +98,7 @@ def _sg_to_ay_dict(
         sg_ay_dict["folder_type"] = folder_type
 
     logging.debug(f"Transformed sg_entity as ayon dict: {sg_ay_dict}")
-    
+
     return sg_ay_dict
 
 
@@ -164,7 +166,8 @@ def create_ay_custom_attribs_in_sg_entity(
         custom_attribs_map (dict): Dictionary that maps names of attributes in
             AYON to ShotGrid equivalents.
         custom_attribs_types (dict): Dictionary that contains a tuple for each
-            attribute containing the type of data and the scope of the attribute.
+            attribute containing the type of data and the scope of the
+            attribute.
     """
     # Add all the custom attributes
     for sg_attrib in custom_attribs_map.values():
@@ -174,9 +177,6 @@ def create_ay_custom_attribs_in_sg_entity(
             continue
 
         data_type, ent_scope = data_scope
-
-        # TODO: Fix data type being a list
-        data_type = data_type[0]
 
         # If SG entity type is not in the scope set on the attribute, skip it
         if sg_entity_type not in ent_scope:
@@ -216,14 +216,22 @@ def create_ay_fields_in_sg_project(
         custom_attribs_map (dict): Dictionary that maps names of attributes in
             AYON to ShotGrid equivalents.
         custom_attribs_types (dict): Dictionary that contains a tuple for each
-            attribute containing the type of data and the scope of the attribute.
+            attribute containing the type of data and the scope of the
+            attribute.
     """
+    ayon_attribs_mapping = {
+        attr_name: attr_dict["type"]
+        for attr_name, attr_dict in get_attributes_for_type("folder").items()
+    }
     for attribute, attribute_values in SG_PROJECT_ATTRS.items():
         logging.debug(f"Creating ShotGrid field for {attribute}")
         sg_field_name = attribute_values["name"]
         sg_field_code = attribute_values["sg_field"]
-        sg_field_type = attribute_values["type"]
+        sg_field_type = attribute_values.get("type")
         sg_field_properties = {}
+
+        if not sg_field_type:
+            sg_field_type = ayon_attribs_mapping.get(attribute)
 
         if sg_field_type == "checkbox":
             sg_field_properties = {"default_value": False}
@@ -430,7 +438,7 @@ def check_sg_attribute_exists(
     except Exception:
         # shotgun_api3.shotgun.Fault: API schema_field_read()
         pass
-    
+
     return False
 
 
@@ -938,7 +946,7 @@ def get_sg_custom_attributes_data(
         attrib_value = ay_attribs.get(ay_attrib)
         if attrib_value is None:
             continue
-        
+
         # try it first without `sg_` prefix since some are built-in
         exists = check_sg_attribute_exists(
             sg_session, sg_entity_type, sg_attrib, check_writable=True
@@ -949,7 +957,7 @@ def get_sg_custom_attributes_data(
             exists = check_sg_attribute_exists(
                 sg_session, sg_entity_type, sg_attrib, check_writable=True
             )
-        
+
         if exists:
             data_to_update[sg_attrib] = attrib_value
 
