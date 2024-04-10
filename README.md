@@ -58,7 +58,7 @@ make SERVICE=<service-name> dev
 You should now see something similar to:
 ```sh
 INFO       Initializing the Shotgrid Processor.
-DEBUG      Found the these handlers: {'create-project': [<module 'project_sync'>], 'sync-from-shotgrid': [<module 'sync_from_shotgrid'>], 'shotgrid-event': [<module 'update_from_shotgrid'>]}
+DEBUG      Found these handlers: {'create-project': [<module 'project_sync'>], 'sync-from-shotgrid': [<module 'sync_from_shotgrid'>], 'shotgrid-event': [<module 'update_from_shotgrid'>]}
 INFO       Start enrolling for Ayon `shotgrid.event` Events...
 INFO       Querying for new `shotgrid.event` events...
 INFO       No event of origin `shotgrid.event` is pending. 

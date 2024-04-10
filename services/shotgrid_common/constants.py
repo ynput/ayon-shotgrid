@@ -43,7 +43,6 @@ AYON_SHOTGRID_ENTITY_TYPE_MAP = {
     "Scene": "folder",
     "Shot": "folder",
     "Asset": "folder",
-    "Version": "version",
     "Task": "task",
 }
 
@@ -145,7 +144,7 @@ SG_EVENT_TYPES = [
     "Shotgun_{0}_Revival",  # an entity was revived.
 ]
 
-SG_EVENT_QUERY_FIELDS =  [
+SG_EVENT_QUERY_FIELDS = [
     "id",
     "event_type",
     "attribute_name",

@@ -10,10 +10,16 @@ addon directory directly (eg. into `ayon-backend/addons`).
 Format of package folder:
 ADDON_REPO/package/{addon name}/{addon version}
 
-You can specify `--output_dir` in arguments to change output directory where
-package will be created. Existing package directory will always be purged if
-already present! This could be used to create package directly in server folder
-if available.
+You can specify following arguments:
+`--output_dir`: in arguments to change output directory where
+    package will be created. Existing package directory will always be purged
+    if already present! This could be used to create package directly in server
+    folder if available. Default is 'package' directory in current directory.
+`--skip-zip`: to skip zipping server package and create only server folder
+    structure.
+`--keep-sources`: to keep server folder structure when server package is
+    created.
+`--clear-output-dir`: to clear output directory before package creation.
 
 Package contains server side files directly,
 client side code zipped in `private` subfolder.
@@ -29,6 +35,8 @@ import argparse
 import logging
 import collections
 import zipfile
+
+from typing import Optional
 
 # Name of addon
 #   - e.g. 'maya'
@@ -252,7 +260,12 @@ def create_server_package(output_dir, addon_output_dir, addon_version, log):
     log.info(f"Output package can be found: {output_path}")
 
 
-def main(output_dir=None, skip_zip=False, keep_sources=False):
+def main(
+    output_dir: Optional[str] = None,
+    skip_zip: bool = False,
+    keep_sources: bool = False,
+    clear_output_dir: bool = False
+):
     log = logging.getLogger("create_package")
     log.info("Start creating package")
 
@@ -268,10 +281,13 @@ def main(output_dir=None, skip_zip=False, keep_sources=False):
 
     addon_output_root = os.path.join(output_dir, ADDON_NAME)
     addon_output_dir = os.path.join(addon_output_root, addon_version)
-    if os.path.isdir(addon_output_root):
+
+    if os.path.isdir(addon_output_root) and clear_output_dir:
         log.info(f"Purging {addon_output_root}")
         shutil.rmtree(addon_output_root)
-    os.makedirs(addon_output_dir)
+
+    if not os.path.exists(addon_output_dir):
+        os.makedirs(addon_output_dir)
 
     log.info(f"Preparing package for {ADDON_NAME}-{addon_version}")
 
@@ -311,6 +327,14 @@ if __name__ == "__main__":
         )
     )
     parser.add_argument(
+        "-c", "--clear-output-dir",
+        dest="clear_output_dir",
+        action="store_true",
+        help=(
+            "Clear output directory before package creation."
+        )
+    )
+    parser.add_argument(
         "-o", "--output",
         dest="output_dir",
         default=None,
@@ -321,4 +345,9 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args(sys.argv[1:])
-    main(args.output_dir, args.skip_zip, args.keep_sources)
+    main(
+        args.output_dir,
+        args.skip_zip,
+        args.keep_sources,
+        args.clear_output_dir
+    )

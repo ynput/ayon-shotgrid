@@ -1,25 +1,25 @@
 body {
-    padding: 0 20px;
-    background: #21252b;;
-    color: #ccc;
-    font-family: sans-serif;
+  padding: 0 20px;
+  background: #21252b;;
+  color: #ccc;
+  font-family: sans-serif;
 }
 
 iframe > html {
-    border-radius: 5px;
+  border-radius: 5px;
 }
 
 fieldset {
-    border-color: #252323;
-    margin-bottom: 20px;
+  border-color: #252323;
+  margin-bottom: 20px;
 }
 
 h2 {
-    margin-top: 40px;
+  margin-top: 40px;
 }
 
 select {
-    margin-top: 10px;
+  margin-top: 10px;
 }
 
 table {
@@ -31,28 +31,28 @@ table {
 }
 
 thead {
-    text-align: left;
-    background-color: #2C313A;
+  text-align: left;
+  background-color: #384956;
 }
 
 thead th:nth-child(1) {
-  width: 20%;
+  width: 25%;
 }
 
 thead th:nth-child(2) {
-  width: 20%;
+  width: 25%;
 }
 
 thead th:nth-child(3) {
-  width: 20%;
+  width: 10%;
 }
 
 thead th:nth-child(4) {
-  width: 20%;
+  width: 10%;
 }
 
 thead th:nth-child(5) {
-  width: 35%;
+  width: 30%;
 }
 
 tbody td {
@@ -65,15 +65,10 @@ td {
   border: 3px solid #2C313A;
 }
 
-tbody tr:nth-child(odd) {
-  background-color: var(--gray-50);
+table tr:not(:first-child):nth-child(odd) {
+  background-color: #414957;
 }
 
-tbody tr:nth-child(even) {
-  background-color: #2C313A;
+table tr:nth-child(even) {
+  background-color: #2c313a;
 }
-
-.populate-table-button {
-    margin-top: 20px;
-}
-
