@@ -219,6 +219,7 @@ def create_ay_fields_in_sg_project(
             attribute containing the type of data and the scope of the
             attribute.
     """
+    # NOTE: this is not needed?
     ayon_attribs_mapping = {
         attr_name: attr_dict["type"]
         for attr_name, attr_dict in get_attributes_for_type("folder").items()
