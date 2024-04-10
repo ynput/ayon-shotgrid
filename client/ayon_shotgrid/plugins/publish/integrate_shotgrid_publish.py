@@ -108,7 +108,7 @@ class IntegrateShotgridPublish(pyblish.api.InstancePlugin):
                             sg_local_storage["mac_path"]
                         )
 
-                    file_partial_path = file_partial_path.replace("/", "")
+                    file_partial_path = file_partial_path.lstrip("/")
                 except ValueError as exc:
                     raise KnownPublishError(
                         f"Filepath {local_path} doesn't match the "
