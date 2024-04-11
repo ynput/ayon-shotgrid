@@ -78,9 +78,9 @@ class IntegrateShotgridVersion(pyblish.api.InstancePlugin):
         sg_session = context.data["shotgridSession"]
 
         # TODO: Use path template solver to build version code from settings
-        anatomy = instance.data.get("anatomyData", {})
+        anatomy_data = instance.data.get("anatomyData", {})
         version_name_tokens = [
-            anatomy["folder"]["name"],
+            anatomy_data["folder"]["name"],
             instance.data["productName"],
         ]
 
@@ -90,7 +90,7 @@ class IntegrateShotgridVersion(pyblish.api.InstancePlugin):
             )
 
         version_name_tokens.append(
-            "v{:03}".format(int(anatomy["version"]))
+            "v{:03}".format(int(anatomy_data["version"]))
         )
 
         version_name = "_".join(version_name_tokens)
@@ -152,13 +152,13 @@ class IntegrateShotgridVersion(pyblish.api.InstancePlugin):
 
         # Add version objectId to "sg_ayon_id" so we can keep a link
         # between both
-        version_entity = instance.data.get("versionEntity", {}).get("id")
-        if not version_entity:
+        version_id = instance.data.get("versionEntity", {}).get("id")
+        if not version_id:
             self.log.warning(
                 "Instance doesn't have a 'versionEntity' to extract the id."
             )
-            version_entity = "-"
-        data_to_update["sg_ayon_id"] = str(version_entity)
+            version_id = "-"
+        data_to_update["sg_ayon_id"] = version_id
 
         self.log.info(f"Updating Shotgrid version with {data_to_update}")
         sg_session.update("Version", sg_version["id"], data_to_update)
@@ -166,7 +166,7 @@ class IntegrateShotgridVersion(pyblish.api.InstancePlugin):
         instance.data["shotgridVersion"] = sg_version
 
     def _find_existing_version(self, version_name, instance):
-        """Find if a Version already exists in Shotgrid.
+        """Find if a Version already exists in ShotGrid.
 
         Args:
             version_name(str): The full version name, `code` field in SG.
