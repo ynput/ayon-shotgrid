@@ -229,13 +229,19 @@ class ShotgridSettings(BaseSettingsModel):
     enable_shotgrid_local_storage: bool = SettingsField(
         default=True,
         title="Enable Shotgrid Local Storage.",
-        description="Whether to try make use of local storage defined in Shotgrid ('Site Preferences -> File Management -> Local Storage') or not.",
+        description=(
+            "Whether to try make use of local storage defined in ShotGrid "
+            "('Site Preferences -> File Management -> Local Storage') or not."
+        ),
         scope=["studio"],
     )
     shotgrid_local_storage_key: str = SettingsField(
         default="primary",
         title="Shotgrid Local Storage entry name",
-        description="Name of the 'code' to select which one of the multiple possible local storages entries to use.",
+        description=(
+            "Name of the 'code' to select which one of the multiple "
+            "possible local storages entries to use."
+        ),
         example="ayon_storage",
         scope=["studio"],
     )
