@@ -1,6 +1,7 @@
 import pyblish.api
-from openpype.pipeline.publish import ValidateContentsOrder
-from openpype.pipeline import PublishValidationError
+
+from ayon_core.pipeline.publish import ValidateContentsOrder
+from ayon_core.pipeline import PublishValidationError
 
 
 class ValidateShotgridUser(pyblish.api.ContextPlugin):
@@ -65,4 +66,3 @@ class ValidateShotgridUser(pyblish.api.ContextPlugin):
                 user_login, project_name, sg_project
             )
         )
-
