@@ -4,8 +4,8 @@ import platform
 
 import pyblish.api
 
-from openpype.pipeline import KnownPublishError
-from openpype.pipeline.publish import get_publish_repre_path
+from ayon_core.pipeline import KnownPublishError
+from ayon_core.pipeline.publish import get_publish_repre_path
 
 
 class IntegrateShotgridPublish(pyblish.api.InstancePlugin):
@@ -23,7 +23,7 @@ class IntegrateShotgridPublish(pyblish.api.InstancePlugin):
             self.log.info(
                 "Instance is marked to be processed on farm. Skipping")
             return
-        
+
         sg_session = instance.context.data.get("shotgridSession")
         sg_version = instance.data.get("shotgridVersion")
 
@@ -90,7 +90,7 @@ class IntegrateShotgridPublish(pyblish.api.InstancePlugin):
                         "Enable them in Site Preferences > Local Management:"
                         "https://help.autodesk.com/view/SGSUB/ENU/?guid=SG_Administrator_ar_data_management_ar_linking_local_files_html"
                     )
-                
+
                 self.log.debug(f"Using the Local Storage: {sg_local_storage}")
 
                 try:
@@ -116,7 +116,7 @@ class IntegrateShotgridPublish(pyblish.api.InstancePlugin):
                         "Enable them in Site Preferences > Local Management:"
                         "https://help.autodesk.com/view/SGSUB/ENU/?guid=SG_Administrator_ar_data_management_ar_linking_local_files_html"
                     ) from exc
-                
+
                 path = {
                     "local_storage": sg_local_storage,
                     "relative_path": file_partial_path
@@ -168,7 +168,7 @@ class IntegrateShotgridPublish(pyblish.api.InstancePlugin):
                     "Update Shotgrid PublishedFile: {}".format(sg_published_file)
                 )
 
-            if instance.data["family"] == "image":
+            if instance.data["productType"] == "image":
                 sg_session.upload_thumbnail(
                     sg_published_file["type"],
                     sg_published_file["id"],

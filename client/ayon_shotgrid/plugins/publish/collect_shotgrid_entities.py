@@ -2,7 +2,7 @@ import collections
 
 import pyblish.api
 
-from openpype.pipeline import KnownPublishError
+from ayon_core.pipeline import KnownPublishError
 
 
 class CollectShotgridEntities(pyblish.api.ContextPlugin):
@@ -19,7 +19,7 @@ class CollectShotgridEntities(pyblish.api.ContextPlugin):
 
         sg_session = context.data["shotgridSession"]
         ayon_project = context.data["projectEntity"]
-        sg_project_id = ayon_project["data"].get("shotgridId")
+        sg_project_id = ayon_project["attrib"].get("shotgridId")
 
         if not sg_project_id:
             raise KnownPublishError(
@@ -44,12 +44,12 @@ class CollectShotgridEntities(pyblish.api.ContextPlugin):
             context, sg_session)
 
         for instance in context:
-            ayon_asset = instance.data.get("assetEntity")
+            ayon_asset = instance.data.get("folderEntity")
             # Skip instance with missing asset - probably in editorial
             if not ayon_asset:
                 continue
 
-            sg_asset_id = ayon_asset["data"].get("shotgridId")
+            sg_asset_id = ayon_asset["attrib"].get("shotgridId")
             if sg_asset_id is not None:
                 sg_asset_id = int(sg_asset_id)
 
@@ -91,14 +91,14 @@ class CollectShotgridEntities(pyblish.api.ContextPlugin):
         sg_assets_by_type = collections.defaultdict(set)
         task_names_by_sg_id = collections.defaultdict(set)
         for instance in context:
-            ayon_folder = instance.data.get("assetEntity")
+            ayon_folder = instance.data.get("folderEntity")
             if not ayon_folder:
                 continue
 
             task_name = instance.data.get("task")
-            folder_ids.add(ayon_folder["_id"])
-            sg_id = ayon_folder["data"].get("shotgridId")
-            sg_type = ayon_folder["data"].get("shotgridType")
+            folder_ids.add(ayon_folder["id"])
+            sg_id = ayon_folder["attrib"].get("shotgridId")
+            sg_type = ayon_folder["attrib"].get("shotgridType")
             if sg_id and sg_type:
                 sg_id = int(sg_id)
                 sg_assets_by_type[sg_type].add(sg_id)
@@ -205,4 +205,3 @@ class CollectShotgridEntities(pyblish.api.ContextPlugin):
             filters=[query_dict],
             fields=query_fields,
         )
-
