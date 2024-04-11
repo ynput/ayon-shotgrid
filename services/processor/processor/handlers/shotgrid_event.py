@@ -9,14 +9,7 @@ REGISTER_EVENT_TYPE = ["shotgrid-event"]
 
 
 def process_event(
-    sg_url,
-    sg_script_name,
-    sg_api_key,
-    user_name=None,
-    project_name=None,
-    project_code=None,
-    project_code_field=None,
-    sg_payload=None,
+    sg_processor,
     **kwargs,
 ):
     """React to Shotgrid Events.
@@ -25,6 +18,7 @@ def process_event(
     function, where we attempt to replicate a change coming form Shotgrid, like
     creating a new Shot, renaming a Task, etc.
     """
+    sg_payload = kwargs.get("sg_payload", {})
     if not sg_payload:
         logging.error("The Event payload is empty!")
         raise ValueError("The Event payload is empty!")
@@ -34,12 +28,15 @@ def process_event(
         raise ValueError("The Event payload is missing the action to perform!")
 
     hub = AyonShotgridHub(
-        project_name,
-        project_code,
-        sg_url,
-        sg_api_key,
-        sg_script_name,
-        sg_project_code_field=project_code_field,
+        kwargs.get("project_name"),
+        kwargs.get("project_code"),
+        sg_processor.sg_url,
+        sg_processor.sg_api_key,
+        sg_processor.sg_script_name,
+        sg_project_code_field=sg_processor.sg_project_code_field,
+        custom_attribs_map=sg_processor.custom_attribs_map,
+        custom_attribs_types=sg_processor.custom_attribs_types,
+        sg_enabled_entities=sg_processor.sg_enabled_entities,
     )
 
     hub.react_to_shotgrid_event(sg_payload["meta"])

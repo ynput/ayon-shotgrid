@@ -38,7 +38,7 @@ const init = () => {
 
 const populateTable = async () => {
   /* Get all the projects from AYON and Shotgrid, then populate the table with their info
-  and a button to Syncronize if they pass the requirements */
+  and a button to Synchronize if they pass the requirements */
   ayonProjects = await getAyonProjects();
   sgProjects = await getShotgridProjects();
 

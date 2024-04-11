@@ -11,6 +11,7 @@ log = Logger.get_logger(__name__)
 
 SHOTGRID_MODULE_DIR = os.path.dirname(os.path.abspath(__file__))
 
+SHOTGRID_ADDON_DIR = os.path.dirname(os.path.abspath(__file__))
 
 class ShotgridAddon(AYONAddon, ITrayAddon, IPluginPaths):
     name = "shotgrid"
@@ -80,7 +81,7 @@ class ShotgridAddon(AYONAddon, ITrayAddon, IPluginPaths):
     def get_plugin_paths(self):
         return {
             "publish": [
-                os.path.join(SHOTGRID_MODULE_DIR, "plugins", "publish")
+                os.path.join(SHOTGRID_ADDON_DIR, "plugins", "publish")
             ]
         }
 

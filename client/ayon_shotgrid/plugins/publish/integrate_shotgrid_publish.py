@@ -117,7 +117,7 @@ class IntegrateShotgridPublish(pyblish.api.InstancePlugin):
                             sg_local_storage["mac_path"]
                         )
 
-                    file_partial_path = file_partial_path.lstrip("/")
+                    file_partial_path = file_partial_path.replace("/", "")
                 except ValueError as exc:
                     raise KnownPublishError(
                         f"Filepath {local_path} doesn't match the "
@@ -179,7 +179,7 @@ class IntegrateShotgridPublish(pyblish.api.InstancePlugin):
                     f"Update Shotgrid PublishedFile: {sg_published_file}"
                 )
 
-            if instance.data["family"] == "image":
+            if instance.data["productType"] == "image":
                 sg_session.upload_thumbnail(
                     sg_published_file["type"],
                     sg_published_file["id"],

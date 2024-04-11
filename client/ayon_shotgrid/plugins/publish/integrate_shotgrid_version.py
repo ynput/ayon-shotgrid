@@ -19,7 +19,7 @@ class IntegrateShotgridVersion(pyblish.api.InstancePlugin):
     # Ayon entity
     fields_to_add = {
         "comment": (str, "description"),
-        # "productType": (str, "sg_version_type"),
+        "productType": (str, "sg_version_type"),
     }
 
     def process(self, instance):

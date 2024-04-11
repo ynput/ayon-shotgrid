@@ -54,13 +54,22 @@ class ShotgridTransmitter:
                     "the Addon System settings."
                 )
 
-            self.ayon_service_user = service_settings["ayon_service_user"]
-            if not self.ayon_service_user:
-                raise ValueError(
-                    "AYON service user not set. Make sure to set it in the "
-                    "Addon System settings."
-                )
-
+            # Compatibility settings
+            custom_attribs_map = self.settings["compatibility_settings"][
+                "custom_attribs_map"]
+            self.custom_attribs_map = {
+                attr["ayon"]: attr["sg"]
+                for attr in custom_attribs_map
+                if attr["sg"]
+            }
+            self.custom_attribs_types = {
+                attr["sg"]: (attr["type"], attr["scope"])
+                for attr in custom_attribs_map
+                if attr["sg"]
+            }
+            self.sg_enabled_entities = (
+                self.settings["compatibility_settings"]
+                             ["shotgrid_enabled_entities"])
             try:
                 self.sg_polling_frequency = int(
                     service_settings["polling_frequency"]
@@ -76,8 +85,8 @@ class ShotgridTransmitter:
     def start_processing(self):
         """ Main loop querying AYON for `entity.*` events.
 
-        We enroll to events that `created`, `deleted` and `renamed` on AYON `entity`
-        to replicate the event in Shotgrid.
+        We enroll to events that `created`, `deleted` and `renamed`
+        on AYON `entity` to replicate the event in Shotgrid.
         """
         events_we_care = [
             "entity.task.created",
@@ -85,10 +94,14 @@ class ShotgridTransmitter:
             "entity.task.renamed",
             "entity.task.create",
             "entity.task.attrib_changed",
+            "entity.task.status_changed",
+            "entity.task.tags_changed",
             "entity.folder.created",
             "entity.folder.deleted",
             "entity.folder.renamed",
             "entity.folder.attrib_changed",
+            "entity.folder.status_changed",
+            "entity.folder.tags_changed",
         ]
 
         logging.debug(
@@ -109,7 +122,15 @@ class ShotgridTransmitter:
                 continue
 
             try:
-                # Enroll to the events we care about
+                # get all service users
+                service_users = [
+                    user["name"]
+                    for user in ayon_api.get_users(
+                        fields={"accessGroups", "isService", "name"})
+                    if user["isService"]
+                ]
+                # enrolling only events which were not created by any
+                # of service users so loopback is avoided
                 event = ayon_api.enroll_event_job(
                     "entity.*",
                     "shotgrid.push",
@@ -127,8 +148,8 @@ class ShotgridTransmitter:
                             },
                             {
                                 "key": "user",
-                                "value": self.ayon_service_user,
-                                "operator": "ne",
+                                "value": service_users,
+                                "operator": "notin",
                             },
                             {
                                 "key": "project",
@@ -175,6 +196,9 @@ class ShotgridTransmitter:
                     self.sg_api_key,
                     self.sg_script_name,
                     sg_project_code_field=self.sg_project_code_field,
+                    custom_attribs_map=self.custom_attribs_map,
+                    custom_attribs_types=self.custom_attribs_types,
+                    sg_enabled_entities=self.sg_enabled_entities,
                 )
 
                 hub.react_to_ayon_event(source_event)
