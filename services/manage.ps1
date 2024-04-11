@@ -96,12 +96,17 @@ function dev {
 function shell {
     docker run --rm -u ayonuser -ti -v "$CurrentDir/$ServiceDir/$ServiceDir" + ":/service:Z" $Image /bin/sh
 }
-function dist {
+function push {
     build
-    # Publish the docker image to the registry
-    docker push "$Image"
+    $Image = Get-ServiceImage
+    docker push $Image
 }
-
+function push-all {
+    "leecher", "processor", "transmitter" | ForEach-Object {
+        write-host "Pushing $_"
+        .\manage.ps1 "push" -Service $_
+    }
+}
 
 # Main function
 function main {
@@ -127,6 +132,13 @@ function main {
     }
     elseif ($FunctionName -eq "dev") {
         dev
+    }
+    elseif ($FunctionName -eq "push") {
+        push
+    }
+    elseif ($FunctionName -eq "push-all") {
+        Write-Host "Pushing all services to docker hub"
+        push-all
     }
     elseif ($FunctionName -eq "shell") {
         shell
