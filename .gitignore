@@ -39,7 +39,6 @@ Temporary Items
 .idea/
 
 # Add symlinked files to ignore
-client/ayon_shotgrid/version.py
 services/leecher/__init__.py
 services/leecher/ayon_shotgrid_hub
 services/leecher/constants.py

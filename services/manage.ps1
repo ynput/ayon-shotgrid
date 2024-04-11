@@ -7,11 +7,9 @@ if ($ARGS.Length -gt 1) {
     $arguments = $ARGS[1..($ARGS.Length - 1)]
 }
 
-# Function to get addon version from ../version.py
+# Function to get addon version from ../package.py
 function Get-AddonVersion {
-    $versionLine = Get-Content -Path "../version.py" | Where-Object { $_ -match "__version__" }
-    $version = $versionLine.Split(" ")[2].Trim('"')
-    return $version
+    return Invoke-Expression -Command "python -c ""import os;import sys;content={};f=open(r'../package.py');exec(f.read(),content);f.close();print(content['version'])"""
 }
 
 $AddonVersion = Get-AddonVersion
