@@ -37,7 +37,7 @@ class ShotgridTrayWrapper:
     def show_sg_username_dialog(self):
         """Display the Shotgrid Username dialog
 
-        Used to set a Shotgird Username, that will then be used by any API call
+        Used to set a Shotgrid Username, that will then be used by any API call
         and to check that the user can access the Shotgrid API.
         """
         self.sg_username_dialog.show()
