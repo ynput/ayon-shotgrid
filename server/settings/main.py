@@ -1,6 +1,7 @@
+from ayon_server.entities.core.attrib import attribute_library
 from ayon_server.settings import BaseSettingsModel, SettingsField
 from ayon_server.settings.enum import secrets_enum, anatomy_presets_enum
-from ayon_server.entities.core.attrib import attribute_library
+
 
 def default_shotgrid_entities():
     """The entity types that exist in ShotGrid."""
@@ -237,6 +238,23 @@ class ShotgridSettings(BaseSettingsModel):
         description="Name of the 'code' to select which one of the multiple possible local storages entries to use.",
         example="ayon_storage",
         scope=["studio"],
+    )
+    anatomy_preset: str = SettingsField(
+        default="_",
+        title="Anatomy Preset",
+        description=(
+            "The anatomy preset to use for the "
+            "ShotGrid synchronized projects."
+        ),
+        enum_resolver=anatomy_presets_enum
+    )
+    compatibility_settings: ShotgridCompatibilitySettings = SettingsField(
+        default_factory=ShotgridCompatibilitySettings,
+        title="ShotGrid <-> AYON compatibility Settings",
+        description=(
+            "All the settings that allow us to fine-grain the relation "
+            "between ShotGrid and AYON entities."
+        )
     )
     service_settings: ShotgridServiceSettings = SettingsField(
         default_factory=ShotgridServiceSettings,
