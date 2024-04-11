@@ -29,7 +29,6 @@ import os
 import sys
 import re
 import shutil
-import json
 import platform
 import argparse
 import logging
