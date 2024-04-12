@@ -64,7 +64,8 @@ class ShotgridAddon(AYONAddon, ITrayAddon, IPluginPaths):
             "enable_shotgrid_local_storage")
 
         # ShotGrid local storage entry name
-        self._local_storage_key = addon_settings.get("local_storage_key")
+        self._local_storage_key = addon_settings.get(
+            "shotgrid_local_storage_key")
 
     def get_sg_url(self):
         return self._shotgrid_server_url or None
