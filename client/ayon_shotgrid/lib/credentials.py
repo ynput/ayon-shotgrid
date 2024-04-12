@@ -1,7 +1,7 @@
 import shotgun_api3
 from shotgun_api3.shotgun import AuthenticationFault
 
-from ayon_core.lib import AYONSettingsRegistry
+from ayon_core.lib import AYONSecureRegistry
 
 
 def check_user_permissions(
@@ -58,12 +58,6 @@ def check_user_permissions(
         return (False, str(e))
 
     return (True, "Successfully logged in.")
-
-
-def clear_local_login():
-    """Clear the Shotgrid Login entry from the local registry. """
-    reg = AYONSettingsRegistry()
-    reg.delete_item("shotgrid_login")
 
 
 def create_sg_session(
@@ -129,14 +123,29 @@ def create_sg_session(
 
 def get_local_login():
     """Get the Shotgrid Login entry from the local registry. """
-    reg = AYONSettingsRegistry()
     try:
-        return reg.get_item("shotgrid_login")
+        reg = AYONSecureRegistry("shotgrid/user")
+        username = reg.get_item("value")
+        reg = AYONSecureRegistry("shotgrid/pass")
+        password = reg.get_item("value")
+        return username, password
     except Exception:
         return (None, None)
 
 
 def save_local_login(username, password):
     """Save the Shotgrid Login entry from the local registry. """
-    reg = AYONSettingsRegistry()
-    reg.set_item("shotgrid_login", (username, password))
+    reg = AYONSecureRegistry("shotgrid/user")
+    reg.set_item("value", username)
+    reg = AYONSecureRegistry("shotgrid/pass")
+    reg.set_item("value", password)
+
+
+def clear_local_login():
+    """Clear the Shotgrid Login entry from the local registry. """
+    reg = AYONSecureRegistry("shotgrid/user")
+    if reg.get_item("value", None) is not None:
+        reg.delete_item("value")
+    reg = AYONSecureRegistry("shotgrid/pass")
+    if reg.get_item("value", None) is not None:
+        reg.delete_item("value")

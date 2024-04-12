@@ -15,10 +15,10 @@ class ShotgridTrayWrapper:
     There's the option to check if said user has permissions to connect to the
     API.
     """
-    def __init__(self, module):
-        self.module = module
+    def __init__(self, addon):
+        self.addon = addon
 
-        server_url = self.module.get_sg_url()
+        server_url = self.addon.get_sg_url()
 
         if not server_url:
             server_url = "No Shotgrid Server set in Ayon Settings."
@@ -31,7 +31,7 @@ class ShotgridTrayWrapper:
         self.sg_username_label = QtWidgets.QAction("")
         self.sg_username_label.triggered.connect(self.show_sg_username_dialog)
 
-        self.sg_username_dialog = SgLoginDialog(self.module)
+        self.sg_username_dialog = SgLoginDialog(self.addon)
         self.sg_username_dialog.dialog_closed.connect(self.set_username_label)
 
     def show_sg_username_dialog(self):

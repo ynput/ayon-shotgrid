@@ -21,7 +21,7 @@ class ShotgridAddon(AYONAddon, ITrayAddon, IPluginPaths):
         client_login_info = addon_settings["client_login"]
 
         log.debug(
-            f"Initializing {self.name} module with "
+            f"Initializing {self.name} addon with "
             "settings: {addon_settings}"
         )
         self._shotgrid_server_url = addon_settings["shotgrid_server"]
@@ -32,7 +32,7 @@ class ShotgridAddon(AYONAddon, ITrayAddon, IPluginPaths):
 
         # reconfigure for client user api key since studio might need to
         # use a different api key with different permissions access
-        if self._client_login_type in ["env", "client_api_key"]:
+        if self._client_login_type in ["env", "tray_api_key"]:
             self._shotgrid_script_name = (
                 client_login_info
                 [self._client_login_type]

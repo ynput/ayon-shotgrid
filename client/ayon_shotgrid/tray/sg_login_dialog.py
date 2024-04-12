@@ -15,10 +15,10 @@ class SgLoginDialog(QtWidgets.QDialog):
 
     dialog_closed = QtCore.Signal()
 
-    def __init__(self, module, parent=None):
+    def __init__(self, addon, parent=None):
         super(SgLoginDialog, self).__init__(parent)
-        self.module = module
-        self.login_type = self.module.get_client_login_type()
+        self.addon = addon
+        self.login_type = self.addon.get_client_login_type()
 
         self.setWindowTitle("Ayon - Shotgrid Login")
         icon = QtGui.QIcon(resources.get_openpype_icon_filepath())
@@ -41,7 +41,7 @@ class SgLoginDialog(QtWidgets.QDialog):
         super(SgLoginDialog, self).closeEvent(event)
 
     def setup_ui(self):
-        server_url = self.module.get_sg_url()
+        server_url = self.addon.get_sg_url()
 
         if not server_url:
             server_url = "No Shotgrid Server set in Ayon Settings."
@@ -69,7 +69,7 @@ class SgLoginDialog(QtWidgets.QDialog):
         if sg_password:
             self.sg_password_input.setText(sg_password)
         else:
-            self.sg_password_input.setPlaceholderText("c0mPre$Hi0n")
+            self.sg_password_input.setPlaceholderText("password1234")
 
         dialog_layout.addWidget(QtWidgets.QLabel("Shotgrid Username:"))
         dialog_layout.addWidget(self.sg_username_input)
@@ -115,7 +115,7 @@ class SgLoginDialog(QtWidgets.QDialog):
         sg_password = self.sg_password_input.text()
 
         kwargs = {
-            "shotgrid_url": self.module.get_sg_url(),
+            "shotgrid_url": self.addon.get_sg_url(),
         }
 
         if self.login_type == "tray_pass":
@@ -137,8 +137,8 @@ class SgLoginDialog(QtWidgets.QDialog):
                 return
             kwargs.update({
                 "username": sg_username,
-                "api_key": self.module.get_sg_api_key(),
-                "script_name": self.module.get_sg_script_name(),
+                "api_key": self.addon.get_sg_api_key(),
+                "script_name": self.addon.get_sg_script_name(),
             })
 
         login_result, login_message = credentials.check_user_permissions(
