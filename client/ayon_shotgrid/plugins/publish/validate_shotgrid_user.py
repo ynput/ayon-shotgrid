@@ -36,13 +36,13 @@ class ValidateShotgridUser(pyblish.api.ContextPlugin):
 
         if not sg_user:
             raise PublishValidationError(
-                "Login {0} don't have access to the project {1} <{2}>".format(
+                "Login {0} doesn't have access to the project {1} <{2}>".format(  # noqa
                     user_login, project_name, sg_project
                 )
             )
 
         self.log.info(
-            "Login {0} have access to the project {1} <{2}>".format(
+            "Login {0} has access to the project {1} <{2}>".format(
                 user_login, project_name, sg_project
             )
         )
