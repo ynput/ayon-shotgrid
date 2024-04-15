@@ -78,7 +78,7 @@ class ShotgridServiceSettings(BaseSettingsModel):
         enum_resolver=secrets_enum,
         title="ShotGrid's Script api key",
         description=(
-            "Ayon Secret used for Service related server operations "
+            "AYON Secret used for Service related server operations "
             "Secret should lead to ShotGrid's Script api key. "
             "See more at: https://developer.shotgridsoftware.com/python-api/"
             "authentication.html#setting-up-shotgrid"
