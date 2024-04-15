@@ -60,10 +60,10 @@ def get_default_folder_attributes():
 
 
 class ShotgridServiceSettings(BaseSettingsModel):
-    """Specific settings for the Shotgrid Services: Processor, Leecher and
+    """Specific settings for the ShotGrid Services: Processor, Leecher and
     Transmitter.
 
-    The different services process events from either Shotgrid or AYON,
+    The different services process events from either ShotGrid or AYON,
     this field allows to control how long to wait between each event
     is processed.
     """
@@ -204,8 +204,8 @@ class ShotgridSettings(BaseSettingsModel):
 
     shotgrid_server: str = SettingsField(
         default="",
-        title="Shotgrid URL",
-        description="The URL to the Shotgrid Server we want to interact with.",
+        title="ShotGrid URL",
+        description="The URL to the ShotGrid Server we want to interact with.",
         example="https://my-site.shotgrid.autodesk.com",
         scope=["studio"]
     )
@@ -228,7 +228,7 @@ class ShotgridSettings(BaseSettingsModel):
     )
     enable_shotgrid_local_storage: bool = SettingsField(
         default=True,
-        title="Enable Shotgrid Local Storage.",
+        title="Enable ShotGrid Local Storage.",
         description=(
             "Whether to try make use of local storage defined in ShotGrid "
             "('Site Preferences -> File Management -> Local Storage') or not."
@@ -237,7 +237,7 @@ class ShotgridSettings(BaseSettingsModel):
     )
     shotgrid_local_storage_key: str = SettingsField(
         default="primary",
-        title="Shotgrid Local Storage entry name",
+        title="ShotGrid Local Storage entry name",
         description=(
             "Name of the 'code' to select which one of the multiple "
             "possible local storages entries to use."
