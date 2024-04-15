@@ -90,7 +90,7 @@ class ShotgridServiceSettings(BaseSettingsModel):
         placeholder="Create and Paste a script name here",
         title="ShotGrid's Script Name",
         description=(
-            "Ayon Secret used for Service related server operations "
+            "AYON Secret used for Service related server operations "
             "Secret should lead to ShotGrid's Script Name. "
             "See more at: https://developer.shotgridsoftware.com/python-api/"
             "authentication.html#setting-up-shotgrid"
