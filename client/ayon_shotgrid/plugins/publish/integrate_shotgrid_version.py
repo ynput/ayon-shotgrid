@@ -1,8 +1,13 @@
+from pprint import pformat
 import re
 
 import pyblish.api
 
 from ayon_core.pipeline.publish import get_publish_repre_path
+from ayon_core.lib.transcoding import (
+    VIDEO_EXTENSIONS,
+    IMAGE_EXTENSIONS
+)
 
 
 class IntegrateShotgridVersion(pyblish.api.InstancePlugin):
@@ -21,7 +26,8 @@ class IntegrateShotgridVersion(pyblish.api.InstancePlugin):
 
         # Skip execution if instance is marked to be processed in the farm
         if instance.data.get("farm"):
-            self.log.info("Instance is marked to be processed on farm. Skipping")
+            self.log.info(
+                "Instance is marked to be processed on farm. Skipping")
             return
 
         context = instance.context
@@ -35,6 +41,7 @@ class IntegrateShotgridVersion(pyblish.api.InstancePlugin):
             data_to_update["sg_status_list"] = intent["value"]
 
         for representation in instance.data.get("representations", []):
+            self.log.debug(pformat(representation))
 
             if "shotgridreview" not in representation.get("tags", []):
                 continue
@@ -43,7 +50,7 @@ class IntegrateShotgridVersion(pyblish.api.InstancePlugin):
                 instance, representation, False
             )
 
-            if representation["ext"] in ["mov", "avi"]:
+            if f".{representation['ext']}" in VIDEO_EXTENSIONS:
                 data_to_update["sg_path_to_movie"] = local_path
                 if (
                     "slate" in instance.data["families"]
@@ -51,7 +58,7 @@ class IntegrateShotgridVersion(pyblish.api.InstancePlugin):
                 ):
                     data_to_update["sg_movie_has_slate"] = True
 
-            elif representation["ext"] in ["jpg", "png", "exr", "tga"]:
+            elif f".{representation['ext']}" in IMAGE_EXTENSIONS:
                 # Replace the frame number with '%04d'
                 path_to_frame = re.sub(r"\.\d+\.", ".%04d.", local_path)
 
@@ -71,9 +78,9 @@ class IntegrateShotgridVersion(pyblish.api.InstancePlugin):
         sg_session = context.data["shotgridSession"]
 
         # TODO: Use path template solver to build version code from settings
-        anatomy = instance.data.get("anatomyData", {})
+        anatomy_data = instance.data.get("anatomyData", {})
         version_name_tokens = [
-            anatomy["folder"]["name"],
+            anatomy_data["folder"]["name"],
             instance.data["productName"],
         ]
 
@@ -83,19 +90,20 @@ class IntegrateShotgridVersion(pyblish.api.InstancePlugin):
             )
 
         version_name_tokens.append(
-            "v{:03}".format(int(anatomy["version"]))
+            "v{:03}".format(int(anatomy_data["version"]))
         )
 
         version_name = "_".join(version_name_tokens)
 
-        self.log.info("Integrating Shotgrid version with code: {}".format(version_name))
+        self.log.info(
+            f"Integrating Shotgrid version with code: {version_name}")
 
         sg_version = self._find_existing_version(version_name, instance)
         if not sg_version:
             sg_version = self._create_version(version_name, instance)
-            self.log.info("Create Shotgrid version: {}".format(sg_version))
+            self.log.info(f"Create Shotgrid version: {sg_version}")
         else:
-            self.log.info("Use existing Shotgrid version: {}".format(sg_version))
+            self.log.info(f"Use existing Shotgrid version: {sg_version}")
 
         # Upload movie to version
         path_to_movie = data_to_update.get("sg_path_to_movie")
@@ -113,15 +121,19 @@ class IntegrateShotgridVersion(pyblish.api.InstancePlugin):
             )
 
         # Update frame start/end on the version
-        frame_start = instance.data.get("frameStart", context.data.get("frameStart"))
-        handle_start = instance.data.get("handleStart", context.data.get("handleStart"))
+        frame_start = instance.data.get(
+            "frameStart", context.data.get("frameStart"))
+        handle_start = instance.data.get(
+            "handleStart", context.data.get("handleStart"))
         if frame_start is not None and handle_start is not None:
             frame_start = int(frame_start)
             handle_start = int(handle_start)
             data_to_update["sg_first_frame"] = frame_start - handle_start
 
-        frame_end = instance.data.get("frameEnd", context.data.get("frameEnd"))
-        handle_end = instance.data.get("handleEnd", context.data.get("handleEnd"))
+        frame_end = instance.data.get(
+            "frameEnd", context.data.get("frameEnd"))
+        handle_end = instance.data.get(
+            "handleEnd", context.data.get("handleEnd"))
         if frame_end is not None and handle_end is not None:
             frame_end = int(frame_end)
             handle_end = int(handle_end)
@@ -140,13 +152,13 @@ class IntegrateShotgridVersion(pyblish.api.InstancePlugin):
 
         # Add version objectId to "sg_ayon_id" so we can keep a link
         # between both
-        version_entity = instance.data.get("versionEntity", {}).get("id")
-        if not version_entity:
+        version_id = instance.data.get("versionEntity", {}).get("id")
+        if not version_id:
             self.log.warning(
                 "Instance doesn't have a 'versionEntity' to extract the id."
             )
-            version_entity = "-"
-        data_to_update["sg_ayon_id"] = str(version_entity)
+            version_id = "-"
+        data_to_update["sg_ayon_id"] = version_id
 
         self.log.info(f"Updating Shotgrid version with {data_to_update}")
         sg_session.update("Version", sg_version["id"], data_to_update)
@@ -154,14 +166,14 @@ class IntegrateShotgridVersion(pyblish.api.InstancePlugin):
         instance.data["shotgridVersion"] = sg_version
 
     def _find_existing_version(self, version_name, instance):
-        """Find if a Version alread exists in Shotgrid.
+        """Find if a Version already exists in ShotGrid.
 
         Args:
             version_name(str): The full version name, `code` field in SG.
             instance (pyblish.Instance): The version's Instance.
 
         Returns:
-            dict/None: A Shogrid Version or None if there is none.
+            dict/None: A ShotGrid Version or None if there is none.
         """
         filters = [
             ["project", "is", instance.data.get("shotgridProject")],
@@ -170,7 +182,8 @@ class IntegrateShotgridVersion(pyblish.api.InstancePlugin):
         ]
 
         if instance.data.get("shotgridTask"):
-            filters.append(["sg_task", "is", instance.data.get("shotgridTask")])
+            filters.append(
+                ["sg_task", "is", instance.data.get("shotgridTask")])
 
         return instance.context.data["shotgridSession"].find_one(
             "Version",

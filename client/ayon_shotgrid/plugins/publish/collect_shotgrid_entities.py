@@ -14,7 +14,7 @@ class CollectShotgridEntities(pyblish.api.ContextPlugin):
     def process(self, context):
         if not context.data.get("shotgridSession"):
             raise KnownPublishError(
-                "Unable to proceeed without a valid Shotgrid Session."
+                "Unable to proceed without a valid Shotgrid Session."
             )
 
         sg_session = context.data["shotgridSession"]
