@@ -2,10 +2,11 @@
 
 This project provides three elements for the Ayon pipeline:
  * server/ - The Ayon Backend Addon.
- * client/ - The Ayon (currently OpenPype) desktop integration.
+ * frontend/ - The AYON server Shotgrid settings tab.
+ * client/ - The AYON desktop integration.
  * services/ - Standalone dockerized daemons that act based on events (aka `leecher` and `processors`).
 
-In order to use this integrations you'll need to run the `python create_package.py` script which will create a `zip` file with the current version (the number is defined in `version.py`) in `ayon-shotgrid/package/shotgrid-{addon version}.zip`, you can then upload this zip file in your AYON instance, on the Bundles (`/settings/bundles`) section, make sure you restart the server, AYON should prompt you to do so after uploading.
+In order to use this integrations you'll need to run the `python create_package.py` script which will create a `zip` file with the current version (the number is defined in `package.py`) in `ayon-shotgrid/package/shotgrid-{addon version}.zip`, you can then upload this zip file in your AYON instance, on the Bundles (`/settings/bundles`) section, make sure you restart the server, AYON should prompt you to do so after uploading.
 
 ## Server
 Once the instance has restarted, you should be able to enable the addon by going into the `Settings > Bundles` and create (or duplicate an existing) bundle, where you can now choose `shotgrid` and the `version` you installed; make sure you set the bundle as `Production`.
@@ -40,7 +41,7 @@ The most straighforward way to get this up and running is by using ASH (Ayon Ser
 There's a single `Makefile` at the root of the `services` folder, which is used to `build` the docker images and to run the services locally with the `dev` target, this is UNIX only for the time being, running `make` without argument will print information as to how to run use it.
 
 #### Building Docker Images
-To build the docker images you can run `make SERVICE=<service-name> build`, so for example, to build the `processor` you'd do `make SERVICE=processor build`, this will build and tag the local image, with the version found in `version.py` at the root of the addon.
+To build the docker images you can run `make SERVICE=<service-name> build`, so for example, to build the `processor` you'd do `make SERVICE=processor build`, this will build and tag the local image, with the version found in `package.py` at the root of the addon.
 
 #### Running the Service locally
 In order to run the service locally we need to specify certain environment variables, to do so, copy the `sample_env` file, rename to `.env` and fill the fields acordingly:
@@ -61,7 +62,7 @@ INFO       Initializing the Shotgrid Processor.
 DEBUG      Found these handlers: {'create-project': [<module 'project_sync'>], 'sync-from-shotgrid': [<module 'sync_from_shotgrid'>], 'shotgrid-event': [<module 'update_from_shotgrid'>]}
 INFO       Start enrolling for Ayon `shotgrid.event` Events...
 INFO       Querying for new `shotgrid.event` events...
-INFO       No event of origin `shotgrid.event` is pending. 
+INFO       No event of origin `shotgrid.event` is pending.
 ```
 
 ### Makefile commands
@@ -110,4 +111,3 @@ With the `leecher` **and** the `processor` services running, and the `Ayon Auto 
 With the `transmitter` **and** the `processor` services running, and the `Ayon Auto Sync` field **enabled** in Shotgrid, whenever an event on `entity.*` occurs in AYON, an event will be dispatched in Ayon `shotgrid.push` this event will attempt to replicate the changes made in AYON in Shotgrid.
 
 In all instances you'll want to keep an eye on the terminal where you launched the services, where you can track the progress of any of the handlers. This will be imporved in teh future so it can be tracked from AYON.
-

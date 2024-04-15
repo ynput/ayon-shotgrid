@@ -10,9 +10,9 @@ import os
 import time
 import types
 import socket
+from nxtools import logging, log_traceback
 
 import ayon_api
-from nxtools import logging, log_traceback
 
 
 class ShotgridProcessor:
@@ -40,17 +40,32 @@ class ShotgridProcessor:
         try:
             ayon_api.init_service()
             self.settings = ayon_api.get_service_addon_settings()
+            service_settings = self.settings["service_settings"]
 
             self.sg_url = self.settings["shotgrid_server"]
-            self.sg_project_code_field = self.settings["shotgrid_project_code_field"]
+            self.sg_project_code_field = self.settings[
+                "shotgrid_project_code_field"]
 
-            sg_secret = ayon_api.get_secret(self.settings["shotgrid_api_secret"])
-            self.sg_script_name = sg_secret.get("name")
-            self.sg_api_key = sg_secret.get("value")
+            # get server op related ShotGrid script api properties
+            shotgrid_secret = ayon_api.get_secret(
+                service_settings["script_key"])
+            self.sg_api_key = shotgrid_secret.get("value")
+            if not self.sg_api_key:
+                raise ValueError(
+                    "Shotgrid API Key not found. Make sure to set it in the "
+                    "Addon System settings."
+                )
+
+            self.sg_script_name = service_settings["script_name"]
+            if not self.sg_script_name:
+                raise ValueError(
+                    "Shotgrid Script Name not found. Make sure to set it in "
+                    "the Addon System settings."
+                )
 
             try:
                 self.sg_polling_frequency = int(
-                    self.settings["service_settings"]["polling_frequency"]
+                    service_settings["polling_frequency"]
                 )
             except Exception:
                 self.sg_polling_frequency = 10

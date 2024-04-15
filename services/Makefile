@@ -1,4 +1,4 @@
-ADDON_VERSION := $(shell grep "__version__" ../version.py | cut -d' ' -f3 | tr -d '"')
+ADDON_VERSION := $(shell grep "version" ../package.py | cut -d' ' -f3 | tr -d '"')
 IMAGE := ynput/ayon-shotgrid-$(SERVICE):$(ADDON_VERSION)
 SERVICE = $(error Please specify the service to build with 'SERVICE', for example: 'make build SERVICE=leecher')
 
@@ -20,7 +20,7 @@ default:
 	@echo "  clean        Remove local images."
 	@echo "  clean-build  Remove local images and build without docker cache."
 	@echo "  dev          Run a service locally"
-	
+
 
 build:
 	docker build --network=host -t $(IMAGE) -f $(SERVICE)/Dockerfile .
@@ -58,5 +58,3 @@ dev:
 
 shell:
 	docker run --rm -u ayonuser -ti -v $(CURDIR)/$(SERVICE)/$(SERVICE):/service:Z $(IMAGE) /bin/sh
-	
-	

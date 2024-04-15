@@ -7,11 +7,11 @@ two are `created`, `renamed` or `deleted`.
 """
 import time
 import socket
-
-from ayon_shotgrid_hub import AyonShotgridHub
+from nxtools import logging, log_traceback
 
 import ayon_api
-from nxtools import logging, log_traceback
+
+from ayon_shotgrid_hub import AyonShotgridHub
 
 
 class ShotgridTransmitter:
@@ -30,14 +30,29 @@ class ShotgridTransmitter:
         try:
             ayon_api.init_service()
             self.settings = ayon_api.get_service_addon_settings()
-            self.sg_url = self.settings["shotgrid_server"]
-            self.sg_project_code_field = \
-                self.settings["shotgrid_project_code_field"]
+            service_settings = self.settings["service_settings"]
 
-            sg_secret = ayon_api.get_secret(
-                self.settings["shotgrid_api_secret"])
-            self.sg_script_name = sg_secret.get("name")
-            self.sg_api_key = sg_secret.get("value")
+            self.sg_url = self.settings["shotgrid_server"]
+            self.sg_project_code_field = self.settings[
+                "shotgrid_project_code_field"]
+
+            # get server op related ShotGrid script api properties
+            shotgrid_secret = ayon_api.get_secret(
+                service_settings["script_key"])
+
+            self.sg_api_key = shotgrid_secret.get("value")
+            if not self.sg_api_key:
+                raise ValueError(
+                    "Shotgrid API Key not found. Make sure to set it in the "
+                    "Addon System settings."
+                )
+
+            self.sg_script_name = service_settings["script_name"]
+            if not self.sg_script_name:
+                raise ValueError(
+                    "Shotgrid Script Name not found. Make sure to set it in "
+                    "the Addon System settings."
+                )
 
             # Compatibility settings
             custom_attribs_map = self.settings["compatibility_settings"][
@@ -57,7 +72,7 @@ class ShotgridTransmitter:
                              ["shotgrid_enabled_entities"])
             try:
                 self.sg_polling_frequency = int(
-                    self.settings["service_settings"]["polling_frequency"]
+                    service_settings["polling_frequency"]
                 )
             except Exception:
                 self.sg_polling_frequency = 10
@@ -121,7 +136,9 @@ class ShotgridTransmitter:
                     "shotgrid.push",
                     socket.gethostname(),
                     description=(
-                        "Handle AYON entity changes and sync them to Shotgrid."),
+                        "Handle AYON entity changes and "
+                        "sync them to Shotgrid."
+                    ),
                     events_filter={
                         "conditions": [
                             {
@@ -186,13 +203,18 @@ class ShotgridTransmitter:
 
                 hub.react_to_ayon_event(source_event)
 
-                logging.info(
-                    "Event has been processed... setting to finished!")
+                logging.info("Event has been processed... setting to finished!")
                 ayon_api.update_event(
-                    event["id"], project_name=project_name, status="finished")
+                    event["id"],
+                    project_name=project_name,
+                    status="finished"
+                )
             except Exception as err:
                 log_traceback(err)
                 ayon_api.update_event(
-                    event["id"], project_name=project_name, status="failed")
+                    event["id"],
+                    project_name=project_name,
+                    status="failed"
+                )
 
             time.sleep(self.sg_polling_frequency)
