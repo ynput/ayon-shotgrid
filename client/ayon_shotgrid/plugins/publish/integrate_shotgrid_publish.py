@@ -4,8 +4,8 @@ import platform
 
 import pyblish.api
 
-from openpype.pipeline import KnownPublishError
-from openpype.pipeline.publish import get_publish_repre_path
+from ayon_core.pipeline import KnownPublishError
+from ayon_core.pipeline.publish import get_publish_repre_path
 
 
 class IntegrateShotgridPublish(pyblish.api.InstancePlugin):
@@ -23,7 +23,7 @@ class IntegrateShotgridPublish(pyblish.api.InstancePlugin):
             self.log.info(
                 "Instance is marked to be processed on farm. Skipping")
             return
-        
+
         sg_session = instance.context.data.get("shotgridSession")
         sg_version = instance.data.get("shotgridVersion")
 
@@ -34,8 +34,8 @@ class IntegrateShotgridPublish(pyblish.api.InstancePlugin):
 
             if "shotgridreview" not in representation.get("tags", []):
                 self.log.debug(
-                    "No 'shotgridreview' tag on representation '%s', skipping.",
-                    representation.get("name")
+                    "No 'shotgridreview' tag on representation "
+                    f"'{representation.get('name')}', skipping."
                 )
                 continue
 
@@ -48,17 +48,19 @@ class IntegrateShotgridPublish(pyblish.api.InstancePlugin):
             sg_task = instance.data.get("shotgridTask")
 
             code = os.path.basename(local_path)
-            # Extract and remove version number from code so Publishedfile versions are
-            # grouped together. More info about this on:
-            # https://developer.shotgridsoftware.com/tk-core/_modules/tank/util/shotgun/publish_creation.html
+            # Extract and remove version number from code so Published file
+            # versions are grouped together. More info about this on:
+            # https://developer.shotgridsoftware.com/tk-core/_modules/tank/"
+            # "util/shotgun/publish_creation.html
             version_number = 0
-            match = re.search("_v(\d+)", code)
+            match = re.search("_v(\\d+)", code)
             if match:
                 version_number = int(match.group(1))
                 # Remove version from name
-                code = re.sub("_v\d+", "", code)
-                # Remove frames from name (i.e., filename.1001.exr -> filename.exr)
-                code = re.sub("\.\d+", "", code)
+                code = re.sub("_v\\d+", "", code)
+                # Remove frames from name
+                #   (i.e., filename.1001.exr -> filename.exr)
+                code = re.sub("\\.\\d+", "", code)
 
             query_filters = [
                 ["project", "is", sg_project],
@@ -79,7 +81,11 @@ class IntegrateShotgridPublish(pyblish.api.InstancePlugin):
                 sg_local_storage = sg_session.find_one(
                     "LocalStorage",
                     filters=[
-                        ["code", "is", instance.context.data["shotgridLocalStorageKey"]]
+                        [
+                            "code",
+                            "is",
+                            instance.context.data["shotgridLocalStorageKey"]
+                        ]
                     ],
                     fields=["mac_path", "windows_path", "linux_path"]
                 )
@@ -88,9 +94,11 @@ class IntegrateShotgridPublish(pyblish.api.InstancePlugin):
                     raise KnownPublishError(
                         "Unable to find a Local Storage in Shotgrid."
                         "Enable them in Site Preferences > Local Management:"
-                        "https://help.autodesk.com/view/SGSUB/ENU/?guid=SG_Administrator_ar_data_management_ar_linking_local_files_html"
+                        "https://help.autodesk.com/view/SGSUB/ENU/?guid="
+                        "SG_Administrator_ar_data_management_ar_linking_"
+                        "local_files_html"
                     )
-                
+
                 self.log.debug(f"Using the Local Storage: {sg_local_storage}")
 
                 try:
@@ -98,7 +106,8 @@ class IntegrateShotgridPublish(pyblish.api.InstancePlugin):
                         _, file_partial_path = local_path.split(
                             sg_local_storage["windows_path"]
                         )
-                        file_partial_path = file_partial_path.replace("\\", "/")
+                        file_partial_path = file_partial_path.replace(
+                            "\\", "/")
                     elif platform.system() == "Linux":
                         _, file_partial_path = local_path.split(
                             sg_local_storage["linux_path"]
@@ -114,15 +123,18 @@ class IntegrateShotgridPublish(pyblish.api.InstancePlugin):
                         f"Filepath {local_path} doesn't match the "
                         f"Shotgrid Local Storage {sg_local_storage}"
                         "Enable them in Site Preferences > Local Management:"
-                        "https://help.autodesk.com/view/SGSUB/ENU/?guid=SG_Administrator_ar_data_management_ar_linking_local_files_html"
+                        "https://help.autodesk.com/view/SGSUB/ENU/?guid="
+                        "SG_Administrator_ar_data_management_ar_linking_local_"
+                        "files_html"
                     ) from exc
-                
+
                 path = {
                     "local_storage": sg_local_storage,
                     "relative_path": file_partial_path
                 }
             else:
-                self.log.info("Shotgrid Local Storage disabled, using local path.")
+                self.log.info(
+                    "Shotgrid Local Storage disabled, using local path.")
                 path = {"local_path": local_path}
 
             published_file_data = {
@@ -149,14 +161,13 @@ class IntegrateShotgridPublish(pyblish.api.InstancePlugin):
                     )
                 except Exception as e:
                     self.log.error(
-                        "Unable to create PublishedFile with data: {}".format(
-                            published_file_data
-                        )
+                        "Unable to create PublishedFile with data: "
+                        f"{published_file_data}"
                     )
                     raise e
 
                 self.log.info(
-                    "Created Shotgrid PublishedFile: {}".format(sg_published_file)
+                    f"Created Shotgrid PublishedFile: {sg_published_file}"
                 )
             else:
                 sg_session.update(
@@ -165,10 +176,10 @@ class IntegrateShotgridPublish(pyblish.api.InstancePlugin):
                     published_file_data,
                 )
                 self.log.info(
-                    "Update Shotgrid PublishedFile: {}".format(sg_published_file)
+                    f"Update Shotgrid PublishedFile: {sg_published_file}"
                 )
 
-            if instance.data["family"] == "image":
+            if instance.data["productType"] == "image":
                 sg_session.upload_thumbnail(
                     sg_published_file["type"],
                     sg_published_file["id"],
@@ -184,10 +195,7 @@ class IntegrateShotgridPublish(pyblish.api.InstancePlugin):
 
         if ext in [".exr", ".jpg", ".jpeg", ".png", ".dpx", ".tif", ".tiff"]:
             is_sequence = len(representation["files"]) > 1
-            if is_sequence:
-                published_file_type = "Rendered Image"
-            else:
-                published_file_type = "Image"
+            published_file_type = "Rendered Image" if is_sequence else "Image"
         elif ext in [".mov", ".mp4"]:
             published_file_type = "Movie"
         elif ext == ".abc":

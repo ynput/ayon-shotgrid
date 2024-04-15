@@ -10,6 +10,7 @@ import time
 import signal
 import socket
 from typing import Any, Callable, Union
+from nxtools import logging, log_traceback
 
 from constants import (
     SG_EVENT_TYPES,
@@ -17,7 +18,6 @@ from constants import (
 )
 
 import ayon_api
-from nxtools import logging, log_traceback
 import shotgun_api3
 
 
@@ -43,16 +43,32 @@ class ShotgridListener:
         try:
             ayon_api.init_service()
             self.settings = ayon_api.get_service_addon_settings()
-            self.sg_url = self.settings["shotgrid_server"]
-            self.sg_project_code_field = self.settings["shotgrid_project_code_field"]
+            service_settings = self.settings["service_settings"]
 
-            sg_secret = ayon_api.get_secret(self.settings["shotgrid_api_secret"])
-            self.sg_script_name = sg_secret.get("name")
-            self.sg_api_key = sg_secret.get("value")
+            self.sg_url = self.settings["shotgrid_server"]
+            self.sg_project_code_field = self.settings[
+                "shotgrid_project_code_field"]
+
+            # get server op related ShotGrid script api properties
+            shotgrid_secret = ayon_api.get_secret(
+                service_settings["script_key"])
+            self.sg_api_key = shotgrid_secret.get("value")
+            if not self.sg_api_key:
+                raise ValueError(
+                    "Shotgrid API Key not found. Make sure to set it in the "
+                    "Addon System settings."
+                )
+
+            self.sg_script_name = service_settings["script_name"]
+            if not self.sg_script_name:
+                raise ValueError(
+                    "Shotgrid Script Name not found. Make sure to set it in "
+                    "the Addon System settings."
+                )
 
             self.custom_attribs_map = {
                 attr["ayon"]: attr["sg"]
-                for attr in self.settings["compatibility_settings"]["custom_attribs_map"]
+                for attr in self.settings["compatibility_settings"]["custom_attribs_map"]  # noqa: E501
                 if attr["sg"]
             }
             self.custom_attribs_map.update({
@@ -60,11 +76,11 @@ class ShotgridListener:
                 "tags": "tags"
             })
 
-            self.sg_enabled_entities = self.settings["compatibility_settings"]["shotgrid_enabled_entities"]
+            self.sg_enabled_entities = self.settings["compatibility_settings"]["shotgrid_enabled_entities"]  # noqa: E501
 
             try:
                 self.shotgrid_polling_frequency = int(
-                    self.settings["service_settings"]["polling_frequency"]
+                    service_settings["polling_frequency"]
                 )
             except Exception:
                 self.shotgrid_polling_frequency = 10
@@ -76,7 +92,9 @@ class ShotgridListener:
 
         try:
             self.sg_session = shotgun_api3.Shotgun(
-                self.sg_url, script_name=self.sg_script_name, api_key=self.sg_api_key
+                self.sg_url,
+                script_name=self.sg_script_name,
+                api_key=self.sg_api_key
             )
             self.sg_session.connect()
         except Exception as e:
