@@ -145,7 +145,7 @@ class ClientLoginDetailsModel(BaseSettingsModel):
         placeholder="Create and Paste a script api key here",
         title="Client related ShotGrid's Script api key",
         description=(
-            "Ayon Secret used for Client related user operations "
+            "AYON Secret used for Client related user operations "
             "Secret should lead to ShotGrid's Script api key. "
             "See more at: https://developer.shotgridsoftware.com/python-api/"
             "authentication.html#setting-up-shotgrid"
