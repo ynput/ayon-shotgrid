@@ -3,8 +3,6 @@ from typing import Any, Type
 from ayon_server.addons import BaseServerAddon
 from ayon_server.lib.postgres import Postgres
 from .settings import ShotgridSettings
-from .version import __version__
-
 from nxtools import logging
 
 
@@ -14,24 +12,18 @@ SG_PUSH_ATTRIB = "shotgridPush"
 
 
 class ShotgridAddon(BaseServerAddon):
-    name = "shotgrid"
-    title = "Shotgrid"
-    version = __version__
     settings_model: Type[ShotgridSettings] = ShotgridSettings
 
     frontend_scopes: dict[str, Any] = {"settings": {}}
-
-    services = {
-        "ShotgridLeecher": {"image": f"ynput/ayon-shotgrid-leecher:{__version__}"},
-        "ShotgridProcessor": {"image": f"ynput/ayon-shotgrid-processor:{__version__}"},
-        "ShotgridTransmitter": {"image": f"ynput/ayon-shotgrid-transmitter:{__version__}"},
-    }
 
     async def setup(self):
         logging.info(f"Performing {self.name} addon setup.")
         need_restart = await self.create_shotgrid_attributes()
         if need_restart:
-            logging.info("Created or updated attributes in database, requesting a server restart.")
+            logging.info(
+                "Created or updated attributes in database, "
+                "requesting a server restart."
+            )
             self.request_server_restart()
 
     async def create_shotgrid_attributes(self) -> bool:
@@ -52,7 +44,9 @@ class ShotgridAddon(BaseServerAddon):
 
         shotgrid_attributes = await Postgres.fetch(
             "SELECT name from public.attributes "
-            f"WHERE (name = '{SG_ID_ATTRIB}' OR name = '{SG_TYPE_ATTRIB}' OR name = '{SG_PUSH_ATTRIB}') "
+            f"WHERE (name = '{SG_ID_ATTRIB}'"
+            f" OR name = '{SG_TYPE_ATTRIB}'"
+            f" OR name = '{SG_PUSH_ATTRIB}') "
         )
 
         if not shotgrid_attributes or len(shotgrid_attributes) < 3:
@@ -103,7 +97,10 @@ class ShotgridAddon(BaseServerAddon):
                 {
                     "type": "boolean",
                     "title": "Shotgrid Push",
-                    "description": "Push changes done to this project to Shotgrid. Requires the transmitter service.",
+                    "description": (
+                        "Push changes done to this project to ShotGrid. "
+                        "Requires the transmitter service."
+                    ),
                     "inherit": False,
                     "value": False,
                 }

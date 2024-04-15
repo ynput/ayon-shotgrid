@@ -5,20 +5,13 @@ This service will continually run and query the Ayon Events Server in order to
 entroll the events of topic `entity.folder` and `entity.task` when any of the
 two are `created`, `renamed` or `deleted`.
 """
-# import importlib
-import os
-import sys
 import time
-# import types
-import signal
 import socket
-
-from ayon_shotgrid_hub import AyonShotgridHub
+from nxtools import logging, log_traceback
 
 import ayon_api
-from ayon_api.entity_hub import EntityHub
-from nxtools import logging, log_traceback
-import shotgun_api3
+
+from ayon_shotgrid_hub import AyonShotgridHub
 
 
 class ShotgridTransmitter:
@@ -37,17 +30,49 @@ class ShotgridTransmitter:
         try:
             ayon_api.init_service()
             self.settings = ayon_api.get_service_addon_settings()
+            service_settings = self.settings["service_settings"]
+
             self.sg_url = self.settings["shotgrid_server"]
-            self.sg_project_code_field = self.settings["shotgrid_project_code_field"]
+            self.sg_project_code_field = self.settings[
+                "shotgrid_project_code_field"]
 
-            sg_secret = ayon_api.get_secret(self.settings["shotgrid_api_secret"])
-            self.sg_script_name = sg_secret.get("name")
-            self.sg_api_key = sg_secret.get("value")
-            self.ayon_service_user = self.settings["service_settings"]["ayon_service_user"]
+            # get server op related ShotGrid script api properties
+            shotgrid_secret = ayon_api.get_secret(
+                service_settings["script_key"])
 
+            self.sg_api_key = shotgrid_secret.get("value")
+            if not self.sg_api_key:
+                raise ValueError(
+                    "Shotgrid API Key not found. Make sure to set it in the "
+                    "Addon System settings."
+                )
+
+            self.sg_script_name = service_settings["script_name"]
+            if not self.sg_script_name:
+                raise ValueError(
+                    "Shotgrid Script Name not found. Make sure to set it in "
+                    "the Addon System settings."
+                )
+
+            # Compatibility settings
+            custom_attribs_map = self.settings["compatibility_settings"][
+                "custom_attribs_map"]
+            self.custom_attribs_map = {
+                attr["ayon"]: attr["sg"]
+                for attr in custom_attribs_map
+                if attr["sg"]
+            }
+            self.custom_attribs_types = {
+                attr["sg"]: (attr["type"], attr["scope"])
+                for attr in custom_attribs_map
+                if attr["sg"]
+            }
+            self.sg_enabled_entities = (
+                self.settings["compatibility_settings"]
+                             ["shotgrid_enabled_entities"])
             try:
                 self.sg_polling_frequency = int(
-                    self.settings["service_settings"]["polling_frequency"]
+                    service_settings["polling_frequency"]
                 )
             except Exception:
                 self.sg_polling_frequency = 10
@@ -60,8 +85,8 @@ class ShotgridTransmitter:
     def start_processing(self):
         """ Main loop querying AYON for `entity.*` events.
 
-        We enroll to events that `created`, `deleted` and `renamed` on AYON `entity`
-        to replicate the event in Shotgrid.
+        We enroll to events that `created`, `deleted` and `renamed`
+        on AYON `entity` to replicate the event in Shotgrid.
         """
         events_we_care = [
             "entity.task.created",
@@ -69,10 +94,14 @@ class ShotgridTransmitter:
             "entity.task.renamed",
             "entity.task.create",
             "entity.task.attrib_changed",
+            "entity.task.status_changed",
+            "entity.task.tags_changed",
             "entity.folder.created",
             "entity.folder.deleted",
             "entity.folder.renamed",
             "entity.folder.attrib_changed",
+            "entity.folder.status_changed",
+            "entity.folder.tags_changed",
         ]
 
         logging.debug(
@@ -93,12 +122,23 @@ class ShotgridTransmitter:
                 continue
 
             try:
-                # TODO: Enroll with a "events_filter" to narrow down the query
+                # get all service users
+                service_users = [
+                    user["name"]
+                    for user in ayon_api.get_users(
+                        fields={"accessGroups", "isService", "name"})
+                    if user["isService"]
+                ]
+                # enrolling only events which were not created by any
+                # of service users so loopback is avoided
                 event = ayon_api.enroll_event_job(
                     "entity.*",
                     "shotgrid.push",
                     socket.gethostname(),
-                    description="Handle AYON entity changes and sync them to Shotgrid.",
+                    description=(
+                        "Handle AYON entity changes and "
+                        "sync them to Shotgrid."
+                    ),
                     events_filter={
                         "conditions": [
                             {
@@ -108,8 +148,8 @@ class ShotgridTransmitter:
                             },
                             {
                                 "key": "user",
-                                "value": self.ayon_service_user,
-                                "operator": "ne",
+                                "value": service_users,
+                                "operator": "notin",
                             },
                             {
                                 "key": "project",
@@ -132,7 +172,7 @@ class ShotgridTransmitter:
                 ay_project = ayon_api.get_project(project_name)
 
                 if not ay_project:
-                    # This should never happen since we only fetch events of 
+                    # This should never happen since we only fetch events of
                     # projects we have shotgridPush enabled; but just in case
                     # The event happens when after we deleted a project in AYON.
                     logging.error(
@@ -156,15 +196,25 @@ class ShotgridTransmitter:
                     self.sg_api_key,
                     self.sg_script_name,
                     sg_project_code_field=self.sg_project_code_field,
+                    custom_attribs_map=self.custom_attribs_map,
+                    custom_attribs_types=self.custom_attribs_types,
+                    sg_enabled_entities=self.sg_enabled_entities,
                 )
 
                 hub.react_to_ayon_event(source_event)
 
                 logging.info("Event has been processed... setting to finished!")
-                ayon_api.update_event(event["id"], project_name=project_name, status="finished")
+                ayon_api.update_event(
+                    event["id"],
+                    project_name=project_name,
+                    status="finished"
+                )
             except Exception as err:
                 log_traceback(err)
-                ayon_api.update_event(event["id"], project_name=project_name, status="failed")
+                ayon_api.update_event(
+                    event["id"],
+                    project_name=project_name,
+                    status="failed"
+                )
 
             time.sleep(self.sg_polling_frequency)
-

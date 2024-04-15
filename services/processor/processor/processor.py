@@ -10,9 +10,9 @@ import os
 import time
 import types
 import socket
+from nxtools import logging, log_traceback
 
 import ayon_api
-from nxtools import logging, log_traceback
 
 
 class ShotgridProcessor:
@@ -40,20 +40,47 @@ class ShotgridProcessor:
         try:
             ayon_api.init_service()
             self.settings = ayon_api.get_service_addon_settings()
+            service_settings = self.settings["service_settings"]
 
             self.sg_url = self.settings["shotgrid_server"]
-            self.sg_project_code_field = self.settings["shotgrid_project_code_field"]
+            self.sg_project_code_field = self.settings[
+                "shotgrid_project_code_field"]
 
-            sg_secret = ayon_api.get_secret(self.settings["shotgrid_api_secret"])
-            self.sg_script_name = sg_secret.get("name")
-            self.sg_api_key = sg_secret.get("value")
+            # get server op related ShotGrid script api properties
+            shotgrid_secret = ayon_api.get_secret(
+                service_settings["script_key"])
+            self.sg_api_key = shotgrid_secret.get("value")
+            if not self.sg_api_key:
+                raise ValueError(
+                    "Shotgrid API Key not found. Make sure to set it in the "
+                    "Addon System settings."
+                )
+
+            self.sg_script_name = service_settings["script_name"]
+            if not self.sg_script_name:
+                raise ValueError(
+                    "Shotgrid Script Name not found. Make sure to set it in "
+                    "the Addon System settings."
+                )
 
             try:
                 self.sg_polling_frequency = int(
-                    self.settings["service_settings"]["polling_frequency"]
+                    service_settings["polling_frequency"]
                 )
             except Exception:
                 self.sg_polling_frequency = 10
+
+            self.custom_attribs_map = {
+                attr["ayon"]: attr["sg"]
+                for attr in self.settings["compatibility_settings"]["custom_attribs_map"]
+                if attr["sg"]
+            }
+            self.custom_attribs_types = {
+                attr["sg"]: (attr["type"], attr["scope"])
+                for attr in self.settings["compatibility_settings"]["custom_attribs_map"]
+                if attr["sg"]
+            }
+            self.sg_enabled_entities = self.settings["compatibility_settings"]["shotgrid_enabled_entities"]
 
             if not all([self.sg_url, self.sg_script_name, self.sg_api_key]):
                 msg = "Addon is missing settings, check " \
@@ -70,7 +97,7 @@ class ShotgridProcessor:
         if not self.handlers_map:
             logging.error("No handlers found for the processor, aborting.")
         else:
-            logging.debug(f"Found the these handlers: {self.handlers_map}")
+            logging.debug(f"Found these handlers: {self.handlers_map}")
 
     def _get_handlers(self):
         """ Import the handlers found in the `handlers` directory.
@@ -159,9 +186,7 @@ class ShotgridProcessor:
                             status="finished"
                         )
                         handler.process_event(
-                            self.sg_url,
-                            self.sg_script_name,
-                            self.sg_api_key,
+                            self,
                             **payload,
                         )
 

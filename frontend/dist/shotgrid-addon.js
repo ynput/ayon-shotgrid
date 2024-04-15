@@ -29,17 +29,16 @@ const init = () => {
       .then((result) => result.data);
 
     addonSecrets = await ayonAPI
-      .get(`/api/secrets/${addonSettings.shotgrid_api_secret}`)
+      .get(`/api/secrets/${addonSettings.service_settings.script_key}`)
       .then((result) => result.data);
 
-    addonSettings.shotgrid_script_name = addonSecrets.name
     addonSettings.shotgrid_api_key = addonSecrets.value
   } // end of window.onmessage
 } // end of init
 
 const populateTable = async () => {
   /* Get all the projects from AYON and Shotgrid, then populate the table with their info
-  and a button to Syncronize if they pass the requirements */
+  and a button to Synchronize if they pass the requirements */
   ayonProjects = await getAyonProjects();
   sgProjects = await getShotgridProjects();
 
@@ -264,9 +263,9 @@ const getShotgridProjects = async () => {
   const sgBaseUrl = `${addonSettings.shotgrid_server.replace(/\/+$/, '')}/api/v1`
   sgAuthToken = await axios
     .post(`${sgBaseUrl}/auth/access_token`, {
-        client_id: addonSettings.shotgrid_script_name,
-        client_secret: addonSettings.shotgrid_api_key,
-        grant_type: "client_credentials",
+      client_id: `${addonSettings.service_settings.script_name}`,
+      client_secret: addonSettings.shotgrid_api_key,
+      grant_type: "client_credentials",
     }, {
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
