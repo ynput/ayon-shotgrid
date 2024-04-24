@@ -44,6 +44,7 @@ AYON_SHOTGRID_ENTITY_TYPE_MAP = {
     "Shot": "folder",
     "Asset": "folder",
     "Task": "task",
+    "Version": "version",
 }
 
 
