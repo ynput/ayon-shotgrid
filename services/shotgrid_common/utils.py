@@ -78,7 +78,15 @@ def _sg_to_ay_dict(
             SHOTGRID_TYPE_ATTRIB: sg_entity["type"],
         },
         "data": {
-            CUST_FIELD_CODE_SYNC: sg_entity.get(CUST_FIELD_CODE_SYNC),
+            # We store the ShotGrid ID and the Sync status in the data
+            # dictionary so we can easily access them when needed
+            # And avoid any conflicts with the Ayon attributes we only set
+            # sync status to "Failed" if the ID is not set
+            CUST_FIELD_CODE_SYNC: (
+                sg_entity.get(CUST_FIELD_CODE_SYNC)
+                if sg_entity.get(CUST_FIELD_CODE_ID)
+                else "Failed"
+            ),
             CUST_FIELD_CODE_ID: sg_entity.get(CUST_FIELD_CODE_ID),
         }
     }
