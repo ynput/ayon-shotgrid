@@ -36,11 +36,16 @@ import collections
 import zipfile
 
 from typing import Optional
-import package
 
-ADDON_NAME: str = package.name
-ADDON_VERSION: str = package.version
-ADDON_CLIENT_DIR: str = package.client_dir
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+PACKAGE_PATH = os.path.join(CURRENT_DIR, "package.py")
+package_content = {}
+with open(PACKAGE_PATH, "r") as stream:
+    exec(stream.read(), package_content)
+
+ADDON_VERSION = package_content["version"]
+ADDON_NAME = package_content["name"]
+ADDON_CLIENT_DIR = package_content["client_dir"]
 
 CLIENT_VERSION_CONTENT = '''# -*- coding: utf-8 -*-
 """Package declaring {} addon version."""
@@ -225,12 +230,8 @@ def create_server_package(current_dir, output_dir, addon_output_dir, log):
     output_path = os.path.join(
         output_dir, f"{ADDON_NAME}-{ADDON_VERSION}.zip"
     )
-    package_path = os.path.join(current_dir, "package.py")
 
     with ZipFileLongPaths(output_path, "w", zipfile.ZIP_DEFLATED) as zipf:
-        # Write a package.py to zip
-        zipf.write(package_path, "package.py")
-
         # Move addon content to zip into 'addon' directory
         addon_output_dir_offset = len(addon_output_dir) + 1
         for root, _, filenames in os.walk(addon_output_dir):
@@ -283,7 +284,10 @@ def main(
     log.info(f"Preparing package for {ADDON_NAME}-{ADDON_VERSION}")
 
     copy_server_content(addon_output_dir, current_dir, log)
-
+    safe_copy_file(
+        PACKAGE_PATH,
+        os.path.join(addon_output_dir, os.path.basename(PACKAGE_PATH))
+    )
     zip_client_side(addon_output_dir, current_dir, log)
 
     # Skip server zipping
