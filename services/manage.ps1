@@ -44,6 +44,8 @@ function Show-Help {
     Write-Host "clean        Remove local images."
     Write-Host "clean-build  Remove local images and build without docker cache."
     Write-Host "dev          Run a service locally"
+    Write-Host "dist         Push docker image to docker hub."
+    Write-Host "dist-all     Push docker image to docker hub for 'leecher', 'procesor' and 'transmitter'."
     Write-Host ""
     Write-Host "Passing -Service is required for any of the targets to work, possible services:"
     Write-Host ""
@@ -96,10 +98,15 @@ function shell {
 }
 function dist {
     build
-    # Publish the docker image to the registry
-    docker push "$Image"
+    $Image = Get-ServiceImage
+    docker push $Image
 }
-
+function dist-all {
+    "leecher", "processor", "transmitter" | ForEach-Object {
+        write-host "Pushing $_"
+        .\manage.ps1 "push" -Service $_
+    }
+}
 
 # Main function
 function main {
@@ -125,6 +132,13 @@ function main {
     }
     elseif ($FunctionName -eq "dev") {
         dev
+    }
+    elseif ($FunctionName -eq "dist") {
+        dist
+    }
+    elseif ($FunctionName -eq "dist-all") {
+        Write-Host "Pushing all services to docker hub"
+        dist-all
     }
     elseif ($FunctionName -eq "shell") {
         shell
