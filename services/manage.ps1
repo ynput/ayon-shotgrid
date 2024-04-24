@@ -104,7 +104,7 @@ function dist {
 function dist-all {
     "leecher", "processor", "transmitter" | ForEach-Object {
         write-host "Pushing $_"
-        .\manage.ps1 "push" -Service $_
+        .\manage.ps1 "dist" -Service $_
     }
 }
 
