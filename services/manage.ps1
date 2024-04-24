@@ -133,10 +133,10 @@ function main {
     elseif ($FunctionName -eq "dev") {
         dev
     }
-    elseif ($FunctionName -eq "push") {
+    elseif ($FunctionName -eq "dist") {
         dist
     }
-    elseif ($FunctionName -eq "push-all") {
+    elseif ($FunctionName -eq "dist-all") {
         Write-Host "Pushing all services to docker hub"
         dist-all
     }
