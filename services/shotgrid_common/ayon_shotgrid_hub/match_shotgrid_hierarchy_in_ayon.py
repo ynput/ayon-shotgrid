@@ -171,7 +171,7 @@ def match_shotgrid_hierarchy_in_ayon(
     for ay_attrib, sg_attrib in custom_attribs_map.items():
         attrib_value = sg_project.get(sg_attrib) \
             or sg_project.get(f"sg_{sg_attrib}")
-        
+
         logging.debug(f"Checking {sg_attrib} -> {attrib_value}")
         if attrib_value is None:
             continue
@@ -229,11 +229,20 @@ def _create_new_entity(entity_hub, parent_entity, sg_ay_dict):
             attribs=sg_ay_dict["attribs"],
             data=sg_ay_dict["data"],
         )
-    
+
     # TODO: this doesn't work yet
     status = sg_ay_dict["attribs"].get("status")
     if status:
-        ay_entity.status = status
+        logging.debug(f"Entity '{sg_ay_dict['name']}' status sync: '{status}'")
+        # TODO: Implement status update
+        try:
+            # INFO: it was causing error so trying to set status directly
+            logging.warning("Status update is not supported yet.")
+            ay_entity.status = status
+        except ValueError as e:
+            # `ValueError: Status ip is not available on project.`
+            logging.error(f"Error updating status: {e}")
+
 
     tags = sg_ay_dict["attribs"].get("tags")
     if tags:

@@ -992,6 +992,12 @@ def update_ay_entity_custom_attributes(
             ay_entity.tags = [tag["name"] for tag in attrib_value]
         elif ay_attrib == "status":
             logging.warning("Status update is not supported yet.")
-            ay_entity.status = attrib_value
+            # TODO: Implement status update
+            try:
+                # INFO: it was causing error so trying to set status directly
+                ay_entity.status = attrib_value
+            except ValueError as e:
+                # `ValueError: Status ip is not available on project.`
+                logging.error(f"Error updating status: {e}")
         else:
             ay_entity.attribs.set(ay_attrib, attrib_value)

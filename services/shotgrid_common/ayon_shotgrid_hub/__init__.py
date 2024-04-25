@@ -363,8 +363,10 @@ class AyonShotgridHub:
             case "attribute_change":
                 update_ayon_entity_from_sg_event(
                     sg_event,
+                    self._sg_project,
                     self._sg,
                     self._ay_project,
+                    self.sg_enabled_entities,
                     self.sg_project_code_field,
                     self.custom_attribs_map,
                 )

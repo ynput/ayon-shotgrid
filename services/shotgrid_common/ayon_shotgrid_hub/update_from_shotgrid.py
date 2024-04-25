@@ -214,17 +214,21 @@ def create_ay_entity_from_sg_event(
 
 def update_ayon_entity_from_sg_event(
     sg_event,
+    sg_project,
     sg_session,
     ayon_entity_hub,
+    sg_enabled_entities,
     project_code_field,
-    custom_attribs_map
+    custom_attribs_map=None,
 ):
     """Try to update an entity in Ayon.
 
     Args:
         sg_event (dict): The `meta` key from a ShotGrid Event.
+        sg_project (dict): The ShotGrid project.
         sg_session (shotgun_api3.Shotgun): The ShotGrid API session.
         ayon_entity_hub (ayon_api.entity_hub.EntityHub): The AYON EntityHub.
+        sg_enabled_entities (list[str]): List of entity strings enabled.
         project_code_field (str): The ShotGrid project code field.
         custom_attribs_map (dict): A dictionary that maps ShotGrid
             attributes to Ayon attributes.
@@ -242,7 +246,27 @@ def update_ayon_entity_from_sg_event(
     )
 
     if not sg_ay_dict["data"].get(CUST_FIELD_CODE_ID):
-        logging.warning("ShotGrid Missing Ayon ID")
+        # if the entity does not have an Ayon ID, try to create it
+        logging.warning("ShotGrid Missing Ayon ID.")
+
+        logging.debug(f"Creating Ayon Entity: {sg_ay_dict}")
+        try:
+            create_ay_entity_from_sg_event(
+                sg_event,
+                sg_project,
+                sg_session,
+                ayon_entity_hub,
+                sg_enabled_entities,
+                project_code_field,
+                custom_attribs_map
+            )
+        except Exception as e:
+            logging.error(f"Ayon Entity could not be created: {e}")
+            logging.warning(
+                "Skipping update of Ayon Entity. ShotGrid ID missing "
+                "and entity could not be created."
+            )
+        return
 
     ay_entity = ayon_entity_hub.get_or_query_entity_by_id(
         sg_ay_dict["data"].get(CUST_FIELD_CODE_ID),
