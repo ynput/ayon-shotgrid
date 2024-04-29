@@ -139,7 +139,7 @@ def create_ay_entity_from_sg_event(
         ay_parent_entity = get_asset_category(
             ayon_entity_hub,
             ayon_entity_hub.project_entity,
-            sg_ay_dict.get("sg_asset_type").lower()
+            sg_ay_dict["data"].get("sg_asset_type").lower(),
         )
 
     else:
@@ -155,9 +155,12 @@ def create_ay_entity_from_sg_event(
         ay_parent_entity = ayon_entity_hub.get_or_query_entity_by_id(
             sg_parent_entity_dict["data"].get(CUST_FIELD_CODE_ID),
             [
-                "task" if sg_parent_entity_dict["data"].get(
-                    CUST_FIELD_CODE_ID).lower() == "task" else "folder"
-            ]
+                (
+                    "task"
+                    if sg_parent_entity_dict["type"] == "task"
+                    else "folder"
+                )
+            ],
         )
 
     if not ay_parent_entity:

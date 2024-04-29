@@ -107,8 +107,7 @@ class AyonShotgridHub:
         if custom_attribs_map:
             self.custom_attribs_map.update(custom_attribs_map)
 
-        if custom_attribs_types:
-            self.custom_attribs_types = custom_attribs_types
+        self.custom_attribs_types = custom_attribs_types
 
         if sg_enabled_entities:
             self.sg_enabled_entities = sg_enabled_entities
