@@ -71,10 +71,12 @@ class ShotgridListener:
                 for attr in self.settings["compatibility_settings"]["custom_attribs_map"]  # noqa: E501
                 if attr["sg"]
             }
-            self.custom_attribs_map.update({
-                "status": "status_list",
-                "tags": "tags"
-            })
+
+            # TODO: implement a way to handle status_list and tags
+            # self.custom_attribs_map.update({
+            #     "status": "status_list",
+            #     "tags": "tags"
+            # })
 
             self.sg_enabled_entities = self.settings["compatibility_settings"]["shotgrid_enabled_entities"]  # noqa: E501
 
