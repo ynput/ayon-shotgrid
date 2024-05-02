@@ -249,8 +249,8 @@ def update_ayon_entity_from_sg_event(
     )
 
     if not sg_ay_dict["data"].get(CUST_FIELD_CODE_ID):
-        # if the entity does not have an Ayon ID, try to create it
-        logging.warning("ShotGrid Missing Ayon ID.")
+        # if the entity does not have an AYON id, try to create it
+        logging.warning("ShotGrid Missing AYON id.")
 
         logging.debug(f"Creating AYON Entity: {sg_ay_dict}")
         try:
