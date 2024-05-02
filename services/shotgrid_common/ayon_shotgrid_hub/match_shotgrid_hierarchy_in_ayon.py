@@ -261,7 +261,7 @@ def _create_new_entity(entity_hub, parent_entity, sg_ay_dict):
             ay_entity.status = status
         except ValueError as e:
             # `ValueError: Status ip is not available on project.`
-            logging.error(f"Error updating status: {e}")
+            logging.warning(f"Error updating status: {e}")
 
     tags = sg_ay_dict["attribs"].get("tags")
     if tags:
