@@ -9,7 +9,7 @@ AYON_API_KEY={AYON server api key (ideally service user)}
 ```
 
 ### Commands
-- `install` - install requirements needed for running processed (requires Git)
+- `createenv` - install requirements needed for running processed (requires Git)
 - `leecher` - start leecher
 - `processor` - start processor
 - `transmitter` - start transmitter

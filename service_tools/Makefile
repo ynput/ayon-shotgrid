@@ -20,7 +20,7 @@ Optional arguments for service targets:
 --variant [variant] (Define settings variant. default: 'production')
 
 Runtime targets:
-	install      Install requirements to currently active python (recommended to create venv)
+	createenv    Install requirements to currently active python (recommended to create venv)
 	leecher      Start leecher of shotgrid events
 	processor    Main processing logic
 	transmitter  Transmit AYON events to shotgrid
@@ -32,7 +32,7 @@ export HELP_INFO
 help:
 	@echo "$$HELP_INFO"
 
-install:
+createenv:
 		$(shell [[ -d $(CURDIR)/venv ]] || python -m venv $(CURDIR)/venv) && \
 		. $(CURDIR)/venv/bin/activate && python -m pip install -r "$(CURDIR)/requirements.txt"
 
