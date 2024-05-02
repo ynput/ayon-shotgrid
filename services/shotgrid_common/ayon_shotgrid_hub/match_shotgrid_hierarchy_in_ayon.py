@@ -160,16 +160,16 @@ def match_shotgrid_hierarchy_in_ayon(
 
         entity_id = sg_ay_dict["attribs"][SHOTGRID_ID_ATTRIB]
 
-        try:
-            entity_hub.commit_changes()
-        except Exception as e:
-            logging.error(f"Unable to create entity {sg_ay_dict} in AYON!")
-            log_traceback(e)
-
         # If the entity has children, add it to the deck
         for sg_child in sg_ay_dicts_parents.get(entity_id, []):
             logging.debug(f"Adding {sg_child} to the deck.")
             sg_ay_dicts_deck.append((ay_entity, sg_child))
+
+    try:
+        entity_hub.commit_changes()
+    except Exception as e:
+        logging.error(f"Unable to create entity {sg_ay_dict} in AYON!")
+        log_traceback(e)
 
     # Sync project attributes from Shotgrid to AYON
     entity_hub.project_entity.attribs.set(
