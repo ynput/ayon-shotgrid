@@ -248,8 +248,9 @@ def update_ayon_entity_from_sg_event(
         custom_attribs_map=custom_attribs_map
     )
 
+    # if the entity does not have an Ayon ID, try to create it
+    # and no need to update
     if not sg_ay_dict["data"].get(CUST_FIELD_CODE_ID):
-        # if the entity does not have an Ayon ID, try to create it
         logging.warning("ShotGrid Missing Ayon ID.")
 
         logging.debug(f"Creating Ayon Entity: {sg_ay_dict}")
@@ -291,7 +292,7 @@ def update_ayon_entity_from_sg_event(
         logging.error("Mismatching ShotGrid IDs, aborting...")
         raise ValueError("Mismatching ShotGrid IDs, aborting...")
 
-    logging.debug("Updating Ayon entity with '%s'" % sg_ay_dict)
+    logging.debug(f"Updating Ayon entity with '{sg_ay_dict}'")
     ay_entity.name = sg_ay_dict["name"]
     ay_entity.label = sg_ay_dict["label"]
 
