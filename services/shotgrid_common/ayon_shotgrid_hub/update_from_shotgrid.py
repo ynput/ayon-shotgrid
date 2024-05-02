@@ -264,9 +264,9 @@ def update_ayon_entity_from_sg_event(
                 custom_attribs_map
             )
         except Exception as e:
-            logging.error(f"Ayon Entity could not be created: {e}")
+            logging.error(f"AYON Entity could not be created: {e}")
             logging.warning(
-                "Skipping update of Ayon Entity. ShotGrid ID missing "
+                "Skipping update of AYON Entity. ShotGrid ID missing "
                 "and entity could not be created."
             )
         return
