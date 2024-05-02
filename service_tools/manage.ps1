@@ -19,7 +19,7 @@ function Default-Func {
   Write-Host ""
   Write-Host "Run service processes from terminal. It is recommended to use docker images for production."
   Write-Host ""
-  Write-Host "Usage: start [target]"
+  Write-Host "Usage: .\Manage.ps1 [target]"
   Write-Host ""
   Write-Host "Optional arguments for service targets:"
   Write-Host "--variant [variant] (Define settings variant. default: 'production')"
