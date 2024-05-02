@@ -251,9 +251,9 @@ def update_ayon_entity_from_sg_event(
     # if the entity does not have an Ayon ID, try to create it
     # and no need to update
     if not sg_ay_dict["data"].get(CUST_FIELD_CODE_ID):
-        logging.warning("ShotGrid Missing Ayon ID.")
+        logging.warning("ShotGrid Missing AYON id.")
 
-        logging.debug(f"Creating Ayon Entity: {sg_ay_dict}")
+        logging.debug(f"Creating AYON Entity: {sg_ay_dict}")
         try:
             create_ay_entity_from_sg_event(
                 sg_event,
@@ -265,9 +265,9 @@ def update_ayon_entity_from_sg_event(
                 custom_attribs_map
             )
         except Exception as e:
-            logging.error(f"Ayon Entity could not be created: {e}")
+            logging.error(f"AYON Entity could not be created: {e}")
             logging.warning(
-                "Skipping update of Ayon Entity. ShotGrid ID missing "
+                "Skipping update of AYON Entity. ShotGrid ID missing "
                 "and entity could not be created."
             )
         return
