@@ -38,6 +38,9 @@ Temporary Items
 ######
 .idea/
 
+# Pyenv
+.python-version
+
 # Add symlinked files to ignore
 services/leecher/__init__.py
 services/leecher/ayon_shotgrid_hub
