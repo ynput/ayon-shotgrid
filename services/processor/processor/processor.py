@@ -5,11 +5,11 @@ This service will continually run and query the Ayon Events Server in orther to
 entroll the events of topic `shotgrid.leech` to perform processing of Shotgrid
 related events.
 """
-import importlib
 import os
 import time
 import types
 import socket
+import importlib.machinery
 from nxtools import logging, log_traceback
 
 import ayon_api
