@@ -252,7 +252,7 @@ def update_ayon_entity_from_sg_event(
         # if the entity does not have an Ayon ID, try to create it
         logging.warning("ShotGrid Missing Ayon ID.")
 
-        logging.debug(f"Creating Ayon Entity: {sg_ay_dict}")
+        logging.debug(f"Creating AYON Entity: {sg_ay_dict}")
         try:
             create_ay_entity_from_sg_event(
                 sg_event,
