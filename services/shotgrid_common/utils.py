@@ -331,7 +331,43 @@ def create_sg_entities_in_ay(
     return sg_folder_entities, sg_steps
 
 
-def get_asset_category(entity_hub, parent_entity, asset_category_name):
+def create_asset_category(entity_hub, parent_entity, sg_ay_dict):
+    """Create an "AssetCategory" folder in AYON.
+
+    Args:
+        entity_hub (ayon_api.EntityHub): The project's entity hub.
+        parent_entity: Ayon parent entity.
+        sg_ay_dict (dict): The ShotGrid entity ready for Ayon consumption.
+    """
+    logging.debug(
+        "It's an AssetCategory, creating it."
+    )
+    asset_category = sg_ay_dict["data"]["sg_asset_type"]
+    # asset category entity name
+    cat_ent_name = slugify_string(asset_category).lower()
+
+    asset_category_entity = {
+        "label": asset_category,
+        "name": cat_ent_name,
+        "attribs": {
+            SHOTGRID_ID_ATTRIB: slugify_string(asset_category).lower(),
+            SHOTGRID_TYPE_ATTRIB: "AssetCategory",
+        },
+        "parent_id": parent_entity.id,
+        "data": {
+            CUST_FIELD_CODE_ID: None,
+            CUST_FIELD_CODE_SYNC: None,
+        },
+        "folder_type": "AssetCategory",
+    }
+
+    asset_category_entity = entity_hub.add_new_folder(**asset_category_entity)
+
+    logging.debug(f"Created AssetCategory: {asset_category_entity}")
+    return asset_category_entity
+
+
+def get_asset_category(entity_hub, parent_entity, sg_ay_dict):
     """Look for existing "AssetCategory" folders in AYON.
 
         Asset categories are not entities per se in ShotGrid, they are
@@ -342,7 +378,7 @@ def get_asset_category(entity_hub, parent_entity, asset_category_name):
     Args:
         entity_hub (ayon_api.EntityHub): The project's entity hub.
         parent_entity: Ayon parent entity.
-        asset_category_name (str): The Asset Category name.
+        sg_ay_dict (dict): The ShotGrid entity ready for Ayon consumption.
     """
     logging.debug(
         "It's an AssetCategory, checking if it exists already."
@@ -356,6 +392,13 @@ def get_asset_category(entity_hub, parent_entity, asset_category_name):
 
     logging.debug(f"Found existing 'AssetCategory'(s)\n{asset_categories}")
 
+    # just in case the asset type doesn't exist yet
+    if not sg_ay_dict["data"].get("sg_asset_type"):
+        sg_ay_dict["data"]["sg_asset_type"] = sg_ay_dict["name"]
+
+    asset_category_name = slugify_string(
+        sg_ay_dict["data"]["sg_asset_type"]).lower()
+
     for asset_category in asset_categories:
         if (
             asset_category.name == asset_category_name
@@ -365,6 +408,12 @@ def get_asset_category(entity_hub, parent_entity, asset_category_name):
             return asset_category
 
     logging.debug(f"Unable to find AssetCategory. {asset_category_name}")
+
+    try:
+        return create_asset_category(entity_hub, parent_entity, sg_ay_dict)
+    except Exception as e:
+        logging.error(f"Unable to create AssetCategory. {e}")
+
     return None
 
 
@@ -542,6 +591,7 @@ def get_sg_entities(
                 ):
                     parent_id = sg_entity[parent_field]["id"]
                 elif entity_name == "Asset" and sg_entity["sg_asset_type"]:
+                    # TODO: Add support for AssetCategory and Asset
                     # Asset Categories (sg_asset_type) are not entities
                     # (or at least aren't queryable) in ShotGrid
                     # thus here we create common folders.
@@ -567,8 +617,8 @@ def get_sg_entities(
 
                     if not sg_ay_dicts.get(cat_ent_name):
                         sg_ay_dicts[cat_ent_name] = asset_category_entity
-                        sg_ay_dicts_parents[
-                          sg_project["id"]].append(asset_category_entity)
+                        sg_ay_dicts_parents[sg_project["id"]].append(
+                            asset_category_entity)
 
                     parent_id = cat_ent_name
 
@@ -577,6 +627,10 @@ def get_sg_entities(
                     project_code_field,
                     custom_attribs_map,
                 )
+                logging.debug(f"ShotGrid entity {sg_entity} as Ayon dict: {sg_ay_dict}")
+                logging.debug(f"Parent ID: {parent_id}")
+                logging.debug("_" * 80)
+
                 sg_ay_dicts[sg_ay_dict["attribs"][SHOTGRID_ID_ATTRIB]] = sg_ay_dict
                 sg_ay_dicts_parents[parent_id].append(sg_ay_dict)
 
@@ -998,6 +1052,6 @@ def update_ay_entity_custom_attributes(
                 ay_entity.status = attrib_value
             except ValueError as e:
                 # `ValueError: Status ip is not available on project.`
-                logging.error(f"Error updating status: {e}")
+                logging.warning(f"Error updating status: {e}")
         else:
             ay_entity.attribs.set(ay_attrib, attrib_value)

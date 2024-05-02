@@ -73,10 +73,10 @@ class ShotgridListener:
             }
 
             # TODO: implement a way to handle status_list and tags
-            # self.custom_attribs_map.update({
-            #     "status": "status_list",
-            #     "tags": "tags"
-            # })
+            self.custom_attribs_map.update({
+                # "status": "status_list",
+                "tags": "tags"
+            })
 
             self.sg_enabled_entities = self.settings["compatibility_settings"]["shotgrid_enabled_entities"]  # noqa: E501
 
@@ -223,7 +223,12 @@ class ShotgridListener:
                         event["event_type"].endswith("_Change")
                         and event["attribute_name"].replace("sg_", "") not in list(self.custom_attribs_map.values())
                     ):
-                        logging.debug(f"Skipping event for attribute change '{event['attribute_name'].replace('sg_', '')}', as we can't handle it.")
+                        logging.debug(
+                            f"Skipping event for attribute change "
+                            f"'{event['attribute_name'].replace('sg_', '')}', "
+                            "as we can't handle it."
+                        )
+                        logging.debug(f"Event: {event}")
                         last_event_id = event.get("id", None)
                         continue
 

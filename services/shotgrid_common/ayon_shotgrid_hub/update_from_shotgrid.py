@@ -139,7 +139,7 @@ def create_ay_entity_from_sg_event(
         ay_parent_entity = get_asset_category(
             ayon_entity_hub,
             ayon_entity_hub.project_entity,
-            sg_ay_dict["data"].get("sg_asset_type").lower(),
+            sg_ay_dict,
         )
 
     else:
