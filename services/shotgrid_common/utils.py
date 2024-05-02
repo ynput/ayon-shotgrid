@@ -336,7 +336,7 @@ def create_asset_category(entity_hub, parent_entity, sg_ay_dict):
 
     Args:
         entity_hub (ayon_api.EntityHub): The project's entity hub.
-        parent_entity: Ayon parent entity.
+        parent_entity: AYON parent entity.
         sg_ay_dict (dict): The ShotGrid entity ready for Ayon consumption.
     """
     logging.debug(
