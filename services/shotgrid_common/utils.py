@@ -627,9 +627,10 @@ def get_sg_entities(
                     project_code_field,
                     custom_attribs_map,
                 )
-                logging.debug(f"ShotGrid entity {sg_entity} as Ayon dict: {sg_ay_dict}")
-                logging.debug(f"Parent ID: {parent_id}")
-                logging.debug("_" * 80)
+                logging.debug(
+                    f"ShotGrid entity {sg_entity} as AYON dict: {sg_ay_dict}"
+                    f" Parent ID: {parent_id}"
+                )
 
                 sg_ay_dicts[sg_ay_dict["attribs"][SHOTGRID_ID_ATTRIB]] = sg_ay_dict
                 sg_ay_dicts_parents[parent_id].append(sg_ay_dict)
