@@ -1,5 +1,4 @@
 import collections
-from pprint import pformat
 
 from ayon_api import slugify_string
 
@@ -134,29 +133,29 @@ def match_shotgrid_hierarchy_in_ayon(
 
         # If the entity is not a "Folder" or "AssetCategory" we update the
         # entity ID and sync status in Shotgrid and AYON
-        if sg_ay_dict["attribs"][SHOTGRID_TYPE_ATTRIB] not in [
-            "Folder", "AssetCategory"
-        ]:
-            if (
+        if (
+            sg_ay_dict["attribs"][SHOTGRID_TYPE_ATTRIB] not in [
+                "Folder", "AssetCategory"
+            ]
+            and (
                 sg_ay_dict["data"][CUST_FIELD_CODE_ID] != ay_entity.id
                 or sg_ay_dict["data"][CUST_FIELD_CODE_SYNC] != sg_entity_sync_status  # noqa
-            ):
-                logging.debug(
-                    "Updating AYON entity ID and sync status in SG and AYON")
-                update_data = {
-                    CUST_FIELD_CODE_ID: ay_entity.id,
-                    CUST_FIELD_CODE_SYNC: sg_entity_sync_status
-                }
-                # Update Shotgrid entity with Ayon ID and sync status
-                sg_session.update(
-                    sg_ay_dict["attribs"][SHOTGRID_TYPE_ATTRIB],
-                    sg_ay_dict["attribs"][SHOTGRID_ID_ATTRIB],
-                    update_data
-                )
-                ay_entity.data.update(
-                    update_data
-                )
-                logging.debug(f"Updated entity {ay_entity.name} <{ay_entity.id}> data with '{update_data}'")
+            )
+        ):
+            logging.debug(
+                "Updating AYON entity ID and sync status in SG and AYON")
+            update_data = {
+                CUST_FIELD_CODE_ID: ay_entity.id,
+                CUST_FIELD_CODE_SYNC: sg_entity_sync_status
+            }
+            # Update Shotgrid entity with Ayon ID and sync status
+            sg_session.update(
+                sg_ay_dict["attribs"][SHOTGRID_TYPE_ATTRIB],
+                sg_ay_dict["attribs"][SHOTGRID_ID_ATTRIB],
+                update_data
+            )
+            ay_entity.data.update(update_data)
+            logging.debug(f"Updated entity {ay_entity.name} <{ay_entity.id}> data with '{update_data}'")
 
         entity_id = sg_ay_dict["attribs"][SHOTGRID_ID_ATTRIB]
 
