@@ -129,7 +129,7 @@ def match_shotgrid_hierarchy_in_ayon(
             continue
 
         # Update SG entity with new created data
-        sg_ay_dict["data"][CUST_FIELD_CODE_ID] = entity_id = ay_entity.id
+        sg_ay_dict["data"][CUST_FIELD_CODE_ID] = ay_entity.id
         sg_ay_dicts[sg_ay_dict["attribs"][SHOTGRID_ID_ATTRIB]] = sg_ay_dict
 
         # If the entity is not a "Folder" or "AssetCategory" we update the
