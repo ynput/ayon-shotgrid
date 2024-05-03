@@ -15,7 +15,7 @@ from utils import (
     update_ay_entity_custom_attributes,
 )
 
-from nxtools import logging, log_traceback
+import logging
 
 
 def match_shotgrid_hierarchy_in_ayon(
@@ -78,7 +78,7 @@ def match_shotgrid_hierarchy_in_ayon(
 
         processed_ids.add(sg_entity_id)
 
-        logging.info(f"Deck size: {len(sg_ay_dicts_deck)}")
+        logging.debug(f"Deck size: {len(sg_ay_dicts_deck)}")
 
         ay_entity = None
         sg_entity_sync_status = "Synced"
@@ -152,8 +152,8 @@ def match_shotgrid_hierarchy_in_ayon(
                 or sg_ay_dict["data"][CUST_FIELD_CODE_SYNC] != sg_entity_sync_status  # noqa
             )
         ):
-            # logging.debug(
-            #     "Updating AYON entity ID and sync status in SG and AYON")
+            logging.debug(
+                "Updating AYON entity ID and sync status in SG and AYON")
             update_data = {
                 CUST_FIELD_CODE_ID: ay_entity.id,
                 CUST_FIELD_CODE_SYNC: sg_entity_sync_status
@@ -172,9 +172,9 @@ def match_shotgrid_hierarchy_in_ayon(
 
     try:
         entity_hub.commit_changes()
-    except Exception as e:
-        logging.error("Unable to commit all entities to AYON!")
-        log_traceback(e)
+    except Exception:
+        logging.error(
+            "Unable to commit all entities to AYON!", exc_info=True)
 
     logging.info(
         "Processed entities successfully!. "

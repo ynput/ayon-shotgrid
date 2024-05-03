@@ -4,9 +4,6 @@ are in sync between AYON and Shotgrid, uses the `AyonShotgridHub`.
 from ayon_shotgrid_hub import AyonShotgridHub
 
 
-from nxtools import logging, log_traceback
-
-
 REGISTER_EVENT_TYPE = ["sync-from-shotgrid", "sync-from-ayon"]
 
 
@@ -37,4 +34,3 @@ def process_event(
     hub.synchronize_projects(
         source="ayon" if kwargs.get("action") == "sync-from-ayon" else "shotgrid"
     )
-

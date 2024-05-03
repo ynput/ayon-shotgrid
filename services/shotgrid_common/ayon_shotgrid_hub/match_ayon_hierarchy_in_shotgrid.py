@@ -14,7 +14,7 @@ from utils import (
     get_sg_custom_attributes_data
 )
 
-from nxtools import logging, log_traceback
+import logging
 
 
 def match_ayon_hierarchy_in_shotgrid(
@@ -99,8 +99,11 @@ def match_ayon_hierarchy_in_shotgrid(
                                 CUST_FIELD_CODE_SYNC: "Failed"
                             }
                         )
-                    except Exception as e:
-                        log_traceback(e)
+                    except Exception:
+                        logging.error(
+                            f"Unable to update SG entity {sg_ay_dict['name']}",
+                            exc_info=True
+                        )
                         ay_project_sync_status = "Failed"
                 else:
                     # Update SG entity custom attributes with AYON data
@@ -266,7 +269,6 @@ def _create_new_entity(
     except Exception as e:
         logging.error(
             f"Unable to create SG entity {sg_type} with data: {data}")
-        log_traceback(e)
         raise e
 
     sg_ay_dict = get_sg_entity_as_ay_dict(

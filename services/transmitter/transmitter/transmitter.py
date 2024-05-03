@@ -7,7 +7,7 @@ two are `created`, `renamed` or `deleted`.
 """
 import time
 import socket
-from nxtools import logging, log_traceback
+import logging
 
 import ayon_api
 
@@ -79,7 +79,6 @@ class ShotgridTransmitter:
 
         except Exception as e:
             logging.error("Unable to get Addon settings from the server.")
-            log_traceback(e)
             raise e
 
     def start_processing(self):
@@ -203,8 +202,10 @@ class ShotgridTransmitter:
                     project_name=project_name,
                     status="finished"
                 )
-            except Exception as err:
-                log_traceback(err)
+            except Exception:
+                logging.error(
+                    "Error processing event", exc_info=True)
+
                 ayon_api.update_event(
                     event["id"],
                     project_name=project_name,

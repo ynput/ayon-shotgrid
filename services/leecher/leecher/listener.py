@@ -10,7 +10,7 @@ import time
 import signal
 import socket
 from typing import Any, Callable, Union
-from nxtools import logging, log_traceback
+import logging
 
 from constants import (
     SG_EVENT_TYPES,
@@ -86,8 +86,8 @@ class ShotgridListener:
                 self.shotgrid_polling_frequency = 10
 
         except Exception as e:
-            logging.error("Unable to get Addon settings from the server.")
-            log_traceback(e)
+            logging.error(
+                "Unable to get Addon settings from the server.")
             raise e
 
         try:
@@ -99,7 +99,6 @@ class ShotgridListener:
             self.sg_session.connect()
         except Exception as e:
             logging.error("Unable to connect to Shotgrid Instance:")
-            log_traceback(e)
             raise e
 
         signal.signal(signal.SIGINT, self._signal_teardown_handler)
@@ -225,8 +224,7 @@ class ShotgridListener:
                     last_event_id = self.func(event)
 
             except Exception as err:
-                logging.error(err)
-                log_traceback(err)
+                logging.error(err, exc_info=True)
 
             time.sleep(self.shotgrid_polling_frequency)
 

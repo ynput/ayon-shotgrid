@@ -10,12 +10,14 @@ import time
 import types
 import socket
 import importlib.machinery
-from nxtools import logging, log_traceback
+import logging
+import traceback
 
 import ayon_api
 
 
 class ShotgridProcessor:
+
     def __init__(self):
         """A class to process AYON events of `shotgrid.event` topic.
 
@@ -90,7 +92,7 @@ class ShotgridProcessor:
 
         except Exception as e:
             logging.error("Unable to get Addon settings from the server.")
-            log_traceback(e)
+            logging.error(traceback.format_exc())
             raise e
 
         self.handlers_map = self._get_handlers()
@@ -187,8 +189,10 @@ class ShotgridProcessor:
                         )
 
                     except Exception as e:
-                        logging.error(f"Unable to process handler {handler.__name__}")
-                        log_traceback(e)
+                        logging.error(
+                            f"Unable to process handler {handler.__name__}",
+                            exc_info=True
+                        )
                         ayon_api.update_event(
                             event["id"],
                             status="failed",
@@ -203,13 +207,13 @@ class ShotgridProcessor:
                 logging.info("Event has been processed... setting to finished!")
                 ayon_api.update_event(
                     event["id"],
-                    description="Event processed succsefully.",
+                    description="Event processed successfully.",
                     status="finished"
                 )
                 ayon_api.update_event(source_event["id"], status="finished")
 
-            except Exception as err:
-                log_traceback(err)
+            except Exception:
+                logging.error(traceback.format_exc())
 
             logging.info(
                 f"Waiting {self.sg_polling_frequency} seconds..."

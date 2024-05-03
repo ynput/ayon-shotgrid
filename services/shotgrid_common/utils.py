@@ -14,8 +14,8 @@ from constants import (
 from ayon_api.entity_hub import ProjectEntity
 from ayon_api.utils import slugify_string
 from ayon_api import get_attributes_for_type
+import logging
 
-from nxtools import logging
 import shotgun_api3
 
 
@@ -371,14 +371,8 @@ def get_asset_category(entity_hub, parent_entity, sg_ay_dict):
         entity_hub (ayon_api.EntityHub): The project's entity hub.
         parent_entity: Ayon parent entity.
         sg_ay_dict (dict): The ShotGrid entity ready for Ayon consumption.
-    """
-    entity_hub.query_entities_from_server()
-    asset_categories = [
-        entity
-        for entity in entity_hub.entities
-        if entity.entity_type.lower() == "folder" and entity.folder_type == "AssetCategory"  # noqa
-    ]
 
+    """
     # just in case the asset type doesn't exist yet
     if not sg_ay_dict["data"].get("sg_asset_type"):
         sg_ay_dict["data"]["sg_asset_type"] = sg_ay_dict["name"]
@@ -386,17 +380,23 @@ def get_asset_category(entity_hub, parent_entity, sg_ay_dict):
     asset_category_name = slugify_string(
         sg_ay_dict["data"]["sg_asset_type"]).lower()
 
-    for asset_category in asset_categories:
+    asset_categories = [
+        entity
+        for entity in parent_entity.get_children()
         if (
-            asset_category.name == asset_category_name
-            and asset_category.parent.id == parent_entity.id
-        ):
-            return asset_category
+            entity.entity_type == "folder"
+            and entity.folder_type == "AssetCategory"
+            and entity.name == asset_category_name
+        )
+    ]
+
+    for asset_category in asset_categories:
+        return asset_category
 
     try:
         return create_asset_category(entity_hub, parent_entity, sg_ay_dict)
-    except Exception as e:
-        logging.error(f"Unable to create AssetCategory. {e}")
+    except Exception:
+        logging.error("Unable to create AssetCategory.", exc_info=True)
 
     return None
 
@@ -440,11 +440,12 @@ def get_or_create_sg_field(
                 properties=field_properties,
             )
             return attribute_exists
-        except Exception as e:
+        except Exception:
             logging.error(
-                f"Can't create ShotGrid field {sg_entity_type} > {field_code}."
+                "Can't create ShotGrid field "
+                f"{sg_entity_type} > {field_code}.",
+                exc_info=True
             )
-            logging.error(e)
 
     return attribute_exists
 

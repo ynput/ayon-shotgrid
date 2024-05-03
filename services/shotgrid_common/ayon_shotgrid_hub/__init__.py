@@ -38,7 +38,7 @@ from utils import (
 
 import ayon_api
 from ayon_api.entity_hub import EntityHub
-from nxtools import logging, log_traceback
+import logging
 import shotgun_api3
 
 PROJECT_NAME_REGEX = re.compile("^[a-zA-Z0-9_]+$")
@@ -67,6 +67,7 @@ class AyonShotgridHub:
         custom_attribs_types (dict): A dictionary mapping AYON attribute types
             to Shotgrid field types.
     """
+
     def __init__(self,
         project_name,
         project_code,
@@ -83,12 +84,10 @@ class AyonShotgridHub:
         self._sg = None
 
         if not all([sg_url, sg_api_key, sg_script_name]):
-            msg = (
+            raise ValueError(
                 "AyonShotgridHub requires `sg_url`, `sg_api_key`" \
                 "and `sg_script_name` as arguments."
             )
-            logging.error(msg)
-            raise ValueError(msg)
 
         self._initialize_apis(sg_url, sg_api_key, sg_script_name)
 
@@ -127,8 +126,7 @@ class AyonShotgridHub:
             ayon_api.init_service()
         except Exception as e:
             logging.error("Unable to connect to AYON.")
-            log_traceback(e)
-            raise(e)
+            raise e
 
         if self._sg is None:
             try:
@@ -139,16 +137,14 @@ class AyonShotgridHub:
                 )
             except Exception as e:
                 logging.error("Unable to create Shotgrid Session.")
-                log_traceback(e)
-                raise(e)
+                raise e
 
         try:
             self._sg.connect()
 
         except Exception as e:
             logging.error("Unable to connect to Shotgrid.")
-            log_traceback(e)
-            raise(e)
+            raise e
 
     def create_sg_attributes(self):
         """Create all AYON needed attributes in Shotgrid."""
@@ -379,9 +375,8 @@ class AyonShotgridHub:
                 )
 
             case _:
-                msg = f"Unable to process event {sg_event['type']}."
-                logging.error(msg)
-                raise ValueError(msg)
+                raise ValueError(
+                    f"Unable to process event {sg_event['type']}.")
 
     def react_to_ayon_event(self, ayon_event):
         """React to events incoming from AYON
@@ -448,6 +443,6 @@ class AyonShotgridHub:
                     self.custom_attribs_map,
                 )
             case _:
-                msg = f"Unable to process event {ayon_event['topic']}."
-                logging.error(msg)
-                raise ValueError(msg)
+                raise ValueError(
+                    f"Unable to process event {ayon_event['topic']}."
+                )

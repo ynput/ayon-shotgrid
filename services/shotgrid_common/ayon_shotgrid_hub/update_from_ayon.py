@@ -13,8 +13,7 @@ from constants import (
     SHOTGRID_TYPE_ATTRIB,  # Ayon Entity Attribute.
 )
 
-from nxtools import logging, log_traceback
-
+import logging
 
 def create_sg_entity_from_ayon_event(
     ayon_event,
@@ -87,9 +86,11 @@ def create_sg_entity_from_ayon_event(
             sg_entity["type"]
         )
         ayon_entity_hub.commit_changes()
-    except Exception as e:
-        logging.error(f"Unable to create {sg_type} <{ay_id}> in Shotgrid!")
-        log_traceback(e)
+    except Exception:
+        logging.error(
+            f"Unable to create {sg_type} <{ay_id}> in Shotgrid!",
+            exc_info=True
+        )
 
 
 def update_sg_entity_from_ayon_event(
@@ -196,10 +197,11 @@ def update_sg_entity_from_ayon_event(
         )
         logging.info(f"Updated ShotGrid entity: {sg_entity}")
         return sg_entity
-    except Exception as e:
+    except Exception:
         logging.error(
-            f"Unable to update {sg_entity_type} <{sg_id}> in ShotGrid!")
-        log_traceback(e)
+            f"Unable to update {sg_entity_type} <{sg_id}> in ShotGrid!",
+            exc_info=True
+        )
 
 
 def remove_sg_entity_from_ayon_event(ayon_event, sg_session, ayon_entity_hub):
@@ -247,9 +249,11 @@ def remove_sg_entity_from_ayon_event(ayon_event, sg_session, ayon_entity_hub):
     try:
         sg_session.delete(sg_type, int(sg_id))
         logging.info(f"Retired Shotgrid entity: {sg_type} <{sg_id}>")
-    except Exception as e:
-        logging.error(f"Unable to delete {sg_type} <{sg_id}> in Shotgrid!")
-        log_traceback(e)
+    except Exception:
+        logging.error(
+            f"Unable to delete {sg_type} <{sg_id}> in Shotgrid!",
+            exc_info=True
+        )
 
 
 def _create_sg_entity(
@@ -351,5 +355,4 @@ def _create_sg_entity(
     except Exception as e:
         logging.error(
             f"Unable to create SG entity {sg_type} with data: {data}")
-        log_traceback(e)
         raise e
