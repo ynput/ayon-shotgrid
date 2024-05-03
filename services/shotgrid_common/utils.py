@@ -575,12 +575,17 @@ def get_sg_entities(
         if entity_name in entities_to_ignore:
             continue
 
-        sg_entities = sg_session.find(
-            entity_name,
-            filters=[["project", "is", sg_project]],
-            fields=query_fields,
-        )
-        for sg_entity in sg_entities:
+        # Potential fix when shotgrid api returns the same entity more than
+        # once, we store the entities in a dictionary to avoid duplicates
+        sg_entities = {
+            entity["id"]: entity
+            for entity in sg_session.find(
+                entity_name,
+                filters=[["project", "is", sg_project]],
+                fields=query_fields,
+            )
+        }
+        for sg_entity in sg_entities.values():
             parent_id = sg_project["id"]
 
             if (
