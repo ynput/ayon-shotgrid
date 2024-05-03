@@ -66,7 +66,6 @@ def match_ayon_hierarchy_in_shotgrid(
 
     while sg_ay_dicts_deck:
         (sg_ay_parent_entity, ay_entity) = sg_ay_dicts_deck.popleft()
-        logging.debug(f"Processing {ay_entity})")
 
         sg_ay_dict = None
 
@@ -85,7 +84,8 @@ def match_ayon_hierarchy_in_shotgrid(
 
             if sg_entity_id in sg_ay_dicts:
                 sg_ay_dict = sg_ay_dicts[sg_entity_id]
-                logging.info(f"Entity already exists in Shotgrid {sg_ay_dict}")
+                logging.info(
+                    f"Entity already exists in Shotgrid {sg_ay_dict['name']}")
 
                 if sg_ay_dict["data"][CUST_FIELD_CODE_ID] != ay_entity.id:
                     logging.error(
@@ -148,7 +148,8 @@ def match_ayon_hierarchy_in_shotgrid(
                 SHOTGRID_TYPE_ATTRIB,
                 sg_ay_dict["attribs"][SHOTGRID_TYPE_ATTRIB]
             )
-            entity_hub.commit_changes()
+
+        entity_hub.commit_changes()
 
         if sg_ay_dict is None:
             # Shotgrid doesn't have the concept of "Folders"
@@ -267,9 +268,6 @@ def _create_new_entity(
             f"Unable to create SG entity {sg_type} with data: {data}")
         log_traceback(e)
         raise e
-
-    logging.debug(f"Created new entity: {sg_entity}")
-    logging.debug(f"Parent is: {sg_parent_entity}")
 
     sg_ay_dict = get_sg_entity_as_ay_dict(
         sg_session,

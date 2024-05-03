@@ -97,7 +97,7 @@ class ShotgridProcessor:
         if not self.handlers_map:
             logging.error("No handlers found for the processor, aborting.")
         else:
-            logging.debug(f"Found these handlers: {self.handlers_map}")
+            pass
 
     def _get_handlers(self):
         """ Import the handlers found in the `handlers` directory.
@@ -145,10 +145,6 @@ class ShotgridProcessor:
         will trigger the `handlers/project_sync.py` since that one has the attribute
         REGISTER_EVENT_TYPE = ["create-project"]
         """
-        logging.debug(
-            "Querying for `shotgrid.event` events "
-            f"every {self.sg_polling_frequency} seconds..."
-        )
         while True:
             try:
                 event = ayon_api.enroll_event_job(

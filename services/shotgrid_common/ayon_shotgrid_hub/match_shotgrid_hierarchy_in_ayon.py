@@ -51,15 +51,34 @@ def match_shotgrid_hierarchy_in_ayon(
     sg_ay_dicts_deck = collections.deque()
 
     # Append the project's direct children.
-    for sg_ay_dict_child in sg_ay_dicts_parents[sg_project["id"]]:
-        sg_ay_dicts_deck.append((entity_hub.project_entity, sg_ay_dict_child))
+    for sg_ay_dict_child_id in sg_ay_dicts_parents[sg_project["id"]]:
+        sg_ay_dicts_deck.append(
+            (entity_hub.project_entity, sg_ay_dict_child_id)
+        )
 
     sg_project_sync_status = "Synced"
+    processed_ids = set()
 
     while sg_ay_dicts_deck:
-        (ay_parent_entity, sg_ay_dict) = sg_ay_dicts_deck.popleft()
-        logging.debug(f"Processing {sg_ay_dict} with parent {ay_parent_entity}")
-        logging.debug(f"Deck size: {len(sg_ay_dicts_deck)}")
+        (ay_parent_entity, sg_ay_dict_child_id) = sg_ay_dicts_deck.popleft()
+        sg_ay_dict = sg_ay_dicts[sg_ay_dict_child_id]
+        sg_entity_id = sg_ay_dict["attribs"][SHOTGRID_ID_ATTRIB]
+        if sg_entity_id in processed_ids:
+            msg = (
+                f"Entity {sg_entity_id} already processed, skipping..."
+                f"Sg Ay Dict: {sg_ay_dict} - "
+                f"Ay Parent Entity: {ay_parent_entity}"
+            )
+            logging.warning(msg)
+
+            # append msg to temp file for debugging
+            with open("/service/processed_ids.txt", "a") as f:
+                f.write(f"{msg}\n")
+            continue
+
+        processed_ids.add(sg_entity_id)
+
+        logging.info(f"Deck size: {len(sg_ay_dicts_deck)}")
 
         ay_entity = None
         sg_entity_sync_status = "Synced"
@@ -69,7 +88,6 @@ def match_shotgrid_hierarchy_in_ayon(
             ay_entity = entity_hub.get_or_query_entity_by_id(
                 ay_id, [sg_ay_dict["type"]])
 
-        logging.debug(f"Found entity {ay_entity} with ID {ay_id}")
         # If we haven't found the ay_entity by its id, check by its name
         # to avoid creating duplicates and erroring out
         if ay_entity is None:
@@ -77,9 +95,6 @@ def match_shotgrid_hierarchy_in_ayon(
             for child in ay_parent_entity.children:
                 if child.name.lower() == name.lower():
                     ay_entity = child
-                    logging.debug(
-                        f"Found another entity with the same name: {ay_entity.name} <{ay_entity.id}>."
-                    )
                     break
 
         # If we couldn't find it we create it.
@@ -98,21 +113,16 @@ def match_shotgrid_hierarchy_in_ayon(
                     sg_ay_dict
                 )
         else:
-            logging.debug(
-                f"Entity '{ay_entity.name}' <{ay_entity.id}> exists in AYON. "
-                "Making sure the stored ShotGrid Data matches."
-            )
-
             ay_sg_id_attrib = ay_entity.attribs.get(
                 SHOTGRID_ID_ATTRIB
             )
 
             # If the ShotGrid ID in AYON doesn't match the one in ShotGrid
-            if str(ay_sg_id_attrib) != str(sg_ay_dict["attribs"][SHOTGRID_ID_ATTRIB]): # noqa
+            if str(ay_sg_id_attrib) != str(sg_entity_id):  # noqa
                 logging.error(
                     f"The AYON entity {ay_entity.name} <{ay_entity.id}> has the "  # noqa
                     f"ShotgridId {ay_sg_id_attrib}, while the ShotGrid ID "  # noqa
-                    f"should be {sg_ay_dict['attribs'][SHOTGRID_ID_ATTRIB]}"
+                    f"should be {sg_entity_id}"
                 )
                 sg_entity_sync_status = "Failed"
                 sg_project_sync_status = "Failed"
@@ -129,7 +139,7 @@ def match_shotgrid_hierarchy_in_ayon(
 
         # Update SG entity with new created data
         sg_ay_dict["data"][CUST_FIELD_CODE_ID] = ay_entity.id
-        sg_ay_dicts[sg_ay_dict["attribs"][SHOTGRID_ID_ATTRIB]] = sg_ay_dict
+        sg_ay_dicts[sg_entity_id] = sg_ay_dict
 
         # If the entity is not a "Folder" or "AssetCategory" we update the
         # entity ID and sync status in Shotgrid and AYON
@@ -142,8 +152,8 @@ def match_shotgrid_hierarchy_in_ayon(
                 or sg_ay_dict["data"][CUST_FIELD_CODE_SYNC] != sg_entity_sync_status  # noqa
             )
         ):
-            logging.debug(
-                "Updating AYON entity ID and sync status in SG and AYON")
+            # logging.debug(
+            #     "Updating AYON entity ID and sync status in SG and AYON")
             update_data = {
                 CUST_FIELD_CODE_ID: ay_entity.id,
                 CUST_FIELD_CODE_SYNC: sg_entity_sync_status
@@ -151,25 +161,25 @@ def match_shotgrid_hierarchy_in_ayon(
             # Update Shotgrid entity with Ayon ID and sync status
             sg_session.update(
                 sg_ay_dict["attribs"][SHOTGRID_TYPE_ATTRIB],
-                sg_ay_dict["attribs"][SHOTGRID_ID_ATTRIB],
+                sg_entity_id,
                 update_data
             )
             ay_entity.data.update(update_data)
-            logging.debug(f"Updated entity {ay_entity.name} <{ay_entity.id}> data with '{update_data}'")
-
-        entity_id = sg_ay_dict["attribs"][SHOTGRID_ID_ATTRIB]
 
         # If the entity has children, add it to the deck
-        for sg_child in sg_ay_dicts_parents.get(entity_id, []):
-            logging.debug(f"Adding {sg_child} to the deck.")
-            sg_ay_dicts_deck.append((ay_entity, sg_child))
+        for sg_child_id in sg_ay_dicts_parents.get(sg_entity_id, []):
+            sg_ay_dicts_deck.append((ay_entity, sg_child_id))
 
     try:
         entity_hub.commit_changes()
     except Exception as e:
-        logging.error(f"Unable to create entity {sg_ay_dict} in AYON!")
+        logging.error("Unable to commit all entities to AYON!")
         log_traceback(e)
 
+    logging.info(
+        "Processed entities successfully!. "
+        f"Amount of entities: {len(processed_ids)}"
+    )
     # Sync project attributes from Shotgrid to AYON
     entity_hub.project_entity.attribs.set(
         SHOTGRID_ID_ATTRIB,
@@ -183,7 +193,6 @@ def match_shotgrid_hierarchy_in_ayon(
         attrib_value = sg_project.get(sg_attrib) \
             or sg_project.get(f"sg_{sg_attrib}")
 
-        logging.debug(f"Checking {sg_attrib} -> {attrib_value}")
         if attrib_value is None:
             continue
 
@@ -252,20 +261,18 @@ def _create_new_entity(entity_hub, parent_entity, sg_ay_dict):
     # TODO: this doesn't work yet
     status = sg_ay_dict["attribs"].get("status")
     if status:
-        logging.debug(f"Entity '{sg_ay_dict['name']}' status sync: '{status}'")
         # TODO: Implement status update
         try:
             # INFO: it was causing error so trying to set status directly
-            logging.warning("Status update is not supported yet.")
             ay_entity.status = status
         except ValueError as e:
             # `ValueError: Status ip is not available on project.`
-            logging.warning(f"Error updating status: {e}")
+            # logging.warning(f"Status sync not implemented: {e}")
+            pass
 
     tags = sg_ay_dict["attribs"].get("tags")
     if tags:
         ay_entity.tags = [tag["name"] for tag in tags]
 
-    logging.debug(f"Created new entity: {ay_entity.name} ({ay_entity.id})")
-    logging.debug(f"Parent is: {parent_entity.name} ({parent_entity.id})")
+    logging.info(f"Created new entity: {ay_entity.name} ({ay_entity.id})")
     return ay_entity
