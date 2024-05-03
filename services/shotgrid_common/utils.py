@@ -580,60 +580,59 @@ def get_sg_entities(
             filters=[["project", "is", sg_project]],
             fields=query_fields,
         )
-        if sg_entities:
-            for sg_entity in sg_entities:
-                parent_id = sg_project["id"]
+        for sg_entity in sg_entities:
+            parent_id = sg_project["id"]
 
-                if (
-                    parent_field != "project"
-                    and sg_entity[parent_field]
-                    and entity_name != "Asset"
-                ):
-                    parent_id = sg_entity[parent_field]["id"]
-                elif entity_name == "Asset" and sg_entity["sg_asset_type"]:
-                    # TODO: Add support for AssetCategory and Asset
-                    # Asset Categories (sg_asset_type) are not entities
-                    # (or at least aren't queryable) in ShotGrid
-                    # thus here we create common folders.
-                    asset_category = sg_entity["sg_asset_type"]
-                    # asset category entity name
-                    cat_ent_name = slugify_string(asset_category).lower()
+            if (
+                parent_field != "project"
+                and sg_entity[parent_field]
+                and entity_name != "Asset"
+            ):
+                parent_id = sg_entity[parent_field]["id"]
 
-                    asset_category_entity = {
-                        "label": asset_category,
-                        "name": cat_ent_name,
-                        "attribs": {
-                            SHOTGRID_ID_ATTRIB: slugify_string(
-                                asset_category).lower(),
-                            SHOTGRID_TYPE_ATTRIB: "AssetCategory",
-                        },
-                        "data": {
-                            CUST_FIELD_CODE_ID: None,
-                            CUST_FIELD_CODE_SYNC: None,
-                        },
-                        "type": "folder",
-                        "folder_type": "AssetCategory",
-                    }
+            elif entity_name == "Asset" and sg_entity["sg_asset_type"]:
+                # Asset Categories (sg_asset_type) are not entities
+                # (or at least aren't queryable) in ShotGrid
+                # thus here we create common folders.
+                asset_category = sg_entity["sg_asset_type"]
+                # asset category entity name
+                cat_ent_name = slugify_string(asset_category).lower()
 
-                    if not sg_ay_dicts.get(cat_ent_name):
-                        sg_ay_dicts[cat_ent_name] = asset_category_entity
-                        sg_ay_dicts_parents[sg_project["id"]].append(
-                            asset_category_entity)
+                asset_category_entity = {
+                    "label": asset_category,
+                    "name": cat_ent_name,
+                    "attribs": {
+                        SHOTGRID_ID_ATTRIB: slugify_string(
+                            asset_category).lower(),
+                        SHOTGRID_TYPE_ATTRIB: "AssetCategory",
+                    },
+                    "data": {
+                        CUST_FIELD_CODE_ID: None,
+                        CUST_FIELD_CODE_SYNC: None,
+                    },
+                    "type": "folder",
+                    "folder_type": "AssetCategory",
+                }
 
-                    parent_id = cat_ent_name
+                if not sg_ay_dicts.get(cat_ent_name):
+                    sg_ay_dicts[cat_ent_name] = asset_category_entity
+                    sg_ay_dicts_parents[sg_project["id"]].append(
+                        asset_category_entity)
 
-                sg_ay_dict = _sg_to_ay_dict(
-                    sg_entity,
-                    project_code_field,
-                    custom_attribs_map,
-                )
-                logging.debug(
-                    f"ShotGrid entity {sg_entity} as AYON dict: {sg_ay_dict}"
-                    f" Parent ID: {parent_id}"
-                )
+                parent_id = cat_ent_name
 
-                sg_ay_dicts[sg_ay_dict["attribs"][SHOTGRID_ID_ATTRIB]] = sg_ay_dict
-                sg_ay_dicts_parents[parent_id].append(sg_ay_dict)
+            sg_ay_dict = _sg_to_ay_dict(
+                sg_entity,
+                project_code_field,
+                custom_attribs_map,
+            )
+            logging.debug(
+                f"ShotGrid entity {sg_entity} as AYON dict: {sg_ay_dict}"
+                f" Parent ID: {parent_id}"
+            )
+
+            sg_ay_dicts[sg_ay_dict["attribs"][SHOTGRID_ID_ATTRIB]] = sg_ay_dict
+            sg_ay_dicts_parents[parent_id].append(sg_ay_dict)
 
     return sg_ay_dicts, sg_ay_dicts_parents
 
