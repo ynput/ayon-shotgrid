@@ -96,8 +96,6 @@ class ShotgridProcessor:
         self.handlers_map = self._get_handlers()
         if not self.handlers_map:
             logging.error("No handlers found for the processor, aborting.")
-        else:
-            pass
 
     def _get_handlers(self):
         """ Import the handlers found in the `handlers` directory.
