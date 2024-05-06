@@ -551,11 +551,11 @@ def get_sg_entities(
     for enabled_entity in project_enabled_entities:
         entity_name, parent_field = enabled_entity
 
+        # Potential fix when shotgrid api returns the same entity more than
+        # once, we store the entities in a dictionary to avoid duplicates
         if entity_name in entities_to_ignore:
             continue
 
-        # Potential fix when shotgrid api returns the same entity more than
-        # once, we store the entities in a dictionary to avoid duplicates
         sg_entities = sg_session.find(
             entity_name,
             filters=[["project", "is", sg_project]],
