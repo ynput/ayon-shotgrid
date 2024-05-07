@@ -215,7 +215,7 @@ def update_ayon_entity_from_sg_event(
     ayon_entity_hub,
     sg_enabled_entities,
     project_code_field,
-    custom_attribs_map=None,
+    custom_attribs_map,
 ):
     """Try to update an entity in Ayon.
 
