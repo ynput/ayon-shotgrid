@@ -104,12 +104,6 @@ class ShotgridTransmitter:
             "entity.folder.tags_changed",
         ]
 
-        logging.debug(
-            f"Querying AYON every {self.sg_polling_frequency} seconds for events to "
-            "transmit to Shotgrid, and only on Project's that have the attribute "
-            "'Shotgrid Push enabled..."
-        )
-
         while True:
             projects_we_care = [
                 project["name"]

@@ -39,8 +39,6 @@ def create_sg_entity_from_ayon_event(
         ay_entity (ayon_api.entity_hub.EntityHub.Entity): The newly
             created entity.
     """
-    logging.debug(f"Processing event {ayon_event}")
-
     ay_id = ayon_event["summary"]["entityId"]
     ay_entity = ayon_entity_hub.get_or_query_entity_by_id(
         ay_id, ["folder", "task"])
@@ -62,10 +60,7 @@ def create_sg_entity_from_ayon_event(
 
     sg_entity = None
 
-    logging.debug(f"Creating {ay_entity} ({sg_type} <{ay_id}>) in Shotgrid.")
-
     if sg_id and sg_type:
-        logging.debug(f"Querying Shotgrid for {sg_type} <{sg_id}>")
         sg_entity = sg_session.find_one(sg_type, [["id", "is", int(sg_id)]])
 
     if sg_entity:
@@ -115,7 +110,6 @@ def update_sg_entity_from_ayon_event(
         sg_entity (dict): The modified Shotgrid entity.
 
     """
-    logging.debug(f"Processing event {ayon_event}")
     ay_id = ayon_event["summary"]["entityId"]
     ay_entity = ayon_entity_hub.get_or_query_entity_by_id(
         ay_id, ["folder", "task"])
@@ -125,8 +119,6 @@ def update_sg_entity_from_ayon_event(
             "Event has a non existent entity? "
             f"{ayon_event['summary']['entityId']}"
         )
-
-    logging.debug(f"Processing entity {ay_entity}")
 
     sg_id = ay_entity.attribs.get("shotgridId")
     sg_entity_type = ay_entity.attribs.get("shotgridType")
@@ -218,7 +210,6 @@ def remove_sg_entity_from_ayon_event(ayon_event, sg_session, ayon_entity_hub):
         sg_session (shotgun_api3.Shotgun): The Shotgrid API session.
         ayon_entity_hub (ayon_api.entity_hub.EntityHub): The AYON EntityHub.
     """
-    logging.debug(f"Processing event {ayon_event}")
     ay_id = ayon_event["payload"]["entityData"]["id"]
     ay_entity_path = ayon_event["payload"]["entityData"]["path"]
     sg_id = ayon_event["payload"]["entityData"]["attrib"].get("shotgridId")
@@ -353,8 +344,6 @@ def _create_sg_entity(
         sg_type,
         custom_attribs_map
     ))
-
-    logging.debug(f"Creating Shotgrid entity {sg_type} with data: {data}")
 
     try:
         sg_entity = sg_session.create(sg_type, data)

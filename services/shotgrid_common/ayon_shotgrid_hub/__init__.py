@@ -67,6 +67,12 @@ class AyonShotgridHub:
         custom_attribs_types (dict): A dictionary mapping AYON attribute types
             to Shotgrid field types.
     """
+
+    custom_attribs_map = {
+        "status": "status_list",
+        "tags": "tags"
+    }
+
     def __init__(self,
         project_name,
         project_code,
@@ -100,15 +106,11 @@ class AyonShotgridHub:
         else:
             self.sg_project_code_field = "code"
 
-        self.custom_attribs_map = {
-            "status": "status_list",
-            "tags": "tags"
-        }
+        # add custom attributes from settings
         if custom_attribs_map:
             self.custom_attribs_map.update(custom_attribs_map)
 
-        if custom_attribs_types:
-            self.custom_attribs_types = custom_attribs_types
+        self.custom_attribs_types = custom_attribs_types
 
         if sg_enabled_entities:
             self.sg_enabled_entities = sg_enabled_entities
@@ -363,8 +365,10 @@ class AyonShotgridHub:
             case "attribute_change":
                 update_ayon_entity_from_sg_event(
                     sg_event,
+                    self._sg_project,
                     self._sg,
                     self._ay_project,
+                    self.sg_enabled_entities,
                     self.sg_project_code_field,
                     self.custom_attribs_map,
                 )

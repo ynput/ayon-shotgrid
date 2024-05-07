@@ -38,8 +38,6 @@ class ShotgridListener:
         else:
             self.func = func
 
-        logging.debug(f"Callback method is {self.func}.")
-
         try:
             ayon_api.init_service()
             self.settings = ayon_api.get_service_addon_settings()
@@ -71,8 +69,10 @@ class ShotgridListener:
                 for attr in self.settings["compatibility_settings"]["custom_attribs_map"]  # noqa: E501
                 if attr["sg"]
             }
+
+            # TODO: implement a way to handle status_list and tags
             self.custom_attribs_map.update({
-                "status": "status_list",
+                # "status": "status_list",
                 "tags": "tags"
             })
 
@@ -171,8 +171,6 @@ class ShotgridListener:
             )
             last_event_id = last_event["id"]
 
-        logging.debug(f"Last non-processed SG Event is {last_event}")
-
         return last_event_id
 
     def start_listening(self):
@@ -221,7 +219,6 @@ class ShotgridListener:
                         event["event_type"].endswith("_Change")
                         and event["attribute_name"].replace("sg_", "") not in list(self.custom_attribs_map.values())
                     ):
-                        logging.debug(f"Skipping event for attribute change '{event['attribute_name'].replace('sg_', '')}', as we can't handle it.")
                         last_event_id = event.get("id", None)
                         continue
 
