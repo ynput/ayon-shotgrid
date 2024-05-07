@@ -71,6 +71,10 @@ class AyonShotgridHub:
     """
 
     log = get_logger(__file__)
+    custom_attribs_map = {
+        "status": "status_list",
+        "tags": "tags"
+    }
 
     def __init__(self,
         project_name,
@@ -103,10 +107,7 @@ class AyonShotgridHub:
         else:
             self.sg_project_code_field = "code"
 
-        self.custom_attribs_map = {
-            "status": "status_list",
-            "tags": "tags"
-        }
+        # add custom attributes from settings
         if custom_attribs_map:
             self.custom_attribs_map.update(custom_attribs_map)
 
