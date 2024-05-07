@@ -1,3 +1,4 @@
+import os
 import collections
 from typing import Dict, Optional
 
@@ -17,6 +18,45 @@ from ayon_api import get_attributes_for_type
 import logging
 
 import shotgun_api3
+
+
+def get_logger(name: str) -> logging.Logger:
+    """Return a logger instance with the given name."""
+    # get environment variable DEBUG level
+    log_level = os.environ.get("LOGLEVEL", "INFO").upper()
+
+    logger = logging.Logger(name)
+    # create console handler and set level to debug
+    ch = logging.StreamHandler()
+    ch.setLevel(log_level)
+
+    formatting_str = (
+        "%(asctime)s.%(msecs)03d %(levelname)s: %(message)s"
+    )
+
+    if log_level == "DEBUG":
+        formatting_str = (
+            "%(asctime)s.%(msecs)03d | %(module)s | %(funcName)s | "
+            "%(levelname)s: %(message)s"
+        )
+
+    # create formatter
+    formatter = logging.Formatter(
+        fmt=formatting_str,
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+
+    # add formatter to ch
+    ch.setFormatter(formatter)
+
+    # add ch to logger
+    logger.addHandler(ch)
+
+    return logger
+
+
+# create logger
+log = get_logger(__name__)
 
 
 def _sg_to_ay_dict(
@@ -355,7 +395,7 @@ def create_asset_category(entity_hub, parent_entity, sg_ay_dict):
 
     asset_category_entity = entity_hub.add_new_folder(**asset_category_entity)
 
-    logging.info(f"Created AssetCategory: {asset_category_entity}")
+    log.info(f"Created AssetCategory: {asset_category_entity}")
     return asset_category_entity
 
 
@@ -396,7 +436,7 @@ def get_asset_category(entity_hub, parent_entity, sg_ay_dict):
     try:
         return create_asset_category(entity_hub, parent_entity, sg_ay_dict)
     except Exception:
-        logging.error("Unable to create AssetCategory.", exc_info=True)
+        log.error("Unable to create AssetCategory.", exc_info=True)
 
     return None
 
@@ -441,7 +481,7 @@ def get_or_create_sg_field(
             )
             return attribute_exists
         except Exception:
-            logging.error(
+            log.error(
                 "Can't create ShotGrid field "
                 f"{sg_entity_type} > {field_code}.",
                 exc_info=True
@@ -822,7 +862,7 @@ def get_sg_project_enabled_entities(
     )
 
     if not sg_project:
-        logging.error(
+        log.error(
             f"Unable to find {sg_project} in the ShotGrid instance."
         )
         return []
@@ -1014,7 +1054,7 @@ def update_ay_entity_custom_attributes(
             continue
 
         if ay_attrib == "tags":
-            logging.warning("Tags update is not supported yet.")
+            log.warning("Tags update is not supported yet.")
             ay_entity.tags = [tag["name"] for tag in attrib_value]
         elif ay_attrib == "status":
             # TODO: Implement status update
@@ -1023,6 +1063,6 @@ def update_ay_entity_custom_attributes(
                 ay_entity.status = attrib_value
             except ValueError as e:
                 # `ValueError: Status ip is not available on project.`
-                logging.warning(f"Status sync not implemented: {e}")
+                log.warning(f"Status sync not implemented: {e}")
         else:
             ay_entity.attribs.set(ay_attrib, attrib_value)

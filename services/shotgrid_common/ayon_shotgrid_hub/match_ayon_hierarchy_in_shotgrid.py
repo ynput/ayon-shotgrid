@@ -14,7 +14,10 @@ from utils import (
     get_sg_custom_attributes_data
 )
 
-import logging
+from utils import get_logger
+
+
+log = get_logger(__file__)
 
 
 def match_ayon_hierarchy_in_shotgrid(
@@ -38,10 +41,10 @@ def match_ayon_hierarchy_in_shotgrid(
         sg_session (shotgun_api3.Shotgun): The Shotgrid session.
         project_code_field (str): The Shotgrid project code field.
     """
-    logging.info("Getting AYON entities.")
+    log.info("Getting AYON entities.")
     entity_hub.query_entities_from_server()
 
-    logging.info("Getting Shotgrid entities.")
+    log.info("Getting Shotgrid entities.")
     sg_ay_dicts, sg_ay_dicts_parents = get_sg_entities(
         sg_session,
         sg_project,
@@ -84,11 +87,11 @@ def match_ayon_hierarchy_in_shotgrid(
 
             if sg_entity_id in sg_ay_dicts:
                 sg_ay_dict = sg_ay_dicts[sg_entity_id]
-                logging.info(
+                log.info(
                     f"Entity already exists in Shotgrid {sg_ay_dict['name']}")
 
                 if sg_ay_dict["data"][CUST_FIELD_CODE_ID] != ay_entity.id:
-                    logging.error(
+                    log.error(
                         "Shotgrid record for AYON id does not match...")
                     try:
                         sg_session.update(
@@ -100,7 +103,7 @@ def match_ayon_hierarchy_in_shotgrid(
                             }
                         )
                     except Exception:
-                        logging.error(
+                        log.error(
                             f"Unable to update SG entity {sg_ay_dict['name']}",
                             exc_info=True
                         )
@@ -114,7 +117,7 @@ def match_ayon_hierarchy_in_shotgrid(
                         custom_attribs_map
                     )
                     if data_to_update:
-                        logging.info("Syncing custom attributes on entity.")
+                        log.info("Syncing custom attributes on entity.")
                         sg_session.update(
                             sg_entity_type,
                             sg_entity_id,
@@ -267,7 +270,7 @@ def _create_new_entity(
     try:
         sg_entity = sg_session.create(sg_type, data)
     except Exception as e:
-        logging.error(
+        log.error(
             f"Unable to create SG entity {sg_type} with data: {data}")
         raise e
 

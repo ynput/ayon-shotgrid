@@ -38,8 +38,10 @@ from utils import (
 
 import ayon_api
 from ayon_api.entity_hub import EntityHub
-import logging
 import shotgun_api3
+
+from utils import get_logger
+
 
 PROJECT_NAME_REGEX = re.compile("^[a-zA-Z0-9_]+$")
 
@@ -67,6 +69,8 @@ class AyonShotgridHub:
         custom_attribs_types (dict): A dictionary mapping AYON attribute types
             to Shotgrid field types.
     """
+
+    log = get_logger(__file__)
 
     def __init__(self,
         project_name,
@@ -125,7 +129,7 @@ class AyonShotgridHub:
         try:
             ayon_api.init_service()
         except Exception as e:
-            logging.error("Unable to connect to AYON.")
+            self.log.error("Unable to connect to AYON.")
             raise e
 
         if self._sg is None:
@@ -136,14 +140,14 @@ class AyonShotgridHub:
                     api_key=sg_api_key
                 )
             except Exception as e:
-                logging.error("Unable to create Shotgrid Session.")
+                self.log.error("Unable to create Shotgrid Session.")
                 raise e
 
         try:
             self._sg.connect()
 
         except Exception as e:
-            logging.error("Unable to connect to Shotgrid.")
+            self.log.error("Unable to connect to Shotgrid.")
             raise e
 
     def create_sg_attributes(self):
@@ -178,7 +182,7 @@ class AyonShotgridHub:
             self._ay_project = EntityHub(project_name)
             self._ay_project.project_entity
         except Exception as err:
-            logging.warning(f"Project {project_name} does not exist in AYON.")
+            self.log.warning(f"Project {project_name} does not exist in AYON.")
             self._ay_project = None
 
         custom_fields = [
@@ -195,7 +199,7 @@ class AyonShotgridHub:
                 custom_fields=custom_fields
             )
         except Exception as e:
-            logging.warning(f"Project {project_name} does not exist in Shotgrid. ")
+            self.log.warning(f"Project {project_name} does not exist in Shotgrid. ")
             self._sg_project = None
 
     def create_project(self):
@@ -208,7 +212,7 @@ class AyonShotgridHub:
             if anatomy_preset_name == "_":
                 anatomy_preset_name = None
 
-            logging.info(
+            self.log.info(
                 f"Creating AYON project {self.project_name}\n"
                 f"- project code: {self.project_code}\n"
                 f"- anatomy preset: {anatomy_preset_name}\n"
@@ -224,7 +228,7 @@ class AyonShotgridHub:
         self._ay_project.commit_changes()
 
         if self._sg_project is None:
-            logging.info(f"Creating Shotgrid project {self.project_name} (self.project_code).")
+            self.log.info(f"Creating Shotgrid project {self.project_name} (self.project_code).")
             self._sg_project = self._sg.create(
                 "Project",
                 {
@@ -247,7 +251,7 @@ class AyonShotgridHub:
             self._ay_project.commit_changes()
 
         self.create_sg_attributes()
-        logging.info(f"Project {self.project_name} ({self.project_code}) available in SG and AYON.")
+        self.log.info(f"Project {self.project_name} ({self.project_code}) available in SG and AYON.")
 
     def synchronize_projects(self, source="ayon"):
         """ Ensure a Project matches in the other platform.
@@ -340,7 +344,7 @@ class AyonShotgridHub:
                 the change encompasses, i.e. a new shot, new asset, etc.
         """
         if not self._ay_project:
-            logging.info(f"Ignoring event, AYON project {self.project_name} not found.")
+            self.log.info(f"Ignoring event, AYON project {self.project_name} not found.")
             return
 
         match sg_event["type"]:
@@ -392,7 +396,7 @@ class AyonShotgridHub:
                 the change encompases, i.e. a new shot, new asset, etc.
         """
         if not self._sg_project[CUST_FIELD_CODE_AUTO_SYNC]:
-            logging.info(f"Ignoring event, Shotgirid field 'Ayon Auto Sync' is disabled.")
+            self.log.info(f"Ignoring event, Shotgirid field 'Ayon Auto Sync' is disabled.")
             return
 
         match ayon_event["topic"]:
@@ -422,7 +426,7 @@ class AyonShotgridHub:
             case "entity.task.attrib_changed" | "entity.folder.attrib_changed":
                 attrib_key = next(iter(ayon_event["payload"]["newValue"]))
                 if attrib_key not in self.custom_attribs_map:
-                    logging.warning(
+                    self.log.warning(
                         f"Updating attribute '{attrib_key}' from Ayon to SG "
                         f"not supported: {self.custom_attribs_map}."
                     )
