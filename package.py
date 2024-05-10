@@ -11,3 +11,7 @@ services = {
     "ShotgridTransmitter": {
         "image": f"ynput/ayon-shotgrid-transmitter:{version}"},
 }
+ayon_required_addons = {
+    "core": ">=0.3.0",
+}
+ayon_compatible_addons = {}
