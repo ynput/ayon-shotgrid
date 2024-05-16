@@ -20,12 +20,20 @@ import logging
 import shotgun_api3
 
 
+
+_loggers = {}
+
+
 def get_logger(name: str) -> logging.Logger:
     """Return a logger instance with the given name."""
+    if name in _loggers:
+        return _loggers[name]
+
     # get environment variable DEBUG level
     log_level = os.environ.get("LOGLEVEL", "INFO").upper()
 
     logger = logging.Logger(name)
+    _loggers[name] = logger
     # create console handler and set level to debug
     ch = logging.StreamHandler()
     ch.setLevel(log_level)
