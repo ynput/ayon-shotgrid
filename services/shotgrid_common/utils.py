@@ -1,4 +1,5 @@
 import os
+import logging
 import collections
 from typing import Dict, Optional
 
@@ -15,7 +16,6 @@ from constants import (
 from ayon_api.entity_hub import ProjectEntity
 from ayon_api.utils import slugify_string
 from ayon_api import get_attributes_for_type
-import logging
 
 import shotgun_api3
 
