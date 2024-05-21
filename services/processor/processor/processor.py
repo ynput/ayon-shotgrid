@@ -10,12 +10,17 @@ import time
 import types
 import socket
 import importlib.machinery
-from nxtools import logging, log_traceback
+import traceback
 
 import ayon_api
 
+from utils import get_logger
+
 
 class ShotgridProcessor:
+
+    log = get_logger(__file__)
+
     def __init__(self):
         """A class to process AYON events of `shotgrid.event` topic.
 
@@ -33,7 +38,7 @@ class ShotgridProcessor:
         In order for this service to work, the settings for the Addon have to be
         populated in 'AYON > Studio Settings > Shotgrid'.
         """
-        logging.info("Initializing the Shotgrid Processor.")
+        self.log.info("Initializing the Shotgrid Processor.")
 
         self.handlers_map = None
 
@@ -85,17 +90,17 @@ class ShotgridProcessor:
             if not all([self.sg_url, self.sg_script_name, self.sg_api_key]):
                 msg = "Addon is missing settings, check " \
                       "'AYON > Studio Settings > Shotgrid' and fill out all the fields."
-                logging.error(msg)
+                self.log.error(msg)
                 raise ValueError(msg)
 
         except Exception as e:
-            logging.error("Unable to get Addon settings from the server.")
-            log_traceback(e)
+            self.log.error("Unable to get Addon settings from the server.")
+            self.log.error(traceback.format_exc())
             raise e
 
         self.handlers_map = self._get_handlers()
         if not self.handlers_map:
-            logging.error("No handlers found for the processor, aborting.")
+            self.log.error("No handlers found for the processor, aborting.")
 
     def _get_handlers(self):
         """ Import the handlers found in the `handlers` directory.
@@ -173,7 +178,7 @@ class ShotgridProcessor:
                 for handler in self.handlers_map.get(payload["action"], []):
                     # If theres any handler "subscirbed" to this event type..
                     try:
-                        logging.info(f"Running the Handler {handler}")
+                        self.log.info(f"Running the Handler {handler}")
                         ayon_api.update_event(
                             event["id"],
                             description=f"Procesing event with Handler {payload['action']}...",
@@ -185,8 +190,10 @@ class ShotgridProcessor:
                         )
 
                     except Exception as e:
-                        logging.error(f"Unable to process handler {handler.__name__}")
-                        log_traceback(e)
+                        self.log.error(
+                            f"Unable to process handler {handler.__name__}",
+                            exc_info=True
+                        )
                         ayon_api.update_event(
                             event["id"],
                             status="failed",
@@ -198,18 +205,18 @@ class ShotgridProcessor:
                             description=f"The service `processor` was unable to process this event. Check the `shotgrid.proc` <{event['id']}> event for more info."
                         )
 
-                logging.info("Event has been processed... setting to finished!")
+                self.log.info("Event has been processed... setting to finished!")
                 ayon_api.update_event(
                     event["id"],
-                    description="Event processed succsefully.",
+                    description="Event processed successfully.",
                     status="finished"
                 )
                 ayon_api.update_event(source_event["id"], status="finished")
 
-            except Exception as err:
-                log_traceback(err)
+            except Exception:
+                self.log.error(traceback.format_exc())
 
-            logging.info(
+            self.log.info(
                 f"Waiting {self.sg_polling_frequency} seconds..."
             )
             time.sleep(self.sg_polling_frequency)

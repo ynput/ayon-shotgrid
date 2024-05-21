@@ -13,7 +13,10 @@ from constants import (
     SHOTGRID_TYPE_ATTRIB,  # Ayon Entity Attribute.
 )
 
-from nxtools import logging, log_traceback
+from utils import get_logger
+
+
+log = get_logger(__file__)
 
 
 def create_sg_entity_from_ayon_event(
@@ -64,7 +67,7 @@ def create_sg_entity_from_ayon_event(
         sg_entity = sg_session.find_one(sg_type, [["id", "is", int(sg_id)]])
 
     if sg_entity:
-        logging.warning(f"Entity {sg_entity} already exists in Shotgrid!")
+        log.warning(f"Entity {sg_entity} already exists in Shotgrid!")
         return
 
     try:
@@ -76,7 +79,7 @@ def create_sg_entity_from_ayon_event(
             sg_enabled_entities,
             custom_attribs_map,
         )
-        logging.info(f"Created Shotgrid entity: {sg_entity}")
+        log.info(f"Created Shotgrid entity: {sg_entity}")
 
         ay_entity.attribs.set(
             SHOTGRID_ID_ATTRIB,
@@ -87,9 +90,11 @@ def create_sg_entity_from_ayon_event(
             sg_entity["type"]
         )
         ayon_entity_hub.commit_changes()
-    except Exception as e:
-        logging.error(f"Unable to create {sg_type} <{ay_id}> in Shotgrid!")
-        log_traceback(e)
+    except Exception:
+        log.error(
+            f"Unable to create {sg_type} <{ay_id}> in Shotgrid!",
+            exc_info=True
+        )
 
 
 def update_sg_entity_from_ayon_event(
@@ -150,7 +155,7 @@ def update_sg_entity_from_ayon_event(
                     new_attribs = {"status": sg_status_code}
                     break
             else:
-                logging.error(
+                log.error(
                     f"Unable to update '{sg_entity_type}' with status "
                     f"'{new_attribs}' in Shotgrid as it's not compatible! "
                     f"It should be one of: {sg_statuses}"
@@ -164,7 +169,7 @@ def update_sg_entity_from_ayon_event(
                 if tag_name.lower() in sg_tags:
                     tag_id = sg_tags[tag_name]
                 else:
-                    logging.info(
+                    log.info(
                         f"Tag '{tag_name}' not found in ShotGrid, "
                         "creating a new one."
                     )
@@ -176,7 +181,7 @@ def update_sg_entity_from_ayon_event(
                 )
 
         else:
-            logging.warning(
+            log.warning(
                 "Unknown event type, skipping update of custom attribs.")
             new_attribs = None
 
@@ -194,12 +199,13 @@ def update_sg_entity_from_ayon_event(
             int(sg_id),
             data_to_update
         )
-        logging.info(f"Updated ShotGrid entity: {sg_entity}")
+        log.info(f"Updated ShotGrid entity: {sg_entity}")
         return sg_entity
-    except Exception as e:
-        logging.error(
-            f"Unable to update {sg_entity_type} <{sg_id}> in ShotGrid!")
-        log_traceback(e)
+    except Exception:
+        log.error(
+            f"Unable to update {sg_entity_type} <{sg_id}> in ShotGrid!",
+            exc_info=True
+        )
 
 
 def remove_sg_entity_from_ayon_event(ayon_event, sg_session, ayon_entity_hub):
@@ -215,7 +221,7 @@ def remove_sg_entity_from_ayon_event(ayon_event, sg_session, ayon_entity_hub):
     sg_id = ayon_event["payload"]["entityData"]["attrib"].get("shotgridId")
 
     if not sg_id:
-        logging.warning(
+        log.warning(
             f"Entity '{ay_entity_path}' does not have a "
             "ShotGrid ID to remove."
         )
@@ -238,7 +244,7 @@ def remove_sg_entity_from_ayon_event(ayon_event, sg_session, ayon_entity_hub):
         )
 
     if not sg_entity:
-        logging.warning(
+        log.warning(
             f"Unable to find Ayon entity with id '{ay_id}' in Shotgrid.")
         return
 
@@ -246,10 +252,12 @@ def remove_sg_entity_from_ayon_event(ayon_event, sg_session, ayon_entity_hub):
 
     try:
         sg_session.delete(sg_type, int(sg_id))
-        logging.info(f"Retired Shotgrid entity: {sg_type} <{sg_id}>")
-    except Exception as e:
-        logging.error(f"Unable to delete {sg_type} <{sg_id}> in Shotgrid!")
-        log_traceback(e)
+        log.info(f"Retired Shotgrid entity: {sg_type} <{sg_id}>")
+    except Exception:
+        log.error(
+            f"Unable to delete {sg_type} <{sg_id}> in Shotgrid!",
+            exc_info=True
+        )
 
 
 def _create_sg_entity(
@@ -349,7 +357,6 @@ def _create_sg_entity(
         sg_entity = sg_session.create(sg_type, data)
         return sg_entity
     except Exception as e:
-        logging.error(
+        log.error(
             f"Unable to create SG entity {sg_type} with data: {data}")
-        log_traceback(e)
         raise e

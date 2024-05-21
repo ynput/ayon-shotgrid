@@ -2,19 +2,22 @@
 A AYON Events listener to push changes to Shotgrid.
 
 This service will continually run and query the Ayon Events Server in order to
-entroll the events of topic `entity.folder` and `entity.task` when any of the
+enroll the events of topic `entity.folder` and `entity.task` when any of the
 two are `created`, `renamed` or `deleted`.
 """
 import time
 import socket
-from nxtools import logging, log_traceback
 
 import ayon_api
 
 from ayon_shotgrid_hub import AyonShotgridHub
 
+from utils import get_logger
+
 
 class ShotgridTransmitter:
+    log = get_logger(__file__)
+
     def __init__(self):
         """ Ensure both Ayon and Shotgrid connections are available.
 
@@ -25,7 +28,7 @@ class ShotgridTransmitter:
             func (Callable, None): In case we want to override the default
                 function we cast to the processed events.
         """
-        logging.info("Initializing the Shotgrid Transmitter.")
+        self.log.info("Initializing the Shotgrid Transmitter.")
 
         try:
             ayon_api.init_service()
@@ -78,8 +81,7 @@ class ShotgridTransmitter:
                 self.sg_polling_frequency = 10
 
         except Exception as e:
-            logging.error("Unable to get Addon settings from the server.")
-            log_traceback(e)
+            self.log.error("Unable to get Addon settings from the server.")
             raise e
 
     def start_processing(self):
@@ -169,7 +171,7 @@ class ShotgridTransmitter:
                     # This should never happen since we only fetch events of
                     # projects we have shotgridPush enabled; but just in case
                     # The event happens when after we deleted a project in AYON.
-                    logging.error(
+                    self.log.error(
                         f"Project {project_name} does not exist in AYON "
                         f"ignoring event {event}."
                     )
@@ -197,14 +199,16 @@ class ShotgridTransmitter:
 
                 hub.react_to_ayon_event(source_event)
 
-                logging.info("Event has been processed... setting to finished!")
+                self.log.info("Event has been processed... setting to finished!")
                 ayon_api.update_event(
                     event["id"],
                     project_name=project_name,
                     status="finished"
                 )
-            except Exception as err:
-                log_traceback(err)
+            except Exception:
+                self.log.error(
+                    "Error processing event", exc_info=True)
+
                 ayon_api.update_event(
                     event["id"],
                     project_name=project_name,
