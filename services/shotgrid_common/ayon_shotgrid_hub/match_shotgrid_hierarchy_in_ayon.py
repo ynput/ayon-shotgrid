@@ -73,10 +73,6 @@ def match_shotgrid_hierarchy_in_ayon(
                 f"Ay Parent Entity: {ay_parent_entity}"
             )
             log.warning(msg)
-
-            # append msg to temp file for debugging
-            with open("/service/processed_ids.txt", "a") as f:
-                f.write(f"{msg}\n")
             continue
 
         processed_ids.add(sg_entity_id)
