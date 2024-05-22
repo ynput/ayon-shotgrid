@@ -144,7 +144,11 @@ def match_ayon_hierarchy_in_shotgrid(
                 )
                 sg_entity_id = sg_ay_dict["attribs"][SHOTGRID_ID_ATTRIB]
                 sg_ay_dicts[sg_entity_id] = sg_ay_dict
-                sg_ay_dicts_parents[sg_parent_entity["id"]].append(sg_ay_dict)
+
+                # Add the new entity id to the parent's children
+                # this is important for making sure no duplicity is created
+                sg_id = sg_ay_dict["attribs"][SHOTGRID_ID_ATTRIB]
+                sg_ay_dicts_parents[sg_parent_entity["id"]].add(sg_id)
 
             ay_entity.attribs.set(
                 SHOTGRID_ID_ATTRIB,
