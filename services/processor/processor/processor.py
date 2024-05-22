@@ -176,12 +176,12 @@ class ShotgridProcessor:
                     continue
 
                 for handler in self.handlers_map.get(payload["action"], []):
-                    # If theres any handler "subscirbed" to this event type..
+                    # If theres any handler "subscribed" to this event type..
                     try:
                         self.log.info(f"Running the Handler {handler}")
                         ayon_api.update_event(
                             event["id"],
-                            description=f"Procesing event with Handler {payload['action']}...",
+                            description=f"Processing event with Handler {payload['action']}...",
                             status="finished"
                         )
                         handler.process_event(
@@ -189,7 +189,7 @@ class ShotgridProcessor:
                             **payload,
                         )
 
-                    except Exception as e:
+                    except Exception:
                         self.log.error(
                             f"Unable to process handler {handler.__name__}",
                             exc_info=True
@@ -197,12 +197,19 @@ class ShotgridProcessor:
                         ayon_api.update_event(
                             event["id"],
                             status="failed",
-                            description=f"An error ocurred while processing the Event: {e}",
+                            description="An error ocurred while processing",
+                            payload={
+                                "message": traceback.format_exc(),
+                            },
                         )
                         ayon_api.update_event(
                             source_event["id"],
                             status="failed",
-                            description=f"The service `processor` was unable to process this event. Check the `shotgrid.proc` <{event['id']}> event for more info."
+                            description=(
+                                "The service `processor` was unable to "
+                                "process this event. Check the `shotgrid.proc`"
+                                f" <{event['id']}> event for more info."
+                            )
                         )
 
                 self.log.info("Event has been processed... setting to finished!")

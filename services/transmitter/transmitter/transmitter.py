@@ -7,6 +7,7 @@ two are `created`, `renamed` or `deleted`.
 """
 import time
 import socket
+import traceback
 
 import ayon_api
 
@@ -212,7 +213,10 @@ class ShotgridTransmitter:
                 ayon_api.update_event(
                     event["id"],
                     project_name=project_name,
-                    status="failed"
+                    status="failed",
+                    payload={
+                        "message": traceback.format_exc(),
+                    },
                 )
 
             time.sleep(self.sg_polling_frequency)
