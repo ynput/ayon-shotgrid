@@ -331,10 +331,24 @@ def remove_ayon_entity_from_sg_event(
     )
 
     if not sg_ay_dict:
-        raise ValueError(
-            f"Entity {sg_event['entity_type']} <{sg_event['entity_id']}> "
-            "no longer exists in ShotGrid."
+        sg_ay_dict = get_sg_entity_as_ay_dict(
+            sg_session,
+            sg_event["entity_type"],
+            sg_event["entity_id"],
+            project_code_field,
+            retired_only=False,
         )
+        if sg_ay_dict:
+            log.info(
+                f"No need to remove entity {sg_event['entity_type']} "
+                f"<{sg_event['entity_id']}>, it's not retired anymore."
+            )
+            return
+        else:
+            log.warning(
+                f"Entity {sg_event['entity_type']} <{sg_event['entity_id']}> "
+                "no longer exists in ShotGrid."
+            )
 
     if not sg_ay_dict["data"].get(CUST_FIELD_CODE_ID):
         raise ValueError("ShotGrid Missing Ayon ID")
