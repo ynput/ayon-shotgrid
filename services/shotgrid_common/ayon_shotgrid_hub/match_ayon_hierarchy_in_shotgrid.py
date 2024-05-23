@@ -1,4 +1,13 @@
 import collections
+import shotgun_api3
+from typing import Dict, List, Union
+
+import ayon_api
+from ayon_api.entity_hub import (
+    ProjectEntity,
+    TaskEntity,
+    FolderEntity,
+)
 
 from constants import (
     CUST_FIELD_CODE_ID,
@@ -21,12 +30,12 @@ log = get_logger(__file__)
 
 
 def match_ayon_hierarchy_in_shotgrid(
-    entity_hub,
-    sg_project,
-    sg_session,
-    sg_enabled_entities,
-    project_code_field,
-    custom_attribs_map,
+    entity_hub: ayon_api.entity_hub.EntityHub,
+    sg_project: Dict,
+    sg_session: shotgun_api3.Shotgun,
+    sg_enabled_entities: List[str],
+    project_code_field: str,
+    custom_attribs_map: Dict[str, str],
 ):
     """Replicate an AYON project into Shotgrid.
 
@@ -40,6 +49,9 @@ def match_ayon_hierarchy_in_shotgrid(
         sg_project (dict): The Shotgrid project.
         sg_session (shotgun_api3.Shotgun): The Shotgrid session.
         project_code_field (str): The Shotgrid project code field.
+        sg_enabled_entities (list): List of Shotgrid entities to be enabled.
+        custom_attribs_map (dict): Dictionary of extra attributes to
+            store in the SG entity.
     """
     log.info("Getting AYON entities.")
     entity_hub.query_entities_from_server()
@@ -68,14 +80,17 @@ def match_ayon_hierarchy_in_shotgrid(
 
     ay_project_sync_status = "Synced"
     processed_ids = set()
-
     while ay_entity_deck:
         (sg_ay_parent_entity, ay_entity) = ay_entity_deck.popleft()
+        log.debug(f"Processing entity: '{ay_entity}'")
 
         sg_ay_dict = None
 
         # Skip entities that are not tasks or folders
         if ay_entity.entity_type not in ["task", "folder"]:
+            log.warning(
+                f"Entity '{ay_entity.name}' is not a task or folder, skipping..."
+            )
             # even the folder is not synced, we need to process its children
             _add_items_to_queue(
                 entity_hub, ay_entity_deck, ay_entity, sg_ay_parent_entity
@@ -87,6 +102,10 @@ def match_ayon_hierarchy_in_shotgrid(
             ay_entity.entity_type == "folder"
             and ay_entity.folder_type not in sg_enabled_entities
         ):
+            log.warning(
+                f"Entity '{ay_entity.name}' is not enabled in "
+                "Shotgrid, skipping..."
+            )
             # even the folder is not synced, we need to process its children
             _add_items_to_queue(
                 entity_hub, ay_entity_deck, ay_entity, sg_ay_parent_entity
@@ -96,8 +115,21 @@ def match_ayon_hierarchy_in_shotgrid(
         sg_entity_id = ay_entity.attribs.get(SHOTGRID_ID_ATTRIB, None)
         sg_entity_type = ay_entity.attribs.get(SHOTGRID_TYPE_ATTRIB, "")
 
+        if sg_entity_id and sg_entity_id == "removed":
+            # if SG entity is removed then it is marked as "removed"
+            log.info(
+                f"Entity '{ay_entity.name}' was removed from "
+                "ShotGrid, skipping..."
+            )
+            continue
+        elif sg_entity_id:
+            # convert sg_entity_id to int if exists
+            sg_entity_id = int(sg_entity_id)
+
         if sg_entity_type == "AssetCategory":
-            # TODO: need to process AssetCategory entities
+            log.warning(
+                f"Entity '{ay_entity.name}' is an AssetCategory, skipping..."
+            )
             # even the folder is not synced, we need to process its children
             _add_items_to_queue(
                 entity_hub, ay_entity_deck, ay_entity, sg_ay_parent_entity
@@ -160,7 +192,7 @@ def match_ayon_hierarchy_in_shotgrid(
                 )
 
         # entity was not synced before and need to be created
-        if not sg_entity_id:
+        if not sg_entity_id or not sg_ay_dict:
             sg_parent_entity = sg_session.find_one(
                 sg_ay_parent_entity["attribs"][SHOTGRID_TYPE_ATTRIB],
                 filters=[[
@@ -187,6 +219,7 @@ def match_ayon_hierarchy_in_shotgrid(
             SHOTGRID_ID_ATTRIB,
             sg_entity_id
         )
+
         ay_entity.attribs.set(
             SHOTGRID_TYPE_ATTRIB,
             sg_ay_dict["attribs"][SHOTGRID_TYPE_ATTRIB]
@@ -234,7 +267,20 @@ def match_ayon_hierarchy_in_shotgrid(
     entity_hub.commit_changes()
 
 
-def _add_items_to_queue(entity_hub, ay_entity_deck, ay_entity, sg_ay_dict):
+def _add_items_to_queue(
+    entity_hub: ayon_api.entity_hub.EntityHub,
+    ay_entity_deck: collections.deque,
+    ay_entity: Union[TaskEntity, FolderEntity],
+    sg_ay_dict: Dict
+):
+    """Helper method to add children of an entity to the processing queue.
+
+    Args:
+        entity_hub (ayon_api.entity_hub.EntityHub): The AYON EntityHub.
+        ay_entity_deck (collections.deque): The AYON entity deck.
+        ay_entity (Union[TaskEntity, FolderEntity]): The AYON entity.
+        sg_ay_dict (Dict): The Shotgrid AYON entity dictionary.
+    """
     for ay_entity_child in entity_hub._entities_by_parent_id.get(
                 ay_entity.id, []
             ):
@@ -242,13 +288,13 @@ def _add_items_to_queue(entity_hub, ay_entity_deck, ay_entity, sg_ay_dict):
 
 
 def _create_new_entity(
-    ay_entity,
-    sg_session,
-    sg_project,
-    sg_parent_entity,
-    sg_enabled_entities,
-    project_code_field,
-    custom_attribs_map,
+    ay_entity: Union[ProjectEntity, TaskEntity, FolderEntity],
+    sg_session: shotgun_api3.Shotgun,
+    sg_project: Dict,
+    sg_parent_entity: Dict,
+    sg_enabled_entities: List[str],
+    project_code_field: str,
+    custom_attribs_map: Dict[str, str],
 ):
     """Helper method to create entities in Shotgrid.
 
@@ -261,7 +307,7 @@ def _create_new_entity(
         project_code_field (str): The Shotgrid project code field.
         custom_attribs_map (dict): Dictionary of extra attributes to store in the SG entity.
     """
-
+    # Task creation
     if ay_entity.entity_type == "task":
         step_query_filters = [["code", "is", ay_entity.task_type]]
 
@@ -289,6 +335,35 @@ def _create_new_entity(
             "entity": sg_parent_entity,
             "step": task_step,
         }
+
+    # Asset creation
+    elif (
+        ay_entity.entity_type == "folder"
+        and ay_entity.folder_type == "Asset"
+    ):
+        sg_type = "Asset"
+        # get name form sg_parent_entity
+        parent_entity_name = sg_parent_entity.get("name")
+
+        if not parent_entity_name:
+            # Try to get AssetCategory type name and use it as
+            # SG asset type. If not found, use None.
+            parent_entity = ay_entity.parent
+            parent_entity_name = parent_entity.name
+            asset_type = parent_entity_name.capitalize()
+        else:
+            asset_type = None
+
+        log.debug(f"Creating Asset '{ay_entity.name}' of type '{asset_type}'")
+        data = {
+            "sg_asset_type": asset_type,
+            "project": sg_project,
+            "code": ay_entity.name,
+            CUST_FIELD_CODE_ID: ay_entity.id,
+            CUST_FIELD_CODE_SYNC: "Synced",
+        }
+
+    # Folder creation
     else:
         sg_parent_field = get_sg_entity_parent_field(
             sg_session, sg_project, ay_entity.folder_type, sg_enabled_entities)
@@ -301,18 +376,22 @@ def _create_new_entity(
             CUST_FIELD_CODE_SYNC: "Synced",
         }
         # If parent field is different than project, add parent field to
-        # data
-        # NOTE: why?
-        if (sg_parent_field != "project" and sg_parent_entity["type"] != "Project"):
+        # data dictionary. Each project might have different parent fields
+        # defined on each entity types. This way we secure that we are
+        # always creating the entity with the correct parent field.
+        if (
+            sg_parent_field != "project"
+            and sg_parent_entity["type"] != "Project"
+        ):
             data[sg_parent_field] = sg_parent_entity
 
     # Fill up data with any extra attributes from Ayon we want to sync to SG
-    data.update(get_sg_custom_attributes_data(
+    data |= get_sg_custom_attributes_data(
         sg_session,
         ay_entity.attribs.to_dict(),
         sg_type,
         custom_attribs_map
-    ))
+    )
 
     try:
         sg_entity = sg_session.create(sg_type, data)
@@ -321,11 +400,10 @@ def _create_new_entity(
             f"Unable to create SG entity {sg_type} with data: {data}")
         raise e
 
-    sg_ay_dict = get_sg_entity_as_ay_dict(
+    return get_sg_entity_as_ay_dict(
         sg_session,
         sg_entity["type"],
         sg_entity["id"],
         project_code_field,
         custom_attribs_map=custom_attribs_map
     )
-    return sg_ay_dict

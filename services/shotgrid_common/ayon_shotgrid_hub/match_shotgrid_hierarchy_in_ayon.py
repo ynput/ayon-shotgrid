@@ -1,4 +1,12 @@
 import collections
+import shotgun_api3
+from typing import Dict, List, Union
+
+import ayon_api
+from ayon_api.entity_hub import (
+    ProjectEntity,
+    FolderEntity,
+)
 
 from ayon_api import slugify_string
 
@@ -22,12 +30,12 @@ log = get_logger(__file__)
 
 
 def match_shotgrid_hierarchy_in_ayon(
-    entity_hub,
-    sg_project,
-    sg_session,
-    sg_enabled_entities,
-    project_code_field,
-    custom_attribs_map,
+    entity_hub: ayon_api.entity_hub.EntityHub,
+    sg_project: Dict,
+    sg_session: shotgun_api3.Shotgun,
+    sg_enabled_entities: List[str],
+    project_code_field: str,
+    custom_attribs_map: Dict[str, str]
 ):
     """Replicate a Shotgrid project into AYON.
 
@@ -213,7 +221,11 @@ def match_shotgrid_hierarchy_in_ayon(
     )
 
 
-def _create_new_entity(entity_hub, parent_entity, sg_ay_dict):
+def _create_new_entity(
+    entity_hub: ayon_api.entity_hub.EntityHub,
+    parent_entity: Union[ProjectEntity, FolderEntity],
+    sg_ay_dict: Dict
+):
     """Helper method to create entities in the EntityHub.
 
     Task Creation:

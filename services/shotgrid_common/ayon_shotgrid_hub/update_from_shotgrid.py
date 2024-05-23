@@ -23,6 +23,9 @@ And most of the times it fetches the ShotGrid entity as an Ayon dict like:
 }
 
 """
+import shotgun_api3
+import ayon_api
+from typing import Dict, List, Union, Optional
 
 from utils import (
     get_asset_category,
@@ -44,13 +47,13 @@ log = get_logger(__file__)
 
 
 def create_ay_entity_from_sg_event(
-    sg_event,
-    sg_project,
-    sg_session,
-    ayon_entity_hub,
-    sg_enabled_entities,
-    project_code_field,
-    custom_attribs_map=None,
+    sg_event: Dict,
+    sg_project: Dict,
+    sg_session: shotgun_api3.Shotgun,
+    ayon_entity_hub: ayon_api.entity_hub.EntityHub,
+    sg_enabled_entities: List[str],
+    project_code_field: str,
+    custom_attribs_map: Optional[Dict[str, str]] = None
 ):
     """Create an AYON entity from a ShotGrid Event.
 
@@ -61,8 +64,8 @@ def create_ay_entity_from_sg_event(
         ayon_entity_hub (ayon_api.entity_hub.EntityHub): The AYON EntityHub.
         sg_enabled_entities (list[str]): List of entity strings enabled.
         project_code_field (str): The Shotgrid project code field.
-        custom_attribs_map (dict): Dictionary that maps a list of attribute
-            names from AYON to Shotgrid.
+        custom_attribs_map (Optional[dict]): A dictionary that maps ShotGrid
+            attributes to Ayon attributes.
 
     Returns:
         ay_entity (ayon_api.entity_hub.EntityHub.Entity): The newly
@@ -217,13 +220,13 @@ def create_ay_entity_from_sg_event(
 
 
 def update_ayon_entity_from_sg_event(
-    sg_event,
-    sg_project,
-    sg_session,
-    ayon_entity_hub,
-    sg_enabled_entities,
-    project_code_field,
-    custom_attribs_map,
+    sg_event: Dict,
+    sg_project: Dict,
+    sg_session: shotgun_api3.Shotgun,
+    ayon_entity_hub: ayon_api.entity_hub.EntityHub,
+    sg_enabled_entities: List[str],
+    project_code_field: str,
+    custom_attribs_map: Optional[Dict[str, str]] = None
 ):
     """Try to update an entity in Ayon.
 
@@ -309,10 +312,10 @@ def update_ayon_entity_from_sg_event(
 
 
 def remove_ayon_entity_from_sg_event(
-    sg_event,
-    sg_session,
-    ayon_entity_hub,
-    project_code_field
+    sg_event: Dict,
+    sg_session: shotgun_api3.Shotgun,
+    ayon_entity_hub: ayon_api.entity_hub.EntityHub,
+    project_code_field: str,
 ):
     """Try to remove an entity in Ayon.
 
@@ -351,7 +354,10 @@ def remove_ayon_entity_from_sg_event(
             )
 
     if not sg_ay_dict["data"].get(CUST_FIELD_CODE_ID):
-        raise ValueError("ShotGrid Missing Ayon ID")
+        log.warning(
+            "Entity does not have an Ayon ID, aborting..."
+        )
+        return
 
     ay_entity = ayon_entity_hub.get_or_query_entity_by_id(
         sg_ay_dict["data"].get(CUST_FIELD_CODE_ID),
