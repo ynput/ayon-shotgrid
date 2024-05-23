@@ -25,7 +25,7 @@ And most of the times it fetches the ShotGrid entity as an Ayon dict like:
 """
 import shotgun_api3
 import ayon_api
-from typing import Dict, List, Union, Optional
+from typing import Dict, List, Optional
 
 from utils import (
     get_asset_category,
