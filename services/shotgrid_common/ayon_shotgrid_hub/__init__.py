@@ -331,7 +331,7 @@ class AyonShotgridHub:
                     "The `source` argument can only be `ayon` or `shotgrid`."
                 )
 
-    def react_to_shotgrid_event(self, sg_event):
+    def react_to_shotgrid_event(self, sg_event_meta):
         """React to events incoming from Shotgrid
 
         Whenever there's a `shotgrid.event` spawned by the `leecher` of a change
@@ -341,17 +341,18 @@ class AyonShotgridHub:
         this is to be expanded.
 
         Args:
-            sg_event (dict): The `meta` key of a ShotGrid Event, describing what
-                the change encompasses, i.e. a new shot, new asset, etc.
+            sg_event_meta (dict): The `meta` key of a ShotGrid Event, describing
+                what the change encompasses, i.e. a new shot, new asset, etc.
         """
         if not self._ay_project:
-            self.log.info(f"Ignoring event, AYON project {self.project_name} not found.")
+            self.log.info(
+                f"Ignoring event, AYON project {self.project_name} not found.")
             return
 
-        match sg_event["type"]:
+        match sg_event_meta["type"]:
             case "new_entity" | "entity_revival":
                 create_ay_entity_from_sg_event(
-                    sg_event,
+                    sg_event_meta,
                     self._sg_project,
                     self._sg,
                     self._ay_project,
@@ -362,7 +363,7 @@ class AyonShotgridHub:
 
             case "attribute_change":
                 update_ayon_entity_from_sg_event(
-                    sg_event,
+                    sg_event_meta,
                     self._sg_project,
                     self._sg,
                     self._ay_project,
@@ -373,7 +374,7 @@ class AyonShotgridHub:
 
             case "entity_retirement":
                 remove_ayon_entity_from_sg_event(
-                    sg_event,
+                    sg_event_meta,
                     self._sg,
                     self._ay_project,
                     self.sg_project_code_field
@@ -381,7 +382,7 @@ class AyonShotgridHub:
 
             case _:
                 raise ValueError(
-                    f"Unable to process event {sg_event['type']}.")
+                    f"Unable to process event {sg_event_meta['type']}.")
 
     def react_to_ayon_event(self, ayon_event):
         """React to events incoming from AYON

@@ -37,7 +37,8 @@ from constants import (
     CUST_FIELD_CODE_ID,  # ShotGrid Field for the Ayon ID.
     SHOTGRID_ID_ATTRIB,  # Ayon Entity Attribute.
     SHOTGRID_TYPE_ATTRIB,  # Ayon Entity Attribute.
-    SHOTGRID_REMOVED_VALUE
+    SHOTGRID_REMOVED_VALUE,  # Value for removed entities.
+    SG_RESTRICTED_ATTR_FIELDS,
 )
 
 from utils import get_logger
@@ -277,6 +278,13 @@ def update_ayon_entity_from_sg_event(
 
     if not ay_entity:
         raise ValueError("Unable to update a non existing entity.")
+
+    # make sure the entity is not immutable
+    if (
+        ay_entity.immutable_for_hierarchy
+        and sg_event["attribute_name"] in SG_RESTRICTED_ATTR_FIELDS
+    ):
+        raise ValueError("Entity is immutable, aborting...")
 
     # Ensure Ayon Entity has the correct ShotGrid ID
     ayon_entity_sg_id = str(
