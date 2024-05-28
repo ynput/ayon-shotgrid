@@ -6,6 +6,7 @@ entroll the events of topic `shotgrid.leech` to perform processing of Shotgrid
 related events.
 """
 import os
+from pprint import pformat
 import time
 import types
 import socket
@@ -184,6 +185,8 @@ class ShotgridProcessor:
                             description=f"Processing event with Handler {payload['action']}...",
                             status="finished"
                         )
+                        self.log.debug(
+                            f"processing event {pformat(payload)}")
                         handler.process_event(
                             self,
                             **payload,

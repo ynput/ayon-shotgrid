@@ -5,10 +5,13 @@ This service will continually run and query the EventLogEntry table from
 Shotgrid and converts them to Ayon events, and can be configured from the Ayon
 Addon settings page.
 """
+from pprint import pformat
 import sys
 import time
 import signal
+import copy
 import socket
+import traceback
 from typing import Any, Callable, Union
 
 from utils import get_logger
@@ -135,18 +138,18 @@ class ShotgridListener:
 
         filters.append(["project", "in", sg_projects])
 
-        sg_event_types = []
-
-        # TODO: Create a complex filter so skip event types "_Change" that
-        # we don't handle.
-        for entity_type in self.sg_enabled_entities:
-            for event_name in SG_EVENT_TYPES:
-                sg_event_types.append(event_name.format(entity_type))
-
-        if sg_event_types:
+        if sg_event_types := self._get_supported_event_types():
             filters.append(["event_type", "in", sg_event_types])
 
         return filters
+
+    def _get_supported_event_types(self) -> list[str]:
+        sg_event_types = []
+        for entity_type in self.sg_enabled_entities:
+            sg_event_types.extend(
+                event_name.format(entity_type) for event_name in SG_EVENT_TYPES
+            )
+        return sg_event_types
 
     def _get_last_event_processed(self, sg_filters):
         """Find the Event ID for the last SG processed event.
@@ -186,15 +189,27 @@ class ShotgridListener:
         """
         self.log.info("Start listening for Shotgrid Events...")
 
-        sg_filters = self._build_shotgrid_filters()
-        last_event_id = self._get_last_event_processed(sg_filters)
+        base_sg_filters = self._build_shotgrid_filters()
+        supported_event_types = self._get_supported_event_types()
+        last_event_id = self._get_last_event_processed(base_sg_filters)
 
         while True:
-            sg_filters = self._build_shotgrid_filters()
-            if not sg_filters:
+            if not base_sg_filters:
+                self.log.debug(
+                    f"0 Leecher waiting {self.shotgrid_polling_frequency} "
+                    "seconds..."
+                )
                 time.sleep(self.shotgrid_polling_frequency)
+                base_sg_filters = self._build_shotgrid_filters()
                 continue
 
+            # try to get the last event processed in case we lost it due to
+            # a crash or restart
+            if not last_event_id:
+                last_event_id = self._get_last_event_processed(base_sg_filters)
+
+            # and add the last event processed as a filter
+            sg_filters = copy.deepcopy(base_sg_filters)
             sg_filters.append(["id", "greater_than", last_event_id])
 
             try:
@@ -207,6 +222,10 @@ class ShotgridListener:
                 )
 
                 if not events:
+                    self.log.debug(
+                        f"1 Leecher waiting {self.shotgrid_polling_frequency} "
+                        "seconds..."
+                    )
                     time.sleep(self.shotgrid_polling_frequency)
                     continue
 
@@ -216,20 +235,55 @@ class ShotgridListener:
                     if not event:
                         continue
 
-                    # Filter out events we do not know how to handle
                     if (
                         event["event_type"].endswith("_Change")
-                        and event["attribute_name"].replace("sg_", "") not in list(self.custom_attribs_map.values())
+                        and event["attribute_name"].replace("sg_", "") in list(self.custom_attribs_map.values())  # noqa: E501
                     ):
-                        last_event_id = event.get("id", None)
+                        # events related to custom attributes changes
+                        # check if event was caused by api user
+                        if not self._is_api_user_event(event):
+                            last_event_id = event.get("id", None)
+                        else:
+                            last_event_id = None
+
+                    elif event["event_type"] in supported_event_types:
+                        # events related to changes in entities we track
+                        # check if event was caused by api user
+                        if not self._is_api_user_event(event):
+                            last_event_id = event.get("id", None)
+                        else:
+                            last_event_id = None
+
+                    if not last_event_id:
+                        self.log.info(f"Ignoring event: {pformat(event)}")
                         continue
 
                     last_event_id = self.func(event)
 
-            except Exception as err:
-                self.log.error(err, exc_info=True)
+            except Exception:
+                self.log.error(traceback.format_exc())
 
+            self.log.debug(
+                f"2 Leecher waiting {self.shotgrid_polling_frequency} seconds..."
+            )
             time.sleep(self.shotgrid_polling_frequency)
+            continue
+
+    def _is_api_user_event(self, event: dict[str, Any]) -> bool:
+        """Check if the event was caused by an API user.
+
+        Args:
+            event (dict): The Shotgrid Event data.
+
+        Returns:
+            bool: True if the event was caused by an API user.
+        """
+        # TODO: we have to create specific api user filtering
+        if (
+            event.get("meta", {}).get("sudo_actual_user", {}).get("type")
+            == "ApiUser"
+        ):
+            return True
 
     def send_shotgrid_event_to_ayon(self, payload: dict[str, Any]) -> int:
         """Send the Shotgrid event as an Ayon event.
