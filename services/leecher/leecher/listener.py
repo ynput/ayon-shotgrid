@@ -10,7 +10,8 @@ import time
 import signal
 import socket
 from typing import Any, Callable, Union
-from nxtools import logging, log_traceback
+
+from utils import get_logger
 
 from constants import (
     SG_EVENT_TYPES,
@@ -22,6 +23,8 @@ import shotgun_api3
 
 
 class ShotgridListener:
+    log = get_logger(__file__)
+
     def __init__(self, func: Union[Callable, None] = None):
         """Ensure both Ayon and Shotgrid connections are available.
 
@@ -32,13 +35,11 @@ class ShotgridListener:
             func (Callable, None): In case we want to override the default
                 function we cast to the processed events.
         """
-        logging.info("Initializing the Shotgrid Listener.")
+        self.log.info("Initializing the Shotgrid Listener.")
         if func is None:
             self.func = self.send_shotgrid_event_to_ayon
         else:
             self.func = func
-
-        logging.debug(f"Callback method is {self.func}.")
 
         try:
             ayon_api.init_service()
@@ -71,8 +72,10 @@ class ShotgridListener:
                 for attr in self.settings["compatibility_settings"]["custom_attribs_map"]  # noqa: E501
                 if attr["sg"]
             }
+
+            # TODO: implement a way to handle status_list and tags
             self.custom_attribs_map.update({
-                "status": "status_list",
+                # "status": "status_list",
                 "tags": "tags"
             })
 
@@ -86,8 +89,8 @@ class ShotgridListener:
                 self.shotgrid_polling_frequency = 10
 
         except Exception as e:
-            logging.error("Unable to get Addon settings from the server.")
-            log_traceback(e)
+            self.log.error(
+                "Unable to get Addon settings from the server.")
             raise e
 
         try:
@@ -98,17 +101,16 @@ class ShotgridListener:
             )
             self.sg_session.connect()
         except Exception as e:
-            logging.error("Unable to connect to Shotgrid Instance:")
-            log_traceback(e)
+            self.log.error("Unable to connect to Shotgrid Instance:")
             raise e
 
         signal.signal(signal.SIGINT, self._signal_teardown_handler)
         signal.signal(signal.SIGTERM, self._signal_teardown_handler)
 
     def _signal_teardown_handler(self, signalnum, frame):
-        logging.warning("Process stop requested. Terminating process.")
+        self.log.warning("Process stop requested. Terminating process.")
         self.sg_session.close()
-        logging.warning("Termination finished.")
+        self.log.warning("Termination finished.")
         sys.exit(0)
 
     def _build_shotgrid_filters(self):
@@ -171,8 +173,6 @@ class ShotgridListener:
             )
             last_event_id = last_event["id"]
 
-        logging.debug(f"Last non-processed SG Event is {last_event}")
-
         return last_event_id
 
     def start_listening(self):
@@ -184,7 +184,7 @@ class ShotgridListener:
         We try to continue from the last Event processed by the leecher, if
         none is found we start at the moment in time.
         """
-        logging.info("Start listening for Shotgrid Events...")
+        self.log.info("Start listening for Shotgrid Events...")
 
         sg_filters = self._build_shotgrid_filters()
         last_event_id = self._get_last_event_processed(sg_filters)
@@ -210,7 +210,7 @@ class ShotgridListener:
                     time.sleep(self.shotgrid_polling_frequency)
                     continue
 
-                logging.info(f"Found {len(events)} events in Shotgrid.")
+                self.log.info(f"Found {len(events)} events in Shotgrid.")
 
                 for event in events:
                     if not event:
@@ -221,15 +221,13 @@ class ShotgridListener:
                         event["event_type"].endswith("_Change")
                         and event["attribute_name"].replace("sg_", "") not in list(self.custom_attribs_map.values())
                     ):
-                        logging.debug(f"Skipping event for attribute change '{event['attribute_name'].replace('sg_', '')}', as we can't handle it.")
                         last_event_id = event.get("id", None)
                         continue
 
                     last_event_id = self.func(event)
 
             except Exception as err:
-                logging.error(err)
-                log_traceback(err)
+                self.log.error(err, exc_info=True)
 
             time.sleep(self.shotgrid_polling_frequency)
 
@@ -280,6 +278,6 @@ class ShotgridListener:
             },
         )
 
-        logging.info("Dispatched Ayon event with payload:", payload)
+        self.log.info("Dispatched Ayon event with payload:", payload)
 
         return payload["id"]

@@ -3,7 +3,6 @@ Handle Events originated from Shotgrid.
 """
 from ayon_shotgrid_hub import AyonShotgridHub
 
-from nxtools import logging
 
 REGISTER_EVENT_TYPE = ["shotgrid-event"]
 
@@ -20,11 +19,9 @@ def process_event(
     """
     sg_payload = kwargs.get("sg_payload", {})
     if not sg_payload:
-        logging.error("The Event payload is empty!")
         raise ValueError("The Event payload is empty!")
 
     if not sg_payload.get("meta", {}):
-        logging.error("The Event payload is missing the action to perform!")
         raise ValueError("The Event payload is missing the action to perform!")
 
     hub = AyonShotgridHub(
@@ -40,4 +37,3 @@ def process_event(
     )
 
     hub.react_to_shotgrid_event(sg_payload["meta"])
-

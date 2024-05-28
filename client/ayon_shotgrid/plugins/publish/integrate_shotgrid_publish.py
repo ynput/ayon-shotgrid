@@ -181,9 +181,9 @@ class IntegrateShotgridPublish(pyblish.api.InstancePlugin):
 
             if instance.data["productType"] == "image":
                 sg_session.upload_thumbnail(
-                    sg_published_file["type"],
-                    sg_published_file["id"],
-                    local_path
+                    sg_published_file["version"]["type"],
+                    sg_published_file["version"]["id"],
+                    local_path,
                 )
             instance.data["shotgridPublishedFile"] = sg_published_file
 

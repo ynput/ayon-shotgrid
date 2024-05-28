@@ -14,7 +14,10 @@ from utils import (
     get_sg_custom_attributes_data
 )
 
-from nxtools import logging, log_traceback
+from utils import get_logger
+
+
+log = get_logger(__file__)
 
 
 def match_ayon_hierarchy_in_shotgrid(
@@ -38,10 +41,10 @@ def match_ayon_hierarchy_in_shotgrid(
         sg_session (shotgun_api3.Shotgun): The Shotgrid session.
         project_code_field (str): The Shotgrid project code field.
     """
-    logging.info("Getting AYON entities.")
+    log.info("Getting AYON entities.")
     entity_hub.query_entities_from_server()
 
-    logging.info("Getting Shotgrid entities.")
+    log.info("Getting Shotgrid entities.")
     sg_ay_dicts, sg_ay_dicts_parents = get_sg_entities(
         sg_session,
         sg_project,
@@ -66,7 +69,6 @@ def match_ayon_hierarchy_in_shotgrid(
 
     while sg_ay_dicts_deck:
         (sg_ay_parent_entity, ay_entity) = sg_ay_dicts_deck.popleft()
-        logging.debug(f"Processing {ay_entity})")
 
         sg_ay_dict = None
 
@@ -85,10 +87,11 @@ def match_ayon_hierarchy_in_shotgrid(
 
             if sg_entity_id in sg_ay_dicts:
                 sg_ay_dict = sg_ay_dicts[sg_entity_id]
-                logging.info(f"Entity already exists in Shotgrid {sg_ay_dict}")
+                log.info(
+                    f"Entity already exists in Shotgrid {sg_ay_dict['name']}")
 
                 if sg_ay_dict["data"][CUST_FIELD_CODE_ID] != ay_entity.id:
-                    logging.error(
+                    log.error(
                         "Shotgrid record for AYON id does not match...")
                     try:
                         sg_session.update(
@@ -99,8 +102,11 @@ def match_ayon_hierarchy_in_shotgrid(
                                 CUST_FIELD_CODE_SYNC: "Failed"
                             }
                         )
-                    except Exception as e:
-                        log_traceback(e)
+                    except Exception:
+                        log.error(
+                            f"Unable to update SG entity {sg_ay_dict['name']}",
+                            exc_info=True
+                        )
                         ay_project_sync_status = "Failed"
                 else:
                     # Update SG entity custom attributes with AYON data
@@ -111,7 +117,7 @@ def match_ayon_hierarchy_in_shotgrid(
                         custom_attribs_map
                     )
                     if data_to_update:
-                        logging.info("Syncing custom attributes on entity.")
+                        log.info("Syncing custom attributes on entity.")
                         sg_session.update(
                             sg_entity_type,
                             sg_entity_id,
@@ -148,7 +154,8 @@ def match_ayon_hierarchy_in_shotgrid(
                 SHOTGRID_TYPE_ATTRIB,
                 sg_ay_dict["attribs"][SHOTGRID_TYPE_ATTRIB]
             )
-            entity_hub.commit_changes()
+
+        entity_hub.commit_changes()
 
         if sg_ay_dict is None:
             # Shotgrid doesn't have the concept of "Folders"
@@ -263,13 +270,9 @@ def _create_new_entity(
     try:
         sg_entity = sg_session.create(sg_type, data)
     except Exception as e:
-        logging.error(
+        log.error(
             f"Unable to create SG entity {sg_type} with data: {data}")
-        log_traceback(e)
         raise e
-
-    logging.debug(f"Created new entity: {sg_entity}")
-    logging.debug(f"Parent is: {sg_parent_entity}")
 
     sg_ay_dict = get_sg_entity_as_ay_dict(
         sg_session,

@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "shotgrid-processor"
-version = "0.4.1-dev.1"
+version = "0.4.2-dev.1"
 description = "Shotgrid Integration for Ayon"
 authors = ["Oscar Domingo <oscar.domingo@ynput.com>"]
 
@@ -8,7 +8,6 @@ authors = ["Oscar Domingo <oscar.domingo@ynput.com>"]
 appdirs = "^1.4"
 python = ">=3.9,<4.0"
 pydantic = "^1.10.2"
-nxtools = "^1.6"
 ayon-python-api = "^1.0.0"
 shotgun-api3 = { git = "https://github.com/shotgunsoftware/python-api.git", tag = "v3.4.0" }
 
