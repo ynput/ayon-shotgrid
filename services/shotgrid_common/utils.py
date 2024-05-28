@@ -1,7 +1,7 @@
 import os
 import logging
 import collections
-from typing import Dict, Optional
+from typing import Dict, Optional, Union
 
 from constants import (
     AYON_SHOTGRID_ATTRIBUTES_MAP,
@@ -13,12 +13,15 @@ from constants import (
     SHOTGRID_TYPE_ATTRIB,
 )
 
-from ayon_api.entity_hub import ProjectEntity
+from ayon_api.entity_hub import (
+    ProjectEntity,
+    TaskEntity,
+    FolderEntity,
+)
 from ayon_api.utils import slugify_string
 from ayon_api import get_attributes_for_type
 
 import shotgun_api3
-
 
 
 _loggers = {}
@@ -667,7 +670,7 @@ def get_sg_entity_as_ay_dict(
     sg_type: str,
     sg_id: int,
     project_code_field: str,
-    custom_attribs_map: Optional[dict] = None,
+    custom_attribs_map: Optional[Dict[str, str]] = None,
     extra_fields: Optional[list] = None,
     retired_only: Optional[bool] = False,
 ) -> dict:
@@ -678,8 +681,8 @@ def get_sg_entity_as_ay_dict(
         sg_type (str): The ShotGrid entity type.
         sg_id (int): ShotGrid ID of the entity to query.
         project_code_field (str): The ShotGrid project code field.
-        custom_attribs_map (dict): Dictionary that maps names of attributes in
-            AYON to ShotGrid equivalents.
+        custom_attribs_map (Optional[dict]): Dictionary that maps names of
+            attributes in AYON to ShotGrid equivalents.
         extra_fields (Optional[list]): List of optional fields to query.
         retired_only (bool): Whether to return only retired entities.
     Returns:
@@ -1047,7 +1050,7 @@ def get_sg_custom_attributes_data(
 
 
 def update_ay_entity_custom_attributes(
-    ay_entity: dict,
+    ay_entity: Union[ProjectEntity, FolderEntity, TaskEntity],
     sg_ay_dict: dict,
     custom_attribs_map: dict,
     values_to_update: Optional[list] = None,

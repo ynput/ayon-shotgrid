@@ -415,7 +415,6 @@ class AyonShotgridHub:
                 remove_sg_entity_from_ayon_event(
                     ayon_event,
                     self._sg,
-                    self._ay_project,
                 )
 
             case "entity.task.renamed" | "entity.folder.renamed":

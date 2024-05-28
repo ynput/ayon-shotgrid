@@ -1,5 +1,14 @@
 """Module that handles creation, update or removal of SG entities based on AYON events.
 """
+import shotgun_api3
+import ayon_api
+from typing import Dict, List, Union
+
+from ayon_api.entity_hub import (
+
+    TaskEntity,
+    FolderEntity,
+)
 
 from utils import (
     get_sg_entity_parent_field,
@@ -20,12 +29,12 @@ log = get_logger(__file__)
 
 
 def create_sg_entity_from_ayon_event(
-    ayon_event,
-    sg_session,
-    ayon_entity_hub,
-    sg_project,
-    sg_enabled_entities,
-    custom_attribs_map,
+    ayon_event: Dict,
+    sg_session: shotgun_api3.Shotgun,
+    ayon_entity_hub: ayon_api.entity_hub.EntityHub,
+    sg_project: Dict,
+    sg_enabled_entities: List[str],
+    custom_attribs_map: Dict[str, str],
 ):
     """Create a Shotgrid entity from an AYON event.
 
@@ -79,6 +88,10 @@ def create_sg_entity_from_ayon_event(
             sg_enabled_entities,
             custom_attribs_map,
         )
+        if not sg_entity:
+            # possibly AssetCategory which we don't want to create
+            return
+
         log.info(f"Created Shotgrid entity: {sg_entity}")
 
         ay_entity.attribs.set(
@@ -98,10 +111,10 @@ def create_sg_entity_from_ayon_event(
 
 
 def update_sg_entity_from_ayon_event(
-    ayon_event,
-    sg_session,
-    ayon_entity_hub,
-    custom_attribs_map,
+    ayon_event: Dict,
+    sg_session: shotgun_api3.Shotgun,
+    ayon_entity_hub: ayon_api.entity_hub.EntityHub,
+    custom_attribs_map: Dict[str, str],
 ):
     """Try to update a Shotgrid entity from an AYON event.
 
@@ -208,13 +221,15 @@ def update_sg_entity_from_ayon_event(
         )
 
 
-def remove_sg_entity_from_ayon_event(ayon_event, sg_session, ayon_entity_hub):
+def remove_sg_entity_from_ayon_event(
+    ayon_event: Dict,
+    sg_session: shotgun_api3.Shotgun
+):
     """Try to remove a Shotgrid entity from an AYON event.
 
     Args:
         ayon_event (dict): The `meta` key from a Shotgrid Event.
         sg_session (shotgun_api3.Shotgun): The Shotgrid API session.
-        ayon_entity_hub (ayon_api.entity_hub.EntityHub): The AYON EntityHub.
     """
     ay_id = ayon_event["payload"]["entityData"]["id"]
     ay_entity_path = ayon_event["payload"]["entityData"]["path"]
@@ -261,12 +276,12 @@ def remove_sg_entity_from_ayon_event(ayon_event, sg_session, ayon_entity_hub):
 
 
 def _create_sg_entity(
-    sg_session,
-    ay_entity,
-    sg_project,
-    sg_type,
-    sg_enabled_entities,
-    custom_attribs_map,
+    sg_session: shotgun_api3.Shotgun,
+    ay_entity: Union[TaskEntity, FolderEntity],
+    sg_project: Dict,
+    sg_type: str,
+    sg_enabled_entities: List[str],
+    custom_attribs_map: Dict[str, str],
 ):
     """ Create a new Shotgrid entity.
 
@@ -333,6 +348,22 @@ def _create_sg_entity(
                 sg_field_name: ay_entity.label,
                 CUST_FIELD_CODE_ID: ay_entity.id,
                 "step": sg_step
+            }
+        # skip if entity folder type is AssetCategory
+        elif ay_entity.folder_type == "AssetCategory":
+            return
+        elif ay_entity.folder_type == "Asset":
+            parent_entity = ay_entity.parent
+            asset_type = None
+            if parent_entity.folder_type == "AssetCategory":
+                parent_entity_name = parent_entity.name
+                asset_type = parent_entity_name.capitalize()
+
+            data = {
+                "project": sg_project,
+                "sg_asset_type": asset_type,
+                sg_field_name: ay_entity.name,
+                CUST_FIELD_CODE_ID: ay_entity.id,
             }
         else:
             data = {
