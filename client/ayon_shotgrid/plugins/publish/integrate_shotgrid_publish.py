@@ -211,8 +211,8 @@ class IntegrateShotgridPublish(pyblish.api.InstancePlugin):
                 raise e
 
             self.log.info(
-                    f"Created Shotgrid PublishedFile: {sg_published_file}"
-                )
+                f"Created Shotgrid PublishedFile: {sg_published_file}"
+            )
         else:
             sg_session.update(
                     sg_published_file["type"],
