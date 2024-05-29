@@ -215,10 +215,10 @@ class IntegrateShotgridPublish(pyblish.api.InstancePlugin):
             )
         else:
             sg_session.update(
-                    sg_published_file["type"],
-                    sg_published_file["id"],
-                    published_file_data,
-                )
+                sg_published_file["type"],
+                sg_published_file["id"],
+                published_file_data,
+            )
             self.log.info(
                     f"Update Shotgrid PublishedFile: {sg_published_file}"
                 )
