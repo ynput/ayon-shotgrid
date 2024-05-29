@@ -116,7 +116,6 @@ class IntegrateShotgridPublish(pyblish.api.InstancePlugin):
                 query_filters
             )
 
-        self.log.debug(f"____ PublishedFile: {sg_published_file}")
 
         if (
             instance.context.data.get("shotgridLocalStorageEnabled")
