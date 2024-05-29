@@ -20,7 +20,6 @@ from ayon_api import get_attributes_for_type
 import shotgun_api3
 
 
-
 _loggers = {}
 
 
