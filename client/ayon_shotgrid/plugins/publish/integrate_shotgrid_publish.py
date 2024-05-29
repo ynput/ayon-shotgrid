@@ -205,9 +205,9 @@ class IntegrateShotgridPublish(pyblish.api.InstancePlugin):
                 )
             except Exception as e:
                 self.log.error(
-                        "Unable to create PublishedFile with data: "
-                        f"{published_file_data}"
-                    )
+                    "Unable to create PublishedFile with data: "
+                    f"{published_file_data}"
+                )
                 raise e
 
             self.log.info(
