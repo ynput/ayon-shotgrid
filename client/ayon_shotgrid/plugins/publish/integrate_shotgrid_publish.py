@@ -220,8 +220,8 @@ class IntegrateShotgridPublish(pyblish.api.InstancePlugin):
                 published_file_data,
             )
             self.log.info(
-                    f"Update Shotgrid PublishedFile: {sg_published_file}"
-                )
+                f"Update Shotgrid PublishedFile: {sg_published_file}"
+            )
 
         if instance.data["productType"] == "image":
             sg_session.upload_thumbnail(
