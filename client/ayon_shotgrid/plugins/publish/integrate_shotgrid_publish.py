@@ -232,11 +232,11 @@ class IntegrateShotgridPublish(pyblish.api.InstancePlugin):
         instance.data["shotgridPublishedFile"] = sg_published_file
 
     def _find_published_file_type(
-            self,
-            instance,
-            filepath,
-            is_sequence=False,
-        ) -> dict:
+        self,
+        instance,
+        filepath,
+        is_sequence=False,
+    ) -> dict:
         """Given a filepath infer what type of published file type it is.
 
         Args:
