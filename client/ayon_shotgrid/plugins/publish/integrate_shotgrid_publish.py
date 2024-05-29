@@ -200,9 +200,9 @@ class IntegrateShotgridPublish(pyblish.api.InstancePlugin):
             self.log.debug(f"Creating Shotgrid PublishedFile: {published_file_data} ")
             try:
                 sg_published_file = sg_session.create(
-                        "PublishedFile",
-                        published_file_data
-                    )
+                    "PublishedFile",
+                    published_file_data
+                )
             except Exception as e:
                 self.log.error(
                         "Unable to create PublishedFile with data: "
