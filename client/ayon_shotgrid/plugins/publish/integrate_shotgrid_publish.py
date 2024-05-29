@@ -172,9 +172,9 @@ class IntegrateShotgridPublish(pyblish.api.InstancePlugin):
                     ) from exc
 
             path = {
-                    "local_storage": sg_local_storage,
-                    "relative_path": file_partial_path
-                }
+                "local_storage": sg_local_storage,
+                "relative_path": file_partial_path
+            }
         else:
             self.log.info(
                     "Shotgrid Local Storage disabled, using local path.")
