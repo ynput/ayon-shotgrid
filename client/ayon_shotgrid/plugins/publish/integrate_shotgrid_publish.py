@@ -1,7 +1,6 @@
 import os
 import re
 import platform
-from tkinter import N
 
 import pyblish.api
 
