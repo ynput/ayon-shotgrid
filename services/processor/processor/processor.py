@@ -55,6 +55,14 @@ class ShotgridProcessor:
             # get server op related ShotGrid script api properties
             shotgrid_secret = ayon_api.get_secret(
                 service_settings["script_key"])
+
+            if isinstance(shotgrid_secret, list):
+                raise ValueError(
+                    "Shotgrid API Key not found. Make sure to set it in the "
+                    "Addon System settings. "
+                    "`ayon+settings://shotgrid/service_settings/script_key`"
+                )
+
             self.sg_api_key = shotgrid_secret.get("value")
             if not self.sg_api_key:
                 raise ValueError(
