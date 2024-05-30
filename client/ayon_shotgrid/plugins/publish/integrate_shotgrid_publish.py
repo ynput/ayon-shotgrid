@@ -1,7 +1,6 @@
 import os
 import re
 import platform
-from tkinter import N
 
 import pyblish.api
 
@@ -117,7 +116,6 @@ class IntegrateShotgridPublish(pyblish.api.InstancePlugin):
                 query_filters
             )
 
-        self.log.debug(f"____ PublishedFile: {sg_published_file}")
 
         if (
             instance.context.data.get("shotgridLocalStorageEnabled")
@@ -174,9 +172,9 @@ class IntegrateShotgridPublish(pyblish.api.InstancePlugin):
                     ) from exc
 
             path = {
-                    "local_storage": sg_local_storage,
-                    "relative_path": file_partial_path
-                }
+                "local_storage": sg_local_storage,
+                "relative_path": file_partial_path
+            }
         else:
             self.log.info(
                     "Shotgrid Local Storage disabled, using local path.")
@@ -202,43 +200,43 @@ class IntegrateShotgridPublish(pyblish.api.InstancePlugin):
             self.log.debug(f"Creating Shotgrid PublishedFile: {published_file_data} ")
             try:
                 sg_published_file = sg_session.create(
-                        "PublishedFile",
-                        published_file_data
-                    )
+                    "PublishedFile",
+                    published_file_data
+                )
             except Exception as e:
                 self.log.error(
-                        "Unable to create PublishedFile with data: "
-                        f"{published_file_data}"
-                    )
+                    "Unable to create PublishedFile with data: "
+                    f"{published_file_data}"
+                )
                 raise e
 
             self.log.info(
-                    f"Created Shotgrid PublishedFile: {sg_published_file}"
-                )
+                f"Created Shotgrid PublishedFile: {sg_published_file}"
+            )
         else:
             sg_session.update(
-                    sg_published_file["type"],
-                    sg_published_file["id"],
-                    published_file_data,
-                )
+                sg_published_file["type"],
+                sg_published_file["id"],
+                published_file_data,
+            )
             self.log.info(
-                    f"Update Shotgrid PublishedFile: {sg_published_file}"
-                )
+                f"Update Shotgrid PublishedFile: {sg_published_file}"
+            )
 
         if instance.data["productType"] == "image":
             sg_session.upload_thumbnail(
-                    sg_published_file["version"]["type"],
-                    sg_published_file["version"]["id"],
-                    local_path,
-                )
+                sg_published_file["version"]["type"],
+                sg_published_file["version"]["id"],
+                local_path,
+            )
         instance.data["shotgridPublishedFile"] = sg_published_file
 
     def _find_published_file_type(
-            self,
-            instance,
-            filepath,
-            is_sequence=False,
-        ) -> dict:
+        self,
+        instance,
+        filepath,
+        is_sequence=False,
+    ) -> dict:
         """Given a filepath infer what type of published file type it is.
 
         Args:
