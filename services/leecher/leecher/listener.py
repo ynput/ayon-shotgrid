@@ -222,7 +222,7 @@ class ShotgridListener:
                     limit=50,
                 )
 
-                self.log.info(f"Found {len(events)} events in Shotgrid.")
+                self.log.debug(f"Found {len(events)} events in Shotgrid.")
 
                 sg_projects_by_id = {
                     sg_project["id"]: sg_project
