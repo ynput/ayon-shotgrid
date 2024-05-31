@@ -92,22 +92,19 @@ def main():
         sys.path.insert(0, path)
 
     if service_name == "processor":
-        from processor import ShotgridProcessor
+        from processor import service_main
 
-        shotgrid_processor = ShotgridProcessor()
-        sys.exit(shotgrid_processor.start_processing())
+        service_main()
 
     elif service_name == "leecher":
-        from leecher import ShotgridListener
+        from leecher import service_main
 
-        shotgrid_listener = ShotgridListener()
-        sys.exit(shotgrid_listener.start_listening())
+        service_main()
 
     else:
-        from transmitter import ShotgridTransmitter
+        from transmitter import service_main
 
-        shotgrid_transmitter = ShotgridTransmitter()
-        sys.exit(shotgrid_transmitter.start_processing())
+        service_main()
 
 
 if __name__ == "__main__":

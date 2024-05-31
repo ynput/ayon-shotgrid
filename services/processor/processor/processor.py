@@ -6,6 +6,7 @@ entroll the events of topic `shotgrid.leech` to perform processing of Shotgrid
 related events.
 """
 import os
+import sys
 from pprint import pformat
 import time
 import types
@@ -14,12 +15,13 @@ import importlib.machinery
 import traceback
 
 import ayon_api
+import shotgun_api3
 
 from utils import get_logger
 
 
 class ShotgridProcessor:
-
+    _sg: shotgun_api3.Shotgun = None
     log = get_logger(__file__)
 
     def __init__(self):
@@ -145,6 +147,33 @@ class ShotgridProcessor:
 
         return handlers_dict
 
+    def get_sg_connection(self):
+        """Ensure we can talk to AYON and Shotgrid.
+
+        Start connections to the APIs and catch any possible error, we abort if
+        this steps fails for any reason.
+        """
+
+        if self._sg is None:
+            try:
+                self._sg = shotgun_api3.Shotgun(
+                    self.sg_url,
+                    script_name=self.sg_script_name,
+                    api_key=self.sg_api_key
+                )
+            except Exception as e:
+                self.log.error("Unable to create Shotgrid Session.")
+                raise e
+
+        try:
+            self._sg.connect()
+
+        except Exception as e:
+            self.log.error("Unable to connect to Shotgrid.")
+            raise e
+
+        return self._sg
+
     def start_processing(self):
         """Enroll AYON events of topic `shotgrid.event`
 
@@ -205,7 +234,7 @@ class ShotgridProcessor:
                             f"processing event {pformat(payload)}")
                         handler.process_event(
                             self,
-                            **payload,
+                            payload,
                         )
 
                     except Exception:
@@ -242,3 +271,10 @@ class ShotgridProcessor:
 
             except Exception:
                 self.log.error(traceback.format_exc())
+
+
+def service_main():
+    ayon_api.init_service()
+
+    shotgrid_processor = ShotgridProcessor()
+    sys.exit(shotgrid_processor.start_processing())
