@@ -36,9 +36,9 @@ class ShotgridListener:
         """
         self.log.info("Initializing the Shotgrid Listener.")
 
-        self.settings = ayon_api.get_service_addon_settings()
 
         try:
+            self.settings = ayon_api.get_service_addon_settings()
             service_settings = self.settings["service_settings"]
 
             self.sg_url = self.settings["shotgrid_server"]
