@@ -182,9 +182,9 @@ class ShotgridListener:
         last_event_id = None
 
         while True:
-            base_sg_filters = self._build_shotgrid_filters()
+            sg_filters = self._build_shotgrid_filters()
 
-            if not base_sg_filters:
+            if not sg_filters:
                 self.log.debug(
                     f"Leecher waiting {self.shotgrid_polling_frequency} "
                     "seconds. No projects with AYON Auto Sync found."
