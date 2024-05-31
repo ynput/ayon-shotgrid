@@ -9,8 +9,9 @@ import sys
 import time
 import signal
 import socket
-from pprint import pformat
+import traceback
 from typing import Any
+from pprint import pformat
 
 from utils import get_logger
 
@@ -36,7 +37,6 @@ class ShotgridListener:
         self.log.info("Initializing the Shotgrid Listener.")
 
         try:
-            ayon_api.init_service()
             self.settings = ayon_api.get_service_addon_settings()
             service_settings = self.settings["service_settings"]
 
@@ -47,6 +47,14 @@ class ShotgridListener:
             # get server op related ShotGrid script api properties
             shotgrid_secret = ayon_api.get_secret(
                 service_settings["script_key"])
+
+            if isinstance(shotgrid_secret, list):
+                raise ValueError(
+                    "Shotgrid API Key not found. Make sure to set it in the "
+                    "Addon System settings. "
+                    "`ayon+settings://shotgrid/service_settings/script_key`"
+                )
+
             self.sg_api_key = shotgrid_secret.get("value")
             if not self.sg_api_key:
                 raise ValueError(
@@ -129,18 +137,18 @@ class ShotgridListener:
 
         filters.append(["project", "in", sg_projects])
 
-        sg_event_types = []
-
-        # TODO: Create a complex filter so skip event types "_Change" that
-        # we don't handle.
-        for entity_type in self.sg_enabled_entities:
-            for event_name in SG_EVENT_TYPES:
-                sg_event_types.append(event_name.format(entity_type))
-
-        if sg_event_types:
+        if sg_event_types := self._get_supported_event_types():
             filters.append(["event_type", "in", sg_event_types])
 
         return filters
+
+    def _get_supported_event_types(self) -> list[str]:
+        sg_event_types = []
+        for entity_type in self.sg_enabled_entities:
+            sg_event_types.extend(
+                event_name.format(entity_type) for event_name in SG_EVENT_TYPES
+            )
+        return sg_event_types
 
     def _get_last_event_processed(self, sg_filters):
         """Find the Event ID for the last SG processed event.
@@ -168,14 +176,6 @@ class ShotgridListener:
             last_event_id = last_event["id"]
 
         return last_event_id
-
-    def _get_supported_event_types(self) -> list[str]:
-        sg_event_types = []
-        for entity_type in self.sg_enabled_entities:
-            sg_event_types.extend(
-                event_name.format(entity_type) for event_name in SG_EVENT_TYPES
-            )
-        return sg_event_types
 
     def start_listening(self):
         """Main loop querying the Shotgrid database for new events
@@ -259,10 +259,14 @@ class ShotgridListener:
 
                     self.send_shotgrid_event_to_ayon(event, sg_projects_by_id)
 
-            except Exception as err:
-                self.log.error(err, exc_info=True)
+            except Exception:
+                self.log.error(traceback.format_exc())
 
+            self.log.debug(
+                f"Leecher waiting {self.shotgrid_polling_frequency} seconds..."
+            )
             time.sleep(self.shotgrid_polling_frequency)
+            continue
 
     def _is_api_user_event(self, event: dict[str, Any]) -> bool:
         """Check if the event was caused by an API user.
@@ -297,7 +301,8 @@ class ShotgridListener:
         # fix non serializable datetime
         payload["created_at"] = payload["created_at"].isoformat()
 
-        if payload.get("meta", {}).get("entity_type", "Undefined") == "Project":
+        payload_meta = payload.get("meta", {})
+        if payload_meta.get("entity_type", "Undefined") == "Project":
             project_name = payload.get("entity", {}).get("name", "Undefined")
             project_id = payload.get("entity", {}).get("id", "Undefined")
         else:
@@ -325,3 +330,9 @@ class ShotgridListener:
         )
 
         self.log.info("Dispatched Ayon event with payload:", payload)
+
+
+def service_main():
+    ayon_api.init_service()
+    shotgrid_listener = ShotgridListener()
+    sys.exit(shotgrid_listener.start_listening())

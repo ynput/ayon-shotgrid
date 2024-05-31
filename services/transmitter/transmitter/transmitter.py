@@ -5,11 +5,13 @@ This service will continually run and query the Ayon Events Server in order to
 enroll the events of topic `entity.folder` and `entity.task` when any of the
 two are `created`, `renamed` or `deleted`.
 """
+import sys
 import time
 import socket
 import traceback
 
 import ayon_api
+import shotgun_api3
 
 from ayon_shotgrid_hub import AyonShotgridHub
 
@@ -18,6 +20,7 @@ from utils import get_logger
 
 class ShotgridTransmitter:
     log = get_logger(__file__)
+    _sg: shotgun_api3.Shotgun = None
 
     def __init__(self):
         """ Ensure both Ayon and Shotgrid connections are available.
@@ -43,6 +46,13 @@ class ShotgridTransmitter:
             # get server op related ShotGrid script api properties
             shotgrid_secret = ayon_api.get_secret(
                 service_settings["script_key"])
+
+            if isinstance(shotgrid_secret, list):
+                raise ValueError(
+                    "Shotgrid API Key not found. Make sure to set it in the "
+                    "Addon System settings. "
+                    "`ayon+settings://shotgrid/service_settings/script_key`"
+                )
 
             self.sg_api_key = shotgrid_secret.get("value")
             if not self.sg_api_key:
@@ -84,6 +94,33 @@ class ShotgridTransmitter:
         except Exception as e:
             self.log.error("Unable to get Addon settings from the server.")
             raise e
+
+    def get_sg_connection(self):
+        """Ensure we can talk to AYON and Shotgrid.
+
+        Start connections to the APIs and catch any possible error, we abort if
+        this steps fails for any reason.
+        """
+
+        if self._sg is None:
+            try:
+                self._sg = shotgun_api3.Shotgun(
+                    self.sg_url,
+                    script_name=self.sg_script_name,
+                    api_key=self.sg_api_key,
+                )
+            except Exception as e:
+                self.log.error("Unable to create Shotgrid Session.")
+                raise e
+
+        try:
+            self._sg.connect()
+
+        except Exception as e:
+            self.log.error("Unable to connect to Shotgrid.")
+            raise e
+
+        return self._sg
 
     def start_processing(self):
         """ Main loop querying AYON for `entity.*` events.
@@ -176,11 +213,9 @@ class ShotgridTransmitter:
                 project_code = ay_project.get("code")
 
                 hub = AyonShotgridHub(
+                    self.get_sg_connection(),
                     project_name,
                     project_code,
-                    self.sg_url,
-                    self.sg_api_key,
-                    self.sg_script_name,
                     sg_project_code_field=self.sg_project_code_field,
                     custom_attribs_map=self.custom_attribs_map,
                     custom_attribs_types=self.custom_attribs_types,
@@ -207,3 +242,9 @@ class ShotgridTransmitter:
                         "message": traceback.format_exc(),
                     },
                 )
+
+
+def service_main():
+    ayon_api.init_service()
+    shotgrid_transmitter = ShotgridTransmitter()
+    sys.exit(shotgrid_transmitter.start_processing())
