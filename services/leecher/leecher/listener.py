@@ -25,21 +25,14 @@ import shotgun_api3
 class ShotgridListener:
     log = get_logger(__file__)
 
-    def __init__(self, func: Union[Callable, None] = None):
+    def __init__(self):
         """Ensure both Ayon and Shotgrid connections are available.
 
         Set up common needed attributes and handle shotgrid connection
         closure via signal handlers.
 
-        Args:
-            func (Callable, None): In case we want to override the default
-                function we cast to the processed events.
         """
         self.log.info("Initializing the Shotgrid Listener.")
-        if func is None:
-            self.func = self.send_shotgrid_event_to_ayon
-        else:
-            self.func = func
 
         try:
             ayon_api.init_service()
@@ -186,12 +179,16 @@ class ShotgridListener:
         """
         self.log.info("Start listening for Shotgrid Events...")
 
-        sg_filters = self._build_shotgrid_filters()
-        last_event_id = self._get_last_event_processed(sg_filters)
+        last_event_id = None
 
         while True:
-            sg_filters = self._build_shotgrid_filters()
-            if not sg_filters:
+            base_sg_filters = self._build_shotgrid_filters()
+
+            if not base_sg_filters:
+                self.log.debug(
+                    f"Leecher waiting {self.shotgrid_polling_frequency} "
+                    "seconds. No projects with AYON Auto Sync found."
+                )
                 time.sleep(self.shotgrid_polling_frequency)
                 continue
 
@@ -206,39 +203,64 @@ class ShotgridListener:
                     limit=50,
                 )
 
-                if not events:
-                    time.sleep(self.shotgrid_polling_frequency)
-                    continue
-
                 self.log.info(f"Found {len(events)} events in Shotgrid.")
+
+                supported_event_types = []
+                if events:
+                    supported_event_types = self._get_supported_event_types()
 
                 for event in events:
                     if not event:
                         continue
 
-                    # Filter out events we do not know how to handle
+                    ignore_event = False
+                    last_event_id = event["id"]
+
                     if (
                         event["event_type"].endswith("_Change")
                         and event["attribute_name"].replace("sg_", "") not in list(self.custom_attribs_map.values())
                     ):
-                        last_event_id = event.get("id", None)
+                        # events related to custom attributes changes
+                        # check if event was caused by api user
+                        ignore_event = self._is_api_user_event(event)
+
+                    elif event["event_type"] in supported_event_types:
+                        # events related to changes in entities we track
+                        # check if event was caused by api user
+                        ignore_event = self._is_api_user_event(event)
+
+                    if ignore_event:
+                        self.log.info(f"Ignoring event: {pformat(event)}")
                         continue
 
-                    last_event_id = self.func(event)
+                    self.send_shotgrid_event_to_ayon(event)
 
             except Exception as err:
                 self.log.error(err, exc_info=True)
 
             time.sleep(self.shotgrid_polling_frequency)
 
-    def send_shotgrid_event_to_ayon(self, payload: dict[str, Any]) -> int:
+    def _is_api_user_event(self, event: dict[str, Any]) -> bool:
+        """Check if the event was caused by an API user.
+
+        Args:
+            event (dict): The Shotgrid Event data.
+
+        Returns:
+            bool: True if the event was caused by an API user.
+        """
+        # TODO: we have to create specific api user filtering
+        if (
+            event.get("meta", {}).get("sudo_actual_user", {}).get("type")
+            == "ApiUser"
+        ):
+            return True
+
+    def send_shotgrid_event_to_ayon(self, payload: dict[str, Any]):
         """Send the Shotgrid event as an Ayon event.
 
         Args:
             payload (dict): The Event data.
-
-        Returns:
-            int: The Shotgrid Event ID.
         """
         description = f"Leeched {payload['event_type']}"
         user_name = payload.get("user", {}).get("name", "Undefined")
@@ -279,5 +301,3 @@ class ShotgridListener:
         )
 
         self.log.info("Dispatched Ayon event with payload:", payload)
-
-        return payload["id"]

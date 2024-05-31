@@ -108,16 +108,6 @@ class ShotgridTransmitter:
         ]
 
         while True:
-            projects_we_care = [
-                project["name"]
-                for project in ayon_api.get_projects()
-                if project.get("attrib", {}).get("shotgridPush", False) is True
-            ]
-
-            if not projects_we_care:
-                time.sleep(self.sg_polling_frequency)
-                continue
-
             try:
                 # get all service users
                 service_users = [
@@ -147,11 +137,6 @@ class ShotgridTransmitter:
                                 "key": "user",
                                 "value": service_users,
                                 "operator": "notin",
-                            },
-                            {
-                                "key": "project",
-                                "value": projects_we_care,
-                                "operator": "in"
                             }
                         ],
                         "operator": "and",
@@ -168,12 +153,17 @@ class ShotgridTransmitter:
                 project_name = source_event["project"]
                 ay_project = ayon_api.get_project(project_name)
 
-                if not ay_project:
+                if (
+                    not ay_project
+                    or not ay_project["attrib"].get("shotgridPush", False)
+                ):
                     # This should never happen since we only fetch events of
                     # projects we have shotgridPush enabled; but just in case
-                    # The event happens when after we deleted a project in AYON.
-                    self.log.error(
+                    # The event happens when after we deleted a project in
+                    # AYON.
+                    self.log.info(
                         f"Project {project_name} does not exist in AYON "
+                        "or does not have the `shotgridPush` attribute set, "
                         f"ignoring event {event}."
                     )
                     ayon_api.update_event(
@@ -181,7 +171,6 @@ class ShotgridTransmitter:
                         project_name=project_name,
                         status="finished"
                     )
-                    time.sleep(self.sg_polling_frequency)
                     continue
 
                 project_code = ay_project.get("code")
@@ -218,5 +207,3 @@ class ShotgridTransmitter:
                         "message": traceback.format_exc(),
                     },
                 )
-
-            time.sleep(self.sg_polling_frequency)

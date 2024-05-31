@@ -145,8 +145,8 @@ class ShotgridProcessor:
         `REGISTER_EVENT_TYPE` attribute.
 
         For example, an event that has `{"action": "create-project"}` payload,
-        will trigger the `handlers/project_sync.py` since that one has the attribute
-        REGISTER_EVENT_TYPE = ["create-project"]
+        will trigger the `handlers/project_sync.py` since that one has the
+        attribute REGISTER_EVENT_TYPE = ["create-project"]
         """
         while True:
             try:
@@ -162,17 +162,22 @@ class ShotgridProcessor:
                     time.sleep(self.sg_polling_frequency)
                     continue
 
+                # Get source event because it is having payload to process
                 source_event = ayon_api.get_event(event["dependsOn"])
                 payload = source_event["payload"]
 
                 if not payload:
-                    time.sleep(self.sg_polling_frequency)
                     ayon_api.update_event(
                         event["id"],
-                        description=f"Unable to process the event <{source_event['id']}> since it has no Shotgrid Payload!",
+                        description=(
+                            "Unable to process the event "
+                            f"<{source_event['id']}> since it has no "
+                            "Shotgrid Payload!"
+                        ),
                         status="finished"
                     )
-                    ayon_api.update_event(source_event["id"], status="finished")
+                    ayon_api.update_event(
+                        source_event["id"], status="finished")
                     continue
 
                 for handler in self.handlers_map.get(payload["action"], []):
@@ -181,7 +186,10 @@ class ShotgridProcessor:
                         self.log.info(f"Running the Handler {handler}")
                         ayon_api.update_event(
                             event["id"],
-                            description=f"Processing event with Handler {payload['action']}...",
+                            description=(
+                                "Processing event with Handler "
+                                f"{payload['action']}..."
+                            ),
                             status="finished"
                         )
                         handler.process_event(
@@ -212,7 +220,8 @@ class ShotgridProcessor:
                             )
                         )
 
-                self.log.info("Event has been processed... setting to finished!")
+                self.log.info(
+                    "Event has been processed... setting to finished!")
                 ayon_api.update_event(
                     event["id"],
                     description="Event processed successfully.",
@@ -222,8 +231,3 @@ class ShotgridProcessor:
 
             except Exception:
                 self.log.error(traceback.format_exc())
-
-            self.log.info(
-                f"Waiting {self.sg_polling_frequency} seconds..."
-            )
-            time.sleep(self.sg_polling_frequency)
