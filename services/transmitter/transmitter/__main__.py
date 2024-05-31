@@ -1,9 +1,5 @@
-import sys
-
-from .transmitter import ShotgridTransmitter
+from .transmitter import service_main
 
 
 if __name__ == "__main__":
-    shotgrid_transmitter = ShotgridTransmitter()
-    sys.exit(shotgrid_transmitter.start_processing())
-
+    service_main()

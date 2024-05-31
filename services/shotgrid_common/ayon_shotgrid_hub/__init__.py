@@ -38,7 +38,6 @@ from utils import (
 
 import ayon_api
 from ayon_api.entity_hub import EntityHub
-import shotgun_api3
 
 from utils import get_logger
 
@@ -57,11 +56,9 @@ class AyonShotgridHub:
     entities and create entities/projects.
 
     Args:
+        sg_connection (shotgun_api3.Shotgun): The Shotgrid connection.
         project_name (str):The project name, cannot contain spaces.
         project_code (str): The project code (3 letter code).
-        sg_url (str): The URL of the Shotgrid instance.
-        sg_api_key (str): The API key of the Shotgrid instance.
-        sg_script_name (str): The Script Name of the Shotgrid instance.
         sg_project_code_field (str): The field in the Shotgrid Project entity
             that represents the project code.
         custom_attribs_map (dict): A dictionary mapping AYON attributes to
@@ -77,11 +74,9 @@ class AyonShotgridHub:
     }
 
     def __init__(self,
+        sg_connection,
         project_name,
         project_code,
-        sg_url,
-        sg_api_key,
-        sg_script_name,
         sg_project_code_field=None,
         custom_attribs_map=None,
         custom_attribs_types=None,
@@ -89,15 +84,7 @@ class AyonShotgridHub:
     ):
         self.settings = ayon_api.get_service_addon_settings()
 
-        self._sg = None
-
-        if not all([sg_url, sg_api_key, sg_script_name]):
-            raise ValueError(
-                "AyonShotgridHub requires `sg_url`, `sg_api_key`" \
-                "and `sg_script_name` as arguments."
-            )
-
-        self._initialize_apis(sg_url, sg_api_key, sg_script_name)
+        self._sg = sg_connection
 
         self._ay_project = None
         self._sg_project = None
@@ -120,36 +107,6 @@ class AyonShotgridHub:
 
         self.project_name = project_name
         self.project_code = project_code
-
-    def _initialize_apis(self, sg_url=None, sg_api_key=None, sg_script_name=None):
-        """ Ensure we can talk to AYON and Shotgrid.
-
-        Start connections to the APIs and catch any possible error, we abort if
-        this steps fails for any reason.
-        """
-        try:
-            ayon_api.init_service()
-        except Exception as e:
-            self.log.error("Unable to connect to AYON.")
-            raise e
-
-        if self._sg is None:
-            try:
-                self._sg = shotgun_api3.Shotgun(
-                    sg_url,
-                    script_name=sg_script_name,
-                    api_key=sg_api_key
-                )
-            except Exception as e:
-                self.log.error("Unable to create Shotgrid Session.")
-                raise e
-
-        try:
-            self._sg.connect()
-
-        except Exception as e:
-            self.log.error("Unable to connect to Shotgrid.")
-            raise e
 
     def create_sg_attributes(self):
         """Create all AYON needed attributes in Shotgrid."""

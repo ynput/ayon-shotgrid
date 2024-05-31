@@ -1,9 +1,5 @@
-import sys
-
-from .listener import ShotgridListener
+from .listener import service_main
 
 
 if __name__ == "__main__":
-    shotgrid_listener = ShotgridListener()
-    sys.exit(shotgrid_listener.start_listening())
-
+    service_main()
