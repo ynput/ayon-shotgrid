@@ -253,6 +253,13 @@ def update_ayon_entity_from_sg_event(
         custom_attribs_map=custom_attribs_map
     )
 
+    if not sg_ay_dict:
+        log.warning(
+            f"Entity {sg_event['entity_type']} <{sg_event['entity_id']}> "
+            "no longer exists in ShotGrid, aborting..."
+        )
+        return
+
     # if the entity does not have an Ayon ID, try to create it
     # and no need to update
     if not sg_ay_dict["data"].get(CUST_FIELD_CODE_ID):
@@ -333,6 +340,12 @@ def remove_ayon_entity_from_sg_event(
         ayon_entity_hub (ayon_api.entity_hub.EntityHub): The AYON EntityHub.
         project_code_field (str): The ShotGrid field that contains the Ayon ID.
     """
+    # for now we are ignoring Task type entities
+    # TODO: Handle Task entities
+    if sg_event["entity_type"] == "Task":
+        log.info("Ignoring Task entity.")
+        return
+
     sg_ay_dict = get_sg_entity_as_ay_dict(
         sg_session,
         sg_event["entity_type"],
