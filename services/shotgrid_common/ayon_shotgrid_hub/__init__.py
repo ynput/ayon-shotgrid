@@ -351,6 +351,11 @@ class AyonShotgridHub:
 
         match sg_event_meta["type"]:
             case "new_entity" | "entity_revival":
+                self.log.info(
+                    f"Creating entity from SG event: {sg_event_meta['type']}"
+                    f"| {sg_event_meta['entity_type']} "
+                    f"| {sg_event_meta['entity_id']}"
+                )
                 create_ay_entity_from_sg_event(
                     sg_event_meta,
                     self._sg_project,
@@ -362,6 +367,11 @@ class AyonShotgridHub:
                 )
 
             case "attribute_change":
+                self.log.info(
+                    f"Updating entity from SG event: {sg_event_meta['type']} "
+                    f"| {sg_event_meta['entity_type']} "
+                    f"| {sg_event_meta['entity_id']}"
+                )
                 update_ayon_entity_from_sg_event(
                     sg_event_meta,
                     self._sg_project,
@@ -373,6 +383,11 @@ class AyonShotgridHub:
                 )
 
             case "entity_retirement":
+                self.log.info(
+                    f"Removing entity from SG event: {sg_event_meta['type']}"
+                    f"| {sg_event_meta['entity_type']} "
+                    f"| {sg_event_meta['entity_id']}"
+                )
                 remove_ayon_entity_from_sg_event(
                     sg_event_meta,
                     self._sg,
