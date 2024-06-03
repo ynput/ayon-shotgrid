@@ -7,6 +7,8 @@ from ayon_core.addon import (
 )
 from ayon_core.lib import Logger
 
+from .version import __version__
+
 log = Logger.get_logger(__name__)
 
 SHOTGRID_ADDON_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -14,6 +16,7 @@ SHOTGRID_ADDON_DIR = os.path.dirname(os.path.abspath(__file__))
 
 class ShotgridAddon(AYONAddon, ITrayAddon, IPluginPaths):
     name = "shotgrid"
+    version = __version__
     tray_wrapper = None
 
     def initialize(self, studio_settings):
