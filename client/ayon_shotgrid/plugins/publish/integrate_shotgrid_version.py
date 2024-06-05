@@ -68,15 +68,21 @@ class IntegrateShotgridVersion(pyblish.api.InstancePlugin):
                 # Replace the frame number with '%04d'
                 path_to_frame = re.sub(r"\.\d+\.", ".%04d.", local_path)
 
-                data_to_update["sg_path_to_frames"] = path_to_frame
+                data_to_update |= {
+                    "sg_path_to_movie": path_to_frame,
+                    "sg_path_to_frames": path_to_frame,
+                }
+
                 if "slate" in instance.data["families"]:
                     data_to_update["sg_frames_have_slate"] = True
 
-        if not found_reviewable or thumbnail_path is not None:
+        if not found_reviewable and thumbnail_path is not None:
             # create a thumbnail data to update
             found_reviewable = True
-            data_to_update["sg_path_to_frames"] = thumbnail_path
-
+            data_to_update |= {
+                "sg_path_to_movie": thumbnail_path,
+                "sg_path_to_frames": thumbnail_path,
+            }
 
         # If there's no data to set/update, skip creation of SG version
         if not found_reviewable:
