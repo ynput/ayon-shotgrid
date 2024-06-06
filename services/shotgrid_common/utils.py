@@ -666,6 +666,10 @@ def get_sg_entities(
             if task_assignees:
                 task_assignees_list = []
                 for assignee in task_assignees:
+                    # Skip task assignments that aren't from a human user (i.e. groups)
+                    # TODO: add support for group assignments
+                    if assignee["type"] != "HumanUser":
+                        continue
                     sg_user = get_sg_user_by_id(
                         sg_session, assignee["id"], extra_fields=["login"]
                     )
@@ -743,6 +747,10 @@ def get_sg_entity_as_ay_dict(
     if task_assignees:
         task_assignees_list = []
         for assignee in task_assignees:
+            # Skip task assignments that aren't from a human user (i.e. groups)
+            # TODO: add support for group assignments
+            if assignee["type"] != "HumanUser":
+                continue
             sg_user = get_sg_user_by_id(
                 sg_session, assignee["id"], extra_fields=["login"]
             )
