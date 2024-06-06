@@ -92,6 +92,7 @@ def _sg_to_ay_dict(
     ay_entity_type = "folder"
     task_type = None
     folder_type = None
+    exception_attribs = {"status", "assignees", "tags"}
 
     if sg_entity["type"] == "Task":
         ay_entity_type = "task"
@@ -111,10 +112,14 @@ def _sg_to_ay_dict(
             name = slugify_string(task_type)
 
     elif sg_entity["type"] == "Project":
-        name = slugify_string(sg_entity[project_code_field])
+        name = slugify_string(sg_entity[project_code_field], min_length=0)
         label = sg_entity[project_code_field]
+    elif sg_entity["type"] == "Version":
+        ay_entity_type = "version"
+        name = slugify_string(sg_entity["code"], min_length=0)
+        label = sg_entity["code"]
     else:
-        name = slugify_string(sg_entity["code"])
+        name = slugify_string(sg_entity["code"], min_length=0)
         label = sg_entity["code"]
         folder_type = sg_entity["type"]
 
@@ -146,8 +151,11 @@ def _sg_to_ay_dict(
             # If no value in SG entity skip
             if sg_value is None:
                 continue
-
-            sg_ay_dict["attribs"][ay_attrib] = sg_value
+            
+            if ay_attrib in exception_attribs:
+                sg_ay_dict[ay_attrib] = sg_value
+            else:
+                sg_ay_dict["attribs"][ay_attrib] = sg_value
 
     if task_type:
         sg_ay_dict["task_type"] = task_type
@@ -584,8 +592,7 @@ def get_sg_entities(
     if not project_code_field:
         project_code_field = "code"
 
-    # TODO: Add support to sync versions too
-    entities_to_ignore = ["Version"]
+    entities_to_ignore = []
 
     sg_ay_dicts = {
         sg_project["id"]: _sg_to_ay_dict(
@@ -652,6 +659,20 @@ def get_sg_entities(
 
                 parent_id = cat_ent_name
 
+            # Transform task_assignees list of dictionary entries
+            # to just a list of the login names as used in AYON DB
+            # so it's easier later to set
+            task_assignees = sg_entity.get("task_assignees")
+            if task_assignees:
+                task_assignees_list = []
+                for assignee in task_assignees:
+                    sg_user = get_sg_user_by_id(
+                        sg_session, assignee["id"], extra_fields=["login"]
+                    )
+                    task_assignees_list.append(sg_user["login"])
+                
+                sg_entity["task_assignees"] = task_assignees_list
+
             sg_ay_dict = _sg_to_ay_dict(
                 sg_entity,
                 project_code_field,
@@ -714,6 +735,20 @@ def get_sg_entity_as_ay_dict(
 
     if not sg_entity:
         return {}
+    
+    # Transform task_assignees list of dictionary entries
+    # to just a list of the login names as used in AYON DB
+    # so it's easier later to set
+    task_assignees = sg_entity.get("task_assignees")
+    if task_assignees:
+        task_assignees_list = []
+        for assignee in task_assignees:
+            sg_user = get_sg_user_by_id(
+                sg_session, assignee["id"], extra_fields=["login"]
+            )
+            task_assignees_list.append(sg_user["login"])
+        
+        sg_entity["task_assignees"] = task_assignees_list
 
     sg_ay_dict = _sg_to_ay_dict(
         sg_entity, project_code_field, custom_attribs_map
@@ -784,6 +819,37 @@ def get_sg_missing_ay_attributes(sg_session: shotgun_api3.Shotgun):
             missing_attrs.append(ayon_attr)
 
     return missing_attrs
+
+
+def get_sg_user_by_id(
+    sg_session: shotgun_api3.Shotgun,
+    user_id: int,
+    extra_fields: Optional[list] = None
+) -> dict:
+    """ Find a user in ShotGrid by its id.
+
+    Args:
+        sg_session (shotgun_api3.Shotgun): Shotgun Session object.
+        user_id (int): The user ID to look for.
+        extra_fields (Optional[list]): List of optional fields to query.
+    Returns:
+        sg_project (dict): ShotGrid Project dict.
+     """
+    common_fields = list(SG_COMMON_ENTITY_FIELDS)
+
+    if extra_fields:
+        common_fields.extend(extra_fields)
+
+    sg_user = sg_session.find_one(
+        "HumanUser",
+        [["id", "is", user_id]],
+        fields=common_fields,
+    )
+
+    if not sg_user:
+        raise ValueError(f"Unable to find HumanUser {user_id} in ShotGrid.")
+
+    return sg_user
 
 
 def get_sg_project_by_id(
@@ -1054,26 +1120,35 @@ def update_ay_entity_custom_attributes(
     sg_ay_dict: dict,
     custom_attribs_map: dict,
     values_to_update: Optional[list] = None,
+    ay_project: ProjectEntity = None,
 ):
     """Update Ayon entity custom attributes from ShotGrid dictionary"""
     for ay_attrib, _ in custom_attribs_map.items():
         if values_to_update and ay_attrib not in values_to_update:
             continue
 
-        attrib_value = sg_ay_dict["attribs"].get(ay_attrib)
+        attrib_value = sg_ay_dict["attribs"].get(ay_attrib) or sg_ay_dict.get(ay_attrib)
         if attrib_value is None:
             continue
 
         if ay_attrib == "tags":
-            log.warning("Tags update is not supported yet.")
             ay_entity.tags = [tag["name"] for tag in attrib_value]
         elif ay_attrib == "status":
-            # TODO: Implement status update
+            # Entity hub expects the statuses to be provided with the `name` and
+            # not the `short_name` (which is what we get from SG) so we convert
+            # the short name back to the long name before setting it
+            status_mapping = {
+                status.short_name: status.name for status in ay_project.statuses
+            }
+            new_status_name = status_mapping.get(attrib_value)
             try:
-                # INFO: it was causing error so trying to set status directly
-                ay_entity.status = attrib_value
+                ay_entity.status = new_status_name
             except ValueError as e:
-                # `ValueError: Status ip is not available on project.`
-                log.warning(f"Status sync not implemented: {e}")
+                logging.warning(f"Status sync not implemented: {e}")
+        elif ay_attrib == "assignees":
+            try:
+                ay_entity.assignees = attrib_value
+            except ValueError as e:
+                logging.warning(f"Assignees sync not implemented: {e}")
         else:
             ay_entity.attribs.set(ay_attrib, attrib_value)
