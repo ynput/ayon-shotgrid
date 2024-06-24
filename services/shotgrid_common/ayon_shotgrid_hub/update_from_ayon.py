@@ -386,7 +386,6 @@ def _create_sg_entity(
             or ay_entity.entity_type != "task"
             and ay_entity.folder_type == "AssetCategory"
     ):
-        # TODO: why not??
         # AssetCategory should not be created in Shotgrid
         # task should not be child of AssetCategory
         return
