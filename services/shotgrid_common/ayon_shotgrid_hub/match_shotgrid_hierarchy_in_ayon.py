@@ -98,7 +98,8 @@ def match_shotgrid_hierarchy_in_ayon(
         # If we haven't found the ay_entity by its id, check by its name
         # to avoid creating duplicates and erroring out
         if ay_entity is None:
-            name = slugify_string(sg_ay_dict["name"])
+            # Use min_length=0 so names like '_edit_shot' don't become 'edit_shot'
+            name = slugify_string(sg_ay_dict["name"], min_length=0)
             for child in ay_parent_entity.children:
                 if child.name.lower() == name.lower():
                     ay_entity = child
@@ -113,7 +114,9 @@ def match_shotgrid_hierarchy_in_ayon(
                     sg_ay_dict
                 )
 
-            if not ay_entity:
+            # We only create new entities for Folders/Tasks entities
+            # For Version entities we only try update the status if it already exists
+            if not ay_entity and sg_ay_dict["type"] != "version":
                 ay_entity = _create_new_entity(
                     entity_hub,
                     ay_parent_entity,
@@ -135,7 +138,10 @@ def match_shotgrid_hierarchy_in_ayon(
                 sg_project_sync_status = "Failed"
             else:
                 update_ay_entity_custom_attributes(
-                    ay_entity, sg_ay_dict, custom_attribs_map
+                    ay_entity,
+                    sg_ay_dict,
+                    custom_attribs_map,
+                    ay_project=entity_hub.project_entity
                 )
 
         # skip if no ay_entity is found
@@ -258,7 +264,7 @@ def _create_new_entity(
             attribs=sg_ay_dict["attribs"],
             data=sg_ay_dict["data"],
         )
-    else:
+    elif sg_ay_dict["type"].lower() == "folder":
         ay_entity = entity_hub.add_new_folder(
             sg_ay_dict["folder_type"],
             name=sg_ay_dict["name"],
@@ -269,19 +275,37 @@ def _create_new_entity(
             data=sg_ay_dict["data"],
         )
 
-    # TODO: this doesn't work yet
-    status = sg_ay_dict["attribs"].get("status")
+    status = sg_ay_dict.get("status")
     if status:
-        # TODO: Implement status update
+        # Entity hub expects the statuses to be provided with the `name` and
+        # not the `short_name` (which is what we get from SG) so we convert
+        # the short name back to the long name before setting it
+        status_mapping = {
+            status.short_name: status.name for status in entity_hub.project_entity.statuses
+        }
+        new_status_name = status_mapping.get(status)
+        if not new_status_name:
+            log.warning(
+                "Status with short name '%s' doesn't exist in project", status
+            )
+        else:
+            try:
+                # INFO: it was causing error so trying to set status directly
+                ay_entity.status = new_status_name
+            except ValueError as e:
+                # `ValueError: Status ip is not available on project.`
+                # NOTE: this doesn't really raise exception?
+                log.warning(f"Status sync not implemented: {e}")
+
+    assignees = sg_ay_dict.get("assignees")
+    if assignees:
         try:
             # INFO: it was causing error so trying to set status directly
-            ay_entity.status = status
+            ay_entity.assignees = assignees
         except ValueError as e:
-            # `ValueError: Status ip is not available on project.`
-            # log.warning(f"Status sync not implemented: {e}")
-            pass
+            log.warning(f"Assignees sync not implemented: {e}")
 
-    tags = sg_ay_dict["attribs"].get("tags")
+    tags = sg_ay_dict.get("tags")
     if tags:
         ay_entity.tags = [tag["name"] for tag in tags]
 
