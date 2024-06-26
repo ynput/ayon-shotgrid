@@ -48,19 +48,6 @@ class ValidateShotgridUser(pyblish.api.ContextPlugin):
                 )
             )
 
-        self.log.info("Found User in Shotgrid: {}".format(sg_user))
-
-        admin = sg_user["permission_rule_set"]["name"] == "Admin"
-
-        self.log.info("Found User in Shotgrid: {}".format(sg_user))
-
-        if not sg_user and not admin:
-            raise PublishValidationError(
-                "Login {0} doesn't have access to the project {1} <{2}>".format(
-                    user_login, project_name, sg_project
-                )
-            )
-
         self.log.info(
             "Login {0} has access to the project {1} <{2}>".format(
                 user_login, project_name, sg_project
