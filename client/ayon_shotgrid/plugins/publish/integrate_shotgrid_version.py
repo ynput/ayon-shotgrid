@@ -219,10 +219,21 @@ class IntegrateShotgridVersion(pyblish.api.InstancePlugin):
         Returns:
             dict: The newly created Shotgrid Version.
         """
+        filters = [['login', 'is', instance.context.data["shotgridUser"]]]
+        try:
+            user_id = instance.context.data["shotgridSession"].find(
+                'HumanUser', filters)[0]["id"]
+        except IndexError as e:
+            raise ValueError(
+                f"User {instance.context.data['shotgridUser']} not found in "
+                "Shotgrid."
+            ) from e
+
         version_data = {
             "project": instance.data.get("shotgridProject"),
             "entity": instance.data.get("shotgridEntity"),
             "code": version_name,
+            "user": {'type': 'HumanUser', 'id': user_id},
         }
 
         if instance.data.get("shotgridTask"):
