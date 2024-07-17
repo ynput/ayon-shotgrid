@@ -162,7 +162,7 @@ class ShotgridListener:
         last_event_id = None
 
         for last_event_id in ayon_api.get_events(
-            topics=["shotgrid.leech"], fields=["hash"]
+            topics=["shotgrid.event"], fields=["hash"]
         ):
             last_event_id = int(last_event_id["hash"])
 
