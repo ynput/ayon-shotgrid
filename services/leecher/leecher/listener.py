@@ -164,7 +164,7 @@ class ShotgridListener:
     def _find_last_event_id(self):
         response = ayon_api.query_graphql(
             LAST_EVENT_QUERY,
-            {"eventTopic": "ftrack.proc"},
+            {"eventTopic": "shotgrid.event"},
         )
         if response.errors:
             self.log.error(str(response.errors))
