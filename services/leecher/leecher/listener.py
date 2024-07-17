@@ -162,6 +162,18 @@ class ShotgridListener:
         return sg_event_types
 
     def _find_last_event_id(self):
+        """Find the last event ID processed by AYON.
+
+        Info:
+            This function queries the AYON GraphQL API to get the last event
+            processed by AYON. If none is found we return None. Originally we
+            had iterated all the events in the database to find the last one
+            but this was not efficient in cases where huge amounts of events
+            were present in the database.
+
+        Returns:
+            last_event_id (int): The last known Event id.
+        """
         response = ayon_api.query_graphql(
             LAST_EVENT_QUERY,
             {"eventTopic": "shotgrid.event"},
