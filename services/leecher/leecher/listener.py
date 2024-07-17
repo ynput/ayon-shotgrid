@@ -23,6 +23,17 @@ from constants import (
 import ayon_api
 import shotgun_api3
 
+LAST_EVENT_QUERY = """query LastShotgridEvent($eventTopic: String!) {
+  events(last: 1, topics: [$eventTopic]) {
+    edges {
+      node {
+        hash
+      }
+    }
+  }
+}
+"""
+
 
 class ShotgridListener:
     log = get_logger(__file__)
@@ -150,6 +161,19 @@ class ShotgridListener:
             )
         return sg_event_types
 
+    def _find_last_event_id(self):
+        response = ayon_api.query_graphql(
+            LAST_EVENT_QUERY,
+            {"eventTopic": "ftrack.proc"},
+        )
+        if response.errors:
+            self.log.error(str(response.errors))
+            return None
+        data = response.data["data"]
+        for node in data["events"]["edges"]:
+            return node["node"]["hash"]
+        return None
+
     def _get_last_event_processed(self, sg_filters):
         """Find the Event ID for the last SG processed event.
 
@@ -159,13 +183,7 @@ class ShotgridListener:
         Returns:
             last_event_id (int): The last known Event id.
         """
-        last_event_id = None
-
-        for last_event_id in ayon_api.get_events(
-            topics=["shotgrid.event"], fields=["hash"]
-        ):
-            last_event_id = int(last_event_id["hash"])
-
+        last_event_id = self._find_last_event_id()
         if not last_event_id:
             last_event = self.sg_session.find_one(
                 "EventLogEntry",
