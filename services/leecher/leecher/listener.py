@@ -205,7 +205,7 @@ class ShotgridListener:
             )
             last_event_id = last_event["id"]
 
-        return last_event_id
+        return int(last_event_id)
 
     def start_listening(self):
         """Main loop querying the Shotgrid database for new events
@@ -251,6 +251,12 @@ class ShotgridListener:
                     order=[{"column": "id", "direction": "asc"}],
                     limit=50,
                 )
+                if not events:
+                    self.log.debug(
+                        f"Leecher waiting {self.shotgrid_polling_frequency} seconds..."
+                    )
+                    time.sleep(self.shotgrid_polling_frequency)
+                    continue
 
                 self.log.debug(f"Found {len(events)} events in Shotgrid.")
 
@@ -271,12 +277,22 @@ class ShotgridListener:
 
                     if (
                         event["event_type"].endswith("_Change")
-                        and event["attribute_name"].replace("sg_", "")
-                        not in self.custom_sg_attribs
+                        and (
+                            event["attribute_name"].replace("sg_", "")
+                            not in self.custom_sg_attribs
+                        )
                     ):
                         # events related to custom attributes changes
                         # check if event was caused by api user
                         ignore_event = self._is_api_user_event(event)
+
+                        if not ignore_event:
+                            # check meta if in_create is True and ignore
+                            # those events as they are not useful for us
+                            # we are interested only in changes in entities
+                            # not in creation events
+                            ignore_event = event.get("meta", {}).get(
+                                "in_create")
 
                     elif event["event_type"] in supported_event_types:
                         # events related to changes in entities we track
@@ -284,19 +300,14 @@ class ShotgridListener:
                         ignore_event = self._is_api_user_event(event)
 
                     if ignore_event:
-                        self.log.info(f"Ignoring event: {pformat(event)}")
+                        self.log.info(f"Ignoring event: {event['id']}")
+                        self.log.debug(f"event payload: {pformat(event)}")
                         continue
 
                     self.send_shotgrid_event_to_ayon(event, sg_projects_by_id)
 
             except Exception:
                 self.log.error(traceback.format_exc())
-
-            self.log.debug(
-                f"Leecher waiting {self.shotgrid_polling_frequency} seconds..."
-            )
-            time.sleep(self.shotgrid_polling_frequency)
-            continue
 
     def _is_api_user_event(self, event: dict[str, Any]) -> bool:
         """Check if the event was caused by an API user.
