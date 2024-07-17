@@ -23,6 +23,17 @@ from constants import (
 import ayon_api
 import shotgun_api3
 
+LAST_EVENT_QUERY = """query LastShotgridEvent($eventTopic: String!) {
+  events(last: 1, topics: [$eventTopic]) {
+    edges {
+      node {
+        hash
+      }
+    }
+  }
+}
+"""
+
 
 class ShotgridListener:
     log = get_logger(__file__)
@@ -150,6 +161,31 @@ class ShotgridListener:
             )
         return sg_event_types
 
+    def _find_last_event_id(self):
+        """Find the last event ID processed by AYON.
+
+        Info:
+            This function queries the AYON GraphQL API to get the last event
+            processed by AYON. If none is found we return None. Originally we
+            had iterated all the events in the database to find the last one
+            but this was not efficient in cases where huge amounts of events
+            were present in the database.
+
+        Returns:
+            last_event_id (int): The last known Event id.
+        """
+        response = ayon_api.query_graphql(
+            LAST_EVENT_QUERY,
+            {"eventTopic": "shotgrid.event"},
+        )
+        if response.errors:
+            self.log.error(str(response.errors))
+            return None
+        data = response.data["data"]
+        for node in data["events"]["edges"]:
+            return node["node"]["hash"]
+        return None
+
     def _get_last_event_processed(self, sg_filters):
         """Find the Event ID for the last SG processed event.
 
@@ -159,13 +195,7 @@ class ShotgridListener:
         Returns:
             last_event_id (int): The last known Event id.
         """
-        last_event_id = None
-
-        for last_event_id in ayon_api.get_events(
-            topics=["shotgrid.leech"], fields=["hash"]
-        ):
-            last_event_id = int(last_event_id["hash"])
-
+        last_event_id = self._find_last_event_id()
         if not last_event_id:
             last_event = self.sg_session.find_one(
                 "EventLogEntry",
@@ -175,7 +205,7 @@ class ShotgridListener:
             )
             last_event_id = last_event["id"]
 
-        return last_event_id
+        return int(last_event_id)
 
     def start_listening(self):
         """Main loop querying the Shotgrid database for new events
@@ -221,6 +251,12 @@ class ShotgridListener:
                     order=[{"column": "id", "direction": "asc"}],
                     limit=50,
                 )
+                if not events:
+                    self.log.debug(
+                        f"Leecher waiting {self.shotgrid_polling_frequency} seconds..."
+                    )
+                    time.sleep(self.shotgrid_polling_frequency)
+                    continue
 
                 self.log.debug(f"Found {len(events)} events in Shotgrid.")
 
@@ -241,12 +277,22 @@ class ShotgridListener:
 
                     if (
                         event["event_type"].endswith("_Change")
-                        and event["attribute_name"].replace("sg_", "")
-                        not in self.custom_sg_attribs
+                        and (
+                            event["attribute_name"].replace("sg_", "")
+                            not in self.custom_sg_attribs
+                        )
                     ):
                         # events related to custom attributes changes
                         # check if event was caused by api user
                         ignore_event = self._is_api_user_event(event)
+
+                        if not ignore_event:
+                            # check meta if in_create is True and ignore
+                            # those events as they are not useful for us
+                            # we are interested only in changes in entities
+                            # not in creation events
+                            ignore_event = event.get("meta", {}).get(
+                                "in_create")
 
                     elif event["event_type"] in supported_event_types:
                         # events related to changes in entities we track
@@ -254,19 +300,14 @@ class ShotgridListener:
                         ignore_event = self._is_api_user_event(event)
 
                     if ignore_event:
-                        self.log.info(f"Ignoring event: {pformat(event)}")
+                        self.log.info(f"Ignoring event: {event['id']}")
+                        self.log.debug(f"event payload: {pformat(event)}")
                         continue
 
                     self.send_shotgrid_event_to_ayon(event, sg_projects_by_id)
 
             except Exception:
                 self.log.error(traceback.format_exc())
-
-            self.log.debug(
-                f"Leecher waiting {self.shotgrid_polling_frequency} seconds..."
-            )
-            time.sleep(self.shotgrid_polling_frequency)
-            continue
 
     def _is_api_user_event(self, event: dict[str, Any]) -> bool:
         """Check if the event was caused by an API user.
