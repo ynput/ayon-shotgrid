@@ -6,6 +6,7 @@ Shotgrid and converts them to Ayon events, and can be configured from the Ayon
 Addon settings page.
 """
 import sys
+import json
 import time
 import signal
 import socket
@@ -188,9 +189,11 @@ class ShotgridListener:
             return None
         data = response.data["data"]
         for node in data["events"]["edges"]:
+            summary = node["node"]["summary"]
+            summary_data = json.loads(summary)
             # TODO: remove hash in future since it is only used
             #       as backward compatibility
-            if node["node"]["summary"].get("sg_event_id"):
+            if summary_data.get("sg_event_id"):
                 return node["node"]["summary"]["sg_event_id"]
             else:
                 return int(node["node"]["hash"])
