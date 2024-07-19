@@ -195,8 +195,10 @@ class ShotgridListener:
             #       as backward compatibility
             if summary_data.get("sg_event_id"):
                 return summary_data["sg_event_id"]
-            else:
-                return int(node["node"]["hash"])
+
+            # return it old way
+            # TODO: remove in future
+            return int(node["node"]["hash"])
         return None
 
     def _get_last_event_processed(self, sg_filters):
