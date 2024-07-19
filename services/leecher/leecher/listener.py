@@ -194,7 +194,7 @@ class ShotgridListener:
             # TODO: remove hash in future since it is only used
             #       as backward compatibility
             if summary_data.get("sg_event_id"):
-                return node["node"]["summary"]["sg_event_id"]
+                return summary_data["sg_event_id"]
             else:
                 return int(node["node"]["hash"])
         return None
