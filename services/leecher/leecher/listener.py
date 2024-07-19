@@ -13,7 +13,10 @@ import traceback
 from typing import Any
 from pprint import pformat
 
-from utils import get_logger
+from utils import (
+    get_logger,
+    get_event_hash,
+)
 
 from constants import (
     SG_EVENT_TYPES,
@@ -23,11 +26,13 @@ from constants import (
 import ayon_api
 import shotgun_api3
 
+# TODO: remove hash in future since it is only used as backward compatibility
 LAST_EVENT_QUERY = """query LastShotgridEvent($eventTopic: String!) {
   events(last: 1, topics: [$eventTopic]) {
     edges {
       node {
         hash
+        summary
       }
     }
   }
@@ -183,7 +188,12 @@ class ShotgridListener:
             return None
         data = response.data["data"]
         for node in data["events"]["edges"]:
-            return node["node"]["hash"]
+            # TODO: remove hash in future since it is only used
+            #       as backward compatibility
+            if node["node"]["summary"].get("sg_event_id"):
+                return node["node"]["summary"]["sg_event_id"]
+            else:
+                return int(node["node"]["hash"])
         return None
 
     def _get_last_event_processed(self, sg_filters):
@@ -205,7 +215,7 @@ class ShotgridListener:
             )
             last_event_id = last_event["id"]
 
-        return int(last_event_id)
+        return last_event_id
 
     def start_listening(self):
         """Main loop querying the Shotgrid database for new events
@@ -333,11 +343,16 @@ class ShotgridListener:
         Args:
             payload (dict): The Event data.
         """
-        description = f"Leeched {payload['event_type']}"
+        payload_id = payload["id"]
+        payload_type = payload["event_type"]
+        description = f"Leeched '{payload_type}' event  with ID '{payload_id}'"
         user_name = payload.get("user", {}).get("name", "Undefined")
 
         if user_name:
-            description = f"Leeched {payload['event_type']} by {user_name}"
+            description = (
+                f"Leeched '{payload_type}' event  with ID '{payload_id}' "
+                f"by '{user_name}'"
+            )
 
         # fix non serializable datetime
         payload["created_at"] = payload["created_at"].isoformat()
@@ -351,15 +366,18 @@ class ShotgridListener:
             project_id = payload.get("project", {}).get("id", "Undefined")
 
         sg_project = sg_projects_by_id[project_id]
+        new_event_hash = get_event_hash("shotgrid.event", payload["id"])
 
         ayon_api.dispatch_event(
             "shotgrid.event",
             sender=socket.gethostname(),
-            event_hash=payload["id"],
+            event_hash=new_event_hash,
             project_name=project_name,
             username=user_name,
             description=description,
-            summary=None,
+            summary={
+                "sg_event_id": payload_id,
+            },
             payload={
                 "action": "shotgrid-event",
                 "user_name": user_name,
