@@ -384,6 +384,7 @@ class ShotgridListener:
                 "sg_event_id": payload_id,
             },
             payload={
+                "message": json.dumps(payload, indent=2),
                 "action": "shotgrid-event",
                 "user_name": user_name,
                 "project_name": project_name,
