@@ -214,6 +214,7 @@ class ShotgridProcessor:
                     event_id_text = "."
 
                 if not payload:
+                    # TODO: maybe remove this - unrealistic scenario
                     ayon_api.update_event(
                         event["id"],
                         description=(
@@ -235,7 +236,7 @@ class ShotgridProcessor:
                                 "Processing event with Handler "
                                 f"{payload['action']}..."
                             ),
-                            status="finished"
+                            status="in_progress",
                         )
                         self.log.debug(
                             f"processing event {pformat(payload)}")
