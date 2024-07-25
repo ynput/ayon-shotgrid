@@ -3,21 +3,30 @@ import os
 import pyblish.api
 
 from ayon_core.pipeline import KnownPublishError
-
+from ayon_core.settings import get_studio_settings
+from ayon_shotgrid.lib import credentials
 
 class CollectShotgridSession(pyblish.api.ContextPlugin):
     """Collect shotgrid session using user credentials"""
 
     order = pyblish.api.CollectorOrder
     label = "Collecting Shotgrid session"
+    client_login_type = "env"
 
     def process(self, context):
-        user_login = (
-            os.getenv("AYON_SG_USERNAME")
-            # TODO: Remove USER env variable in future once ayon-core deadline
-            # passing of AYON_SG_USERNAME is solved
-            or os.getenv("USER")
-        )
+        settings = get_studio_settings()
+        client_login_type = settings["shotgrid"]["client_login"]["type"]
+        if client_login_type == "env":
+            user_login = (
+                os.getenv("AYON_SG_USERNAME")
+                # TODO: Remove USER env variable in future once ayon-core deadline
+                # passing of AYON_SG_USERNAME is solved
+                or os.getenv("USER")
+            )
+
+        else:
+            user_login, _ = credentials.get_local_login()
+
         self.log.info(f"User login: {user_login}")
         if not user_login:
             raise KnownPublishError(
