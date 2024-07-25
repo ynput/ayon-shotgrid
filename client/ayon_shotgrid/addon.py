@@ -80,6 +80,23 @@ class ShotgridAddon(AYONAddon, ITrayAddon, IPluginPaths):
     def get_local_storage_key(self):
         return self._local_storage_key or None
 
+    def get_credentials(self):
+        from .lib import credentials
+
+        if self._client_login_type == "env":
+            user_login = (
+                os.getenv("AYON_SG_USERNAME")
+                # TODO: Remove USER env variable in future once ayon-core deadline
+                # passing of AYON_SG_USERNAME is solved
+                or os.getenv("USER")
+            )
+            sg_password = None
+
+        else:
+            user_login, sg_password = credentials.get_local_login()
+        
+        return user_login, sg_password 
+
     def create_shotgrid_session(self):
         from .lib import credentials
         kwargs = {
@@ -89,36 +106,24 @@ class ShotgridAddon(AYONAddon, ITrayAddon, IPluginPaths):
         proxy = re.sub(r"https?://", "", os.environ.get("HTTPS_PROXY", ""))
         if proxy:
             kwargs["proxy"] = proxy
+        
+        sg_username, sg_password = self.get_credentials()
 
-        if self._client_login_type == "env":
-            sg_username = (
-                os.getenv("AYON_SG_USERNAME")
-                # TODO: Remove USER env variable in future once ayon-core deadline
-                # passing of AYON_SG_USERNAME is solved
-                or os.getenv("USER")
-            )
+        if self._client_login_type in {"env", "tray_api_key"}:
+            
             kwargs.update({
                 "username": sg_username,
                 "api_key": self._shotgrid_api_key,
                 "script_name": self._shotgrid_script_name,
             })
         elif self._client_login_type == "tray_pass":
-            sg_username, sg_password = credentials.get_local_login()
-
+           
             if not sg_username or not sg_password:
                 return None
 
             kwargs.update({
                 "username": sg_username,
                 "password": sg_password
-            })
-
-        elif self._client_login_type == "tray_api_key":
-            sg_username, _ = credentials.get_local_login()
-            kwargs.update({
-                "username": sg_username,
-                "api_key": self._shotgrid_api_key,
-                "script_name": self._shotgrid_script_name,
             })
 
         return credentials.create_sg_session(**kwargs)
