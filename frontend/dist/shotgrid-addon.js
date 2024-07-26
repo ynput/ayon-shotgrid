@@ -213,15 +213,15 @@ const getAyonProjects = async () => {
 
 
 const syncShotgridToAyon = async (projectName, projectCode) => {
-  /* Spawn an AYON Event of topic "shotgrid.event" to synchronize a project
+  /* Spawn an AYON Event of topic "shotgrid.event.project.sync" to synchronize a project
   from Shotgrid into AYON. */
   call_result_paragraph = document.getElementById("call-result");
 
   dispatch_event = await ayonAPI
     .post("/api/events", {
-      "topic": "shotgrid.event",
+      "topic": "shotgrid.event.project.sync",
       "project": projectName,
-      "description": `Synchronize Project ${projectName} from Shotgrid.`,
+      "description": `Synchronize Project '${projectName}' from Shotgrid.`,
       "payload": {
         "action": "sync-from-shotgrid",
         "project_name": projectName,
@@ -244,13 +244,13 @@ const syncShotgridToAyon = async (projectName, projectCode) => {
 }
 
 const syncAyonToShotgrid = async (projectName, projectCode) => {
-  /* Spawn an AYON Event of topic "shotgrid.event" to synchronize a project
-  from AYON into Shotgrid. */
+  /* Spawn an AYON Event of topic "shotgrid.event.project.sync"
+  to synchronize a project from AYON into Shotgrid. */
   call_result_paragraph = document.getElementById("call-result");
 
   dispatch_event = await ayonAPI
     .post("/api/events", {
-      "topic": "shotgrid.event",
+      "topic": "shotgrid.event.project.sync",
       "project": projectName,
       "description": `Synchronize Project ${projectName} from AYON.`,
       "payload": {
