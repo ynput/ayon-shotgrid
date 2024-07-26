@@ -29,7 +29,7 @@ import shotgun_api3
 
 # TODO: remove hash in future since it is only used as backward compatibility
 LAST_EVENT_QUERY = """query LastShotgridEvent($eventTopic: String!) {
-  events(last: 1, topics: [$eventTopic]) {
+  events(last: 20, topics: [$eventTopic]) {
     edges {
       node {
         hash
@@ -191,14 +191,20 @@ class ShotgridListener:
         for node in data["events"]["edges"]:
             summary = node["node"]["summary"]
             summary_data = json.loads(summary)
-            # TODO: remove hash in future since it is only used
-            #       as backward compatibility
+
             if summary_data.get("sg_event_id"):
                 return summary_data["sg_event_id"]
 
             # return it old way
-            # TODO: remove in future
-            return int(node["node"]["hash"])
+            # TODO: remove hash in future since it is only used
+            #       as backward compatibility
+            try:
+                return int(node["node"]["hash"])
+            except ValueError:
+                # if hash is not an integer this can happen if project sync
+                # is using old topic `shotgrid.event`
+                pass
+
         return None
 
     def _get_last_event_processed(self, sg_filters):
