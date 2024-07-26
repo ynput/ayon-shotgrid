@@ -204,19 +204,26 @@ class ShotgridProcessor:
                 # Get source event because it is having payload to process
                 source_event = ayon_api.get_event(event["dependsOn"])
                 payload = source_event["payload"]
+                summary = source_event["summary"]
+
+                if source_sg_event_id := summary.get("sg_event_id"):
+                    event_id_text = (
+                        f". Shotgrid Event ID: {source_sg_event_id}."
+                    )
+                else:
+                    event_id_text = "."
 
                 if not payload:
+                    # TODO: maybe remove this - unrealistic scenario
                     ayon_api.update_event(
                         event["id"],
                         description=(
-                            "Unable to process the event "
+                            f"Unable to process the event{event_id_text} > "
                             f"<{source_event['id']}> since it has no "
                             "Shotgrid Payload!"
                         ),
                         status="finished"
                     )
-                    ayon_api.update_event(
-                        source_event["id"], status="finished")
                     continue
 
                 for handler in self.handlers_map.get(payload["action"], []):
@@ -229,7 +236,7 @@ class ShotgridProcessor:
                                 "Processing event with Handler "
                                 f"{payload['action']}..."
                             ),
-                            status="finished"
+                            status="in_progress",
                         )
                         self.log.debug(
                             f"processing event {pformat(payload)}")
@@ -246,29 +253,23 @@ class ShotgridProcessor:
                         ayon_api.update_event(
                             event["id"],
                             status="failed",
-                            description="An error ocurred while processing",
+                            description=(
+                                "An error ocurred while processing"
+                                f"{event_id_text}"
+                            ),
                             payload={
                                 "message": traceback.format_exc(),
                             },
                         )
-                        ayon_api.update_event(
-                            source_event["id"],
-                            status="failed",
-                            description=(
-                                "The service `processor` was unable to "
-                                "process this event. Check the `shotgrid.proc`"
-                                f" <{event['id']}> event for more info."
-                            )
-                        )
 
                 self.log.info(
                     "Event has been processed... setting to finished!")
+
                 ayon_api.update_event(
                     event["id"],
-                    description="Event processed successfully.",
-                    status="finished"
+                    description=f"Event processed successfully{event_id_text}",
+                    status="finished",
                 )
-                ayon_api.update_event(source_event["id"], status="finished")
 
             except Exception:
                 self.log.error(traceback.format_exc())
