@@ -186,6 +186,16 @@ def copy_server_content(addon_output_dir, current_dir, log):
     for src_path, dst_path in filepaths_to_copy:
         safe_copy_file(src_path, dst_path)
 
+        if os.path.basename(dst_path) == "index.html":
+            old_index_contents = open(dst_path, "r").read()
+            with open(dst_path, "w") as target_file:
+                ts = int(os.path.getmtime(src_path))
+                new_index_contents = old_index_contents.replace(
+                    'src="shotgrid-addon.js"', 
+                    f'src="shotgrid-addon.js?ts={ts}"',
+                )
+                target_file.write(new_index_contents)
+
 
 def zip_client_side(addon_package_dir, current_dir, log):
     """Copy and zip `client` content into 'addon_package_dir'.
