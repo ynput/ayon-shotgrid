@@ -84,12 +84,7 @@ class ShotgridAddon(AYONAddon, ITrayAddon, IPluginPaths):
         from .lib import credentials
 
         if self._client_login_type == "env":
-            user_login = (
-                os.getenv("AYON_SG_USERNAME")
-                # TODO: Remove USER env variable in future once ayon-core deadline
-                # passing of AYON_SG_USERNAME is solved
-                or os.getenv("USER")
-            )
+            user_login = os.getenv("AYON_SG_USERNAME")
             sg_password = None
 
         else:
