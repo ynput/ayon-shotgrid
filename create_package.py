@@ -191,8 +191,11 @@ def copy_server_content(addon_output_dir, current_dir, log):
             with open(dst_path, "w") as target_file:
                 ts = int(os.path.getmtime(src_path))
                 new_index_contents = old_index_contents.replace(
-                    'src="shotgrid-addon.js"', 
+                    'src="shotgrid-addon.js"',
                     f'src="shotgrid-addon.js?ts={ts}"',
+                ).replace(
+                    'href="shotgrid-addon.css"',
+                    f'href="shotgrid-addon.css?ts={ts}"',
                 )
                 target_file.write(new_index_contents)
 
