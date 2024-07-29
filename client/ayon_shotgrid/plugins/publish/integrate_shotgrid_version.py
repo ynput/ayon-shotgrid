@@ -40,6 +40,10 @@ class IntegrateShotgridVersion(pyblish.api.InstancePlugin):
         if intent:
             data_to_update["sg_status_list"] = intent["value"]
 
+        # find thumbnail path
+        thumbnail_path = instance.data.get("thumbnailPath")
+
+        found_reviewable = False
         for representation in instance.data.get("representations", []):
             self.log.debug(pformat(representation))
 
@@ -51,6 +55,7 @@ class IntegrateShotgridVersion(pyblish.api.InstancePlugin):
             )
 
             if f".{representation['ext']}" in VIDEO_EXTENSIONS:
+                found_reviewable = True
                 data_to_update["sg_path_to_movie"] = local_path
                 if (
                     "slate" in instance.data["families"]
@@ -59,15 +64,28 @@ class IntegrateShotgridVersion(pyblish.api.InstancePlugin):
                     data_to_update["sg_movie_has_slate"] = True
 
             elif f".{representation['ext']}" in IMAGE_EXTENSIONS:
+                found_reviewable = True
                 # Replace the frame number with '%04d'
                 path_to_frame = re.sub(r"\.\d+\.", ".%04d.", local_path)
 
-                data_to_update["sg_path_to_frames"] = path_to_frame
+                data_to_update |= {
+                    "sg_path_to_movie": path_to_frame,
+                    "sg_path_to_frames": path_to_frame,
+                }
+
                 if "slate" in instance.data["families"]:
                     data_to_update["sg_frames_have_slate"] = True
 
+        if not found_reviewable and thumbnail_path is not None:
+            # create a thumbnail data to update
+            found_reviewable = True
+            data_to_update |= {
+                "sg_path_to_movie": thumbnail_path,
+                "sg_path_to_frames": thumbnail_path,
+            }
+
         # If there's no data to set/update, skip creation of SG version
-        if not data_to_update:
+        if not found_reviewable:
             self.log.info(
                 "No data to integrate to SG for product name "
                 f"'{instance.data['productName']}', skipping "
@@ -164,6 +182,7 @@ class IntegrateShotgridVersion(pyblish.api.InstancePlugin):
         sg_session.update("Version", sg_version["id"], data_to_update)
 
         instance.data["shotgridVersion"] = sg_version
+        self.log.debug(f"Shotgrid version: {sg_version}")
 
     def _find_existing_version(self, version_name, instance):
         """Find if a Version already exists in ShotGrid.
@@ -200,10 +219,21 @@ class IntegrateShotgridVersion(pyblish.api.InstancePlugin):
         Returns:
             dict: The newly created Shotgrid Version.
         """
+        filters = [['login', 'is', instance.context.data["shotgridUser"]]]
+        try:
+            user_id = instance.context.data["shotgridSession"].find(
+                'HumanUser', filters)[0]["id"]
+        except IndexError as e:
+            raise ValueError(
+                f"User {instance.context.data['shotgridUser']} not found in "
+                "Shotgrid."
+            ) from e
+
         version_data = {
             "project": instance.data.get("shotgridProject"),
             "entity": instance.data.get("shotgridEntity"),
             "code": version_name,
+            "user": {'type': 'HumanUser', 'id': user_id},
         }
 
         if instance.data.get("shotgridTask"):

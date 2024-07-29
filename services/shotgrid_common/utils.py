@@ -1,5 +1,9 @@
+import os
+import json
+import hashlib
+import logging
 import collections
-from typing import Dict, Optional
+from typing import Dict, Optional, Union
 
 from constants import (
     AYON_SHOTGRID_ATTRIBUTES_MAP,
@@ -11,12 +15,79 @@ from constants import (
     SHOTGRID_TYPE_ATTRIB,
 )
 
-from ayon_api.entity_hub import ProjectEntity
+from ayon_api.entity_hub import (
+    ProjectEntity,
+    TaskEntity,
+    FolderEntity,
+)
 from ayon_api.utils import slugify_string
 from ayon_api import get_attributes_for_type
 
-from nxtools import logging
 import shotgun_api3
+
+
+_loggers = {}
+
+
+def get_logger(name: str) -> logging.Logger:
+    """Return a logger instance with the given name."""
+    if name in _loggers:
+        return _loggers[name]
+
+    # get environment variable DEBUG level
+    log_level = os.environ.get("LOGLEVEL", "INFO").upper()
+
+    logger = logging.Logger(name)
+    _loggers[name] = logger
+    # create console handler and set level to debug
+    ch = logging.StreamHandler()
+    ch.setLevel(log_level)
+
+    formatting_str = (
+        "%(asctime)s.%(msecs)03d %(levelname)s: %(message)s"
+    )
+
+    if log_level == "DEBUG":
+        formatting_str = (
+            "%(asctime)s.%(msecs)03d | %(module)s | %(funcName)s | "
+            "%(levelname)s: %(message)s"
+        )
+
+    # create formatter
+    formatter = logging.Formatter(
+        fmt=formatting_str,
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+
+    # add formatter to ch
+    ch.setFormatter(formatter)
+
+    # add ch to logger
+    logger.addHandler(ch)
+
+    return logger
+
+
+# create logger
+log = get_logger(__name__)
+
+
+def get_event_hash(event_topic: str, event_id: int) -> str:
+    """Create a SHA-256 hash from the event topic and event ID.
+
+    Arguments:
+        event_topic (str): The event topic.
+        event_id (int): The event ID.
+
+    Returns:
+        str: The SHA-256 hash.
+    """
+    data = {
+        "event_topic": event_topic,
+        "event_id": event_id,
+    }
+    json_data = json.dumps(data)
+    return hashlib.sha256(json_data.encode("utf-8")).hexdigest()
 
 
 def _sg_to_ay_dict(
@@ -38,8 +109,6 @@ def _sg_to_ay_dict(
         custom_attribs_map (dict): Dictionary that maps names of attributes in
             AYON to ShotGrid equivalents.
     """
-    logging.debug(f"Transforming sg_entity '{sg_entity}' to ayon dict.")
-
     ay_entity_type = "folder"
     task_type = None
     folder_type = None
@@ -78,7 +147,15 @@ def _sg_to_ay_dict(
             SHOTGRID_TYPE_ATTRIB: sg_entity["type"],
         },
         "data": {
-            CUST_FIELD_CODE_SYNC: sg_entity.get(CUST_FIELD_CODE_SYNC),
+            # We store the ShotGrid ID and the Sync status in the data
+            # dictionary so we can easily access them when needed
+            # And avoid any conflicts with the Ayon attributes we only set
+            # sync status to "Failed" if the ID is not set
+            CUST_FIELD_CODE_SYNC: (
+                sg_entity.get(CUST_FIELD_CODE_SYNC)
+                if sg_entity.get(CUST_FIELD_CODE_ID)
+                else "Failed"
+            ),
             CUST_FIELD_CODE_ID: sg_entity.get(CUST_FIELD_CODE_ID),
         }
     }
@@ -96,8 +173,6 @@ def _sg_to_ay_dict(
         sg_ay_dict["task_type"] = task_type
     elif folder_type:
         sg_ay_dict["folder_type"] = folder_type
-
-    logging.debug(f"Transformed sg_entity as ayon dict: {sg_ay_dict}")
 
     return sg_ay_dict
 
@@ -224,7 +299,6 @@ def create_ay_fields_in_sg_project(
         for attr_name, attr_dict in get_attributes_for_type("folder").items()
     }
     for attribute, attribute_values in SG_PROJECT_ATTRS.items():
-        logging.debug(f"Creating ShotGrid field for {attribute}")
         sg_field_name = attribute_values["name"]
         sg_field_code = attribute_values["sg_field"]
         sg_field_type = attribute_values.get("type")
@@ -323,7 +397,40 @@ def create_sg_entities_in_ay(
     return sg_folder_entities, sg_steps
 
 
-def get_asset_category(entity_hub, parent_entity, asset_category_name):
+def create_asset_category(entity_hub, parent_entity, sg_ay_dict):
+    """Create an "AssetCategory" folder in AYON.
+
+    Args:
+        entity_hub (ayon_api.EntityHub): The project's entity hub.
+        parent_entity: AYON parent entity.
+        sg_ay_dict (dict): The ShotGrid entity ready for Ayon consumption.
+    """
+    asset_category = sg_ay_dict["data"]["sg_asset_type"]
+    # asset category entity name
+    cat_ent_name = slugify_string(asset_category).lower()
+
+    asset_category_entity = {
+        "label": asset_category,
+        "name": cat_ent_name,
+        "attribs": {
+            SHOTGRID_ID_ATTRIB: slugify_string(asset_category).lower(),
+            SHOTGRID_TYPE_ATTRIB: "AssetCategory",
+        },
+        "parent_id": parent_entity.id,
+        "data": {
+            CUST_FIELD_CODE_ID: None,
+            CUST_FIELD_CODE_SYNC: None,
+        },
+        "folder_type": "AssetCategory",
+    }
+
+    asset_category_entity = entity_hub.add_new_folder(**asset_category_entity)
+
+    log.info(f"Created AssetCategory: {asset_category_entity}")
+    return asset_category_entity
+
+
+def get_asset_category(entity_hub, parent_entity, sg_ay_dict):
     """Look for existing "AssetCategory" folders in AYON.
 
         Asset categories are not entities per se in ShotGrid, they are
@@ -334,29 +441,34 @@ def get_asset_category(entity_hub, parent_entity, asset_category_name):
     Args:
         entity_hub (ayon_api.EntityHub): The project's entity hub.
         parent_entity: Ayon parent entity.
-        asset_category_name (str): The Asset Category name.
+        sg_ay_dict (dict): The ShotGrid entity ready for Ayon consumption.
+
     """
-    logging.debug(
-        "It's an AssetCategory, checking if it exists already."
-    )
-    entity_hub.query_entities_from_server()
+    # just in case the asset type doesn't exist yet
+    if not sg_ay_dict["data"].get("sg_asset_type"):
+        sg_ay_dict["data"]["sg_asset_type"] = sg_ay_dict["name"]
+
+    asset_category_name = slugify_string(
+        sg_ay_dict["data"]["sg_asset_type"]).lower()
+
     asset_categories = [
         entity
-        for entity in entity_hub.entities
-        if entity.entity_type.lower() == "folder" and entity.folder_type == "AssetCategory"  # noqa
+        for entity in parent_entity.get_children()
+        if (
+            entity.entity_type == "folder"
+            and entity.folder_type == "AssetCategory"
+            and entity.name == asset_category_name
+        )
     ]
 
-    logging.debug(f"Found existing 'AssetCategory'(s)\n{asset_categories}")
-
     for asset_category in asset_categories:
-        if (
-            asset_category.name == asset_category_name
-            and asset_category.parent.id == parent_entity.id
-        ):
-            logging.debug(f"AssetCategory already exists: {asset_category}")
-            return asset_category
+        return asset_category
 
-    logging.debug(f"Unable to find AssetCategory. {asset_category_name}")
+    try:
+        return create_asset_category(entity_hub, parent_entity, sg_ay_dict)
+    except Exception:
+        log.error("Unable to create AssetCategory.", exc_info=True)
+
     return None
 
 
@@ -390,9 +502,6 @@ def get_or_create_sg_field(
         sg_session, sg_entity_type, field_code)
 
     if not attribute_exists:
-        logging.debug(
-            f"ShotGrid field {sg_entity_type} > {field_code} does not exist."
-        )
 
         try:
             attribute_exists = sg_session.schema_field_create(
@@ -401,15 +510,13 @@ def get_or_create_sg_field(
                 field_name,
                 properties=field_properties,
             )
-            logging.debug(
-                f"Created ShotGrid field {sg_entity_type} > {field_code}"
-            )
             return attribute_exists
-        except Exception as e:
-            logging.error(
-                f"Can't create ShotGrid field {sg_entity_type} > {field_code}."
+        except Exception:
+            log.error(
+                "Can't create ShotGrid field "
+                f"{sg_entity_type} > {field_code}.",
+                exc_info=True
             )
-            logging.error(e)
 
     return attribute_exists
 
@@ -508,13 +615,15 @@ def get_sg_entities(
         ),
     }
 
-    sg_ay_dicts_parents: Dict[str, list] = (
-        collections.defaultdict(list)
+    sg_ay_dicts_parents: Dict[str, set] = (
+        collections.defaultdict(set)
     )
 
     for enabled_entity in project_enabled_entities:
         entity_name, parent_field = enabled_entity
 
+        # Potential fix when shotgrid api returns the same entity more than
+        # once, we store the entities in a dictionary to avoid duplicates
         if entity_name in entities_to_ignore:
             continue
 
@@ -523,24 +632,26 @@ def get_sg_entities(
             filters=[["project", "is", sg_project]],
             fields=query_fields,
         )
-        if sg_entities:
-            for sg_entity in sg_entities:
-                parent_id = sg_project["id"]
 
-                if (
-                    parent_field != "project"
-                    and sg_entity[parent_field]
-                    and entity_name != "Asset"
-                ):
-                    parent_id = sg_entity[parent_field]["id"]
-                elif entity_name == "Asset" and sg_entity["sg_asset_type"]:
-                    # Asset Categories (sg_asset_type) are not entities
-                    # (or at least aren't queryable) in ShotGrid
-                    # thus here we create common folders.
-                    asset_category = sg_entity["sg_asset_type"]
-                    # asset category entity name
-                    cat_ent_name = slugify_string(asset_category).lower()
+        for sg_entity in sg_entities:
+            parent_id = sg_project["id"]
 
+            if (
+                parent_field != "project"
+                and sg_entity[parent_field]
+                and entity_name != "Asset"
+            ):
+                parent_id = sg_entity[parent_field]["id"]
+
+            elif entity_name == "Asset" and sg_entity["sg_asset_type"]:
+                # Asset Categories (sg_asset_type) are not entities
+                # (or at least aren't queryable) in ShotGrid
+                # thus here we create common folders.
+                asset_category = sg_entity["sg_asset_type"]
+                # asset category entity name
+                cat_ent_name = slugify_string(asset_category).lower()
+
+                if cat_ent_name not in sg_ay_dicts:
                     asset_category_entity = {
                         "label": asset_category,
                         "name": cat_ent_name,
@@ -556,21 +667,20 @@ def get_sg_entities(
                         "type": "folder",
                         "folder_type": "AssetCategory",
                     }
+                    sg_ay_dicts[cat_ent_name] = asset_category_entity
+                    sg_ay_dicts_parents[sg_project["id"]].add(cat_ent_name)
 
-                    if not sg_ay_dicts.get(cat_ent_name):
-                        sg_ay_dicts[cat_ent_name] = asset_category_entity
-                        sg_ay_dicts_parents[
-                          sg_project["id"]].append(asset_category_entity)
+                parent_id = cat_ent_name
 
-                    parent_id = cat_ent_name
+            sg_ay_dict = _sg_to_ay_dict(
+                sg_entity,
+                project_code_field,
+                custom_attribs_map,
+            )
 
-                sg_ay_dict = _sg_to_ay_dict(
-                    sg_entity,
-                    project_code_field,
-                    custom_attribs_map,
-                )
-                sg_ay_dicts[sg_ay_dict["attribs"][SHOTGRID_ID_ATTRIB]] = sg_ay_dict
-                sg_ay_dicts_parents[parent_id].append(sg_ay_dict)
+            sg_id = sg_ay_dict["attribs"][SHOTGRID_ID_ATTRIB]
+            sg_ay_dicts[sg_id] = sg_ay_dict
+            sg_ay_dicts_parents[parent_id].add(sg_id)
 
     return sg_ay_dicts, sg_ay_dicts_parents
 
@@ -580,7 +690,7 @@ def get_sg_entity_as_ay_dict(
     sg_type: str,
     sg_id: int,
     project_code_field: str,
-    custom_attribs_map: Optional[dict] = None,
+    custom_attribs_map: Optional[Dict[str, str]] = None,
     extra_fields: Optional[list] = None,
     retired_only: Optional[bool] = False,
 ) -> dict:
@@ -591,8 +701,8 @@ def get_sg_entity_as_ay_dict(
         sg_type (str): The ShotGrid entity type.
         sg_id (int): ShotGrid ID of the entity to query.
         project_code_field (str): The ShotGrid project code field.
-        custom_attribs_map (dict): Dictionary that maps names of attributes in
-            AYON to ShotGrid equivalents.
+        custom_attribs_map (Optional[dict]): Dictionary that maps names of
+            attributes in AYON to ShotGrid equivalents.
         extra_fields (Optional[list]): List of optional fields to query.
         retired_only (bool): Whether to return only retired entities.
     Returns:
@@ -783,7 +893,7 @@ def get_sg_project_enabled_entities(
     )
 
     if not sg_project:
-        logging.error(
+        log.error(
             f"Unable to find {sg_project} in the ShotGrid instance."
         )
         return []
@@ -824,7 +934,6 @@ def get_sg_project_enabled_entities(
             else:
                 project_entities.append((sg_entity_type, "project"))
 
-    logging.debug(f"Project {sg_project} enabled entities: {project_entities}")
     return project_entities
 
 
@@ -853,14 +962,12 @@ def get_sg_statuses(
             status_field = "sg_status_list"
         entity_status = sg_session.schema_field_read(sg_entity_type, status_field)
         sg_statuses = entity_status["sg_status_list"]["properties"]["display_values"]["value"]
-        logging.debug(f"ShotGrid Statuses supported by {sg_entity_type}: {sg_statuses}")
         return sg_statuses
 
     sg_statuses = {
         status["code"]: status["name"]
         for status in sg_session.find("Status", [], fields=["name", "code"])
     }
-    logging.debug(f"ShotGrid Statuses: {sg_statuses}")
     return sg_statuses
 
 
@@ -881,7 +988,6 @@ def get_sg_tags(
         tags["name"].lower(): tags["id"]
         for tags in sg_session.find("Tag", [], fields=["name", "id"])
     }
-    logging.debug(f"ShotGrid tags: {sg_tags}")
     return sg_tags
 
 
@@ -921,7 +1027,6 @@ def get_sg_pipeline_steps(
         sg_steps.append((step["code"], step["short_name"].lower()))
 
     sg_steps = list(set(sg_steps))
-    logging.debug(f"ShotGrid Pipeline Steps: {sg_steps}")
     return sg_steps
 
 
@@ -965,7 +1070,7 @@ def get_sg_custom_attributes_data(
 
 
 def update_ay_entity_custom_attributes(
-    ay_entity: dict,
+    ay_entity: Union[ProjectEntity, FolderEntity, TaskEntity],
     sg_ay_dict: dict,
     custom_attribs_map: dict,
     values_to_update: Optional[list] = None,
@@ -980,10 +1085,15 @@ def update_ay_entity_custom_attributes(
             continue
 
         if ay_attrib == "tags":
-            logging.warning("Tags update is not supported yet.")
+            log.warning("Tags update is not supported yet.")
             ay_entity.tags = [tag["name"] for tag in attrib_value]
         elif ay_attrib == "status":
-            logging.warning("Status update is not supported yet.")
-            ay_entity.status = attrib_value
+            # TODO: Implement status update
+            try:
+                # INFO: it was causing error so trying to set status directly
+                ay_entity.status = attrib_value
+            except ValueError as e:
+                # `ValueError: Status ip is not available on project.`
+                log.warning(f"Status sync not implemented: {e}")
         else:
             ay_entity.attribs.set(ay_attrib, attrib_value)

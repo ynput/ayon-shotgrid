@@ -3,14 +3,13 @@ Handle Events originated from Shotgrid.
 """
 from ayon_shotgrid_hub import AyonShotgridHub
 
-from nxtools import logging
 
 REGISTER_EVENT_TYPE = ["shotgrid-event"]
 
 
 def process_event(
     sg_processor,
-    **kwargs,
+    event,
 ):
     """React to Shotgrid Events.
 
@@ -18,21 +17,17 @@ def process_event(
     function, where we attempt to replicate a change coming form Shotgrid, like
     creating a new Shot, renaming a Task, etc.
     """
-    sg_payload = kwargs.get("sg_payload", {})
+    sg_payload = event.get("sg_payload", {})
     if not sg_payload:
-        logging.error("The Event payload is empty!")
         raise ValueError("The Event payload is empty!")
 
     if not sg_payload.get("meta", {}):
-        logging.error("The Event payload is missing the action to perform!")
         raise ValueError("The Event payload is missing the action to perform!")
 
     hub = AyonShotgridHub(
-        kwargs.get("project_name"),
-        kwargs.get("project_code"),
-        sg_processor.sg_url,
-        sg_processor.sg_api_key,
-        sg_processor.sg_script_name,
+        sg_processor.get_sg_connection(),
+        event.get("project_name"),
+        event.get("project_code"),
         sg_project_code_field=sg_processor.sg_project_code_field,
         custom_attribs_map=sg_processor.custom_attribs_map,
         custom_attribs_types=sg_processor.custom_attribs_types,
@@ -40,4 +35,3 @@ def process_event(
     )
 
     hub.react_to_shotgrid_event(sg_payload["meta"])
-

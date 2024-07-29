@@ -349,15 +349,15 @@ const getAyonProjects = async () => {
 
 
 const syncShotgridToAyon = async (projectName, projectCode) => {
-  /* Spawn an AYON Event of topic "shotgrid.event" to synchcronize a project
+  /* Spawn an AYON Event of topic "shotgrid.event.project.sync" to synchronize a project
   from Shotgrid into AYON. */
   call_result_paragraph = document.getElementById("call-result");
 
   dispatch_event = await ayonAPI
     .post("/api/events", {
-      "topic": "shotgrid.event",
+      "topic": "shotgrid.event.project.sync",
       "project": projectName,
-      "description": `Synchronize Project ${projectName} from Shotgrid.`,
+      "description": `Synchronize Project '${projectName}' from Shotgrid.`,
       "payload": {
         "action": "sync-from-shotgrid",
         "project_name": projectName,
@@ -375,18 +375,18 @@ const syncShotgridToAyon = async (projectName, projectCode) => {
     });
 
   if (dispatch_event) {
-    call_result_paragraph.innerHTML = `Succesfully Spawned Event! ${dispatch_event.data.id}`
+    call_result_paragraph.innerHTML = `Successfully Spawned Event! ${dispatch_event.data.id} Make sure there's a processor <a target="_parent" href="/services">Service running</a>`
   }
 }
 
 const syncAyonToShotgrid = async (projectName, projectCode) => {
-  /* Spawn an AYON Event of topic "shotgrid.event" to synchcronize a project
-  from AYON into Shotgrid. */
+  /* Spawn an AYON Event of topic "shotgrid.event.project.sync"
+  to synchronize a project from AYON into Shotgrid. */
   call_result_paragraph = document.getElementById("call-result");
 
   dispatch_event = await ayonAPI
     .post("/api/events", {
-      "topic": "shotgrid.event",
+      "topic": "shotgrid.event.project.sync",
       "project": projectName,
       "description": `Synchronize Project ${projectName} from AYON.`,
       "payload": {
@@ -406,7 +406,7 @@ const syncAyonToShotgrid = async (projectName, projectCode) => {
     });
 
   if (dispatch_event) {
-    call_result_paragraph.innerHTML = `Succesfully Spawned Event! ${dispatch_event.data.id} Make sure there's a processor <a target="_parent" href="/services">Service running</a>`
+    call_result_paragraph.innerHTML = `Successfully Spawned Event! ${dispatch_event.data.id} Make sure there's a processor <a target="_parent" href="/services">Service running</a>`
   }
 }
 

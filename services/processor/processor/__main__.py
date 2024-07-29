@@ -1,9 +1,5 @@
-import sys
-
-from .processor import ShotgridProcessor
+from .processor import service_main
 
 
 if __name__ == "__main__":
-    shotgrid_processor = ShotgridProcessor()
-    sys.exit(shotgrid_processor.start_processing())
-
+    service_main()

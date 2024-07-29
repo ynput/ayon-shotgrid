@@ -1,4 +1,5 @@
 import os
+import re
 
 from ayon_core.addon import (
     AYONAddon,
@@ -7,6 +8,8 @@ from ayon_core.addon import (
 )
 from ayon_core.lib import Logger
 
+from .version import __version__
+
 log = Logger.get_logger(__name__)
 
 SHOTGRID_ADDON_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -14,6 +17,7 @@ SHOTGRID_ADDON_DIR = os.path.dirname(os.path.abspath(__file__))
 
 class ShotgridAddon(AYONAddon, ITrayAddon, IPluginPaths):
     name = "shotgrid"
+    version = __version__
     tray_wrapper = None
 
     def initialize(self, studio_settings):
@@ -82,7 +86,7 @@ class ShotgridAddon(AYONAddon, ITrayAddon, IPluginPaths):
             "shotgrid_url": self._shotgrid_server_url,
         }
 
-        proxy = os.environ.get("HTTPS_PROXY", "").replace("https://", "")
+        proxy = re.sub(r"https?://", "", os.environ.get("HTTPS_PROXY", ""))
         if proxy:
             kwargs["proxy"] = proxy
 
