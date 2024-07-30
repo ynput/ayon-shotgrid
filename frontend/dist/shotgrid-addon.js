@@ -147,7 +147,7 @@ const getShotgridUsers = async () => {
   const sgBaseUrl = `${addonSettings.shotgrid_server.replace(/\/+$/, '')}/api/v1`
   sgAuthToken = await axios
     .post(`${sgBaseUrl}/auth/access_token`, {
-        client_id: addonSettings.shotgrid_script_name,
+        client_id: `${addonSettings.service_settings.script_name}`,
         client_secret: addonSettings.shotgrid_api_key,
         grant_type: "client_credentials",
     }, {
@@ -163,7 +163,7 @@ const getShotgridUsers = async () => {
     });
 
     sgUsers = await axios
-      .get(`${sgBaseUrl}/entity/human_users?fields=*`, {
+      .get(`${sgBaseUrl}/entity/human_users?filter[sg_status_list]=act&fields=login,name,email`, {
         headers: {
             'Authorization': `Bearer ${sgAuthToken}`,
             'Accept': 'application/json'
@@ -175,13 +175,12 @@ const getShotgridUsers = async () => {
         console.log(error)
       });
 
+    /* Do some extra clean up on the users returned. */
     var sgUsersConformed = []
-    
     users_to_ignore = ["dummy", "root", "support"]
     if (sgUsers) {
       sgUsers.forEach((sg_user) => {
         if (
-          sg_user.attributes.sg_status_list == "act" &&
           !users_to_ignore.some(item => sg_user.attributes.email.includes(item))
         ) {
           sgUsersConformed.push({
@@ -238,6 +237,8 @@ const getAyonUsers = async () => {
 
 
 const createNewUserInAyon = async (login, email, name) => {
+  /* Spawn an AYON Event of topic "shotgrid.event" to synchcronize a project
+  from Shotgrid into AYON. */
   call_result_paragraph = document.getElementById("call-result");
 
   response = await ayonAPI
@@ -254,7 +255,7 @@ const createNewUserInAyon = async (login, email, name) => {
       console.log("Unable to create user in AYON!")
       console.log(error)
       call_result_paragraph.innerHTML = `Unable to create user in AYON! ${error}`
-  });
+    });
 }
 
 
