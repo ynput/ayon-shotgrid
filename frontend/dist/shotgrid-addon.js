@@ -129,14 +129,19 @@ const syncUsers = async () => {
   sgUsers = await getShotgridUsers();
 
   sgUsers.forEach((sg_user) => {
+    // Make sure login string is normalized and avoid all special characters with underscore
+    let user_name = sg_user.login.replace(/[^a-zA-Z0-9\.]/g, ".")
+
     let already_exists = false
     ayonUsers.forEach((user) => {
-      if (sg_user.login == user.name) {
+      if (user_name == user.name) {
           already_exists = true
+        console.log(`User '${user_name}' already exists in AYON!`)
       }
     })
     if (!already_exists) {
-      createNewUserInAyon(sg_user.login, sg_user.email, sg_user.name)
+      createNewUserInAyon(
+        user_name, sg_user.login, sg_user.email, sg_user.name)
     }
   })
 }
@@ -236,19 +241,20 @@ const getAyonUsers = async () => {
 }
 
 
-const createNewUserInAyon = async (login, email, name) => {
+const createNewUserInAyon = async (user_name, login, email, name) => {
   /* Spawn an AYON Event of topic "shotgrid.event" to synchcronize a project
   from Shotgrid into AYON. */
   call_result_paragraph = document.getElementById("call-result");
 
   response = await ayonAPI
-    .put("/api/users/" + login, {
-      "active": true,
+    .put("/api/users/" + user_name, {
       "attrib": {
         "fullName": name,
         "email": email,
       },
-      "password": login,
+      "data": {
+        "sg_login": login,
+      },
     })
     .then((result) => result)
     .catch((error) => {
