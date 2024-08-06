@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "shotgrid-leecher"
-version = "0.4.3"
+version = "0.4.4"
 description = "Shotgrid Integration for Ayon"
 authors = ["Oscar Domingo <oscar.domingo@ynput.com>"]
 
