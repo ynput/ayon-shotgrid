@@ -10,14 +10,14 @@ class CollectShotgridSession(pyblish.api.ContextPlugin):
 
     order = pyblish.api.CollectorOrder
     label = "Collecting Shotgrid session"
+    client_login_type = "env"
 
     def process(self, context):
-        user_login = (
-            os.getenv("AYON_SG_USERNAME")
-            # TODO: Remove USER env variable in future once ayon-core deadline
-            # passing of AYON_SG_USERNAME is solved
-            or os.getenv("USER")
-        )
+        addons_manager = context.data["ayonAddonsManager"]
+        shotgrid_addon = addons_manager["shotgrid"]
+
+        user_login, _ = shotgrid_addon.get_credentials()
+
         self.log.info(f"User login: {user_login}")
         if not user_login:
             raise KnownPublishError(
