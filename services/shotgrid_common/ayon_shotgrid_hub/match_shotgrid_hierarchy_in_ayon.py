@@ -296,12 +296,21 @@ def _create_new_entity(
 
 
 def _add_tags(project_name, tags):
-    """Add tags to AYON project."""
+    """Add tags to AYON project.
+
+    Updates project Anatomy. No explicit way how to do it in ayon_api yet.
+
+    Args:
+        project_name (str)
+        tags (list of dict):
+            [{'id': 408, 'name': 'project_tag', 'type': 'Tag'}]
+    """
     anatomy_data = ayon_api.get(f"projects/{project_name}/anatomy").data
 
     existing_tags = {tag["name"] for tag in anatomy_data["tags"]}
     update = False
-    for tag_name in tags:
+    for tag in tags:
+        tag_name = tag["name"]
         if tag_name not in existing_tags:
             new_tag = {
                 "name": tag_name,
