@@ -28,12 +28,16 @@ import ayon_api
 import shotgun_api3
 
 # TODO: remove hash in future since it is only used as backward compatibility
+# filters on only real events, starting with `Leeched`, not on `Recreated`
+# which have lower SG ID as they were tried, failed and should be retried
+# TODO filtering by 'leeched' or 'Leeched" doesnt work, by 'eeched' yes, wtf
 LAST_EVENT_QUERY = """query LastShotgridEvent($eventTopic: String!) {
-  events(last: 20, topics: [$eventTopic]) {
+  events(last: 3, topics: [$eventTopic], filter: "eeched") {  
     edges {
       node {
         hash
         summary
+        description
       }
     }
   }
