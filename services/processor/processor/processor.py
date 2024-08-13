@@ -17,8 +17,9 @@ import traceback
 import ayon_api
 import shotgun_api3
 
-from utils import get_logger
+from utils import get_logger, get_event_hash
 
+from constants import MissingParentError
 
 class ShotgridProcessor:
     _sg: shotgun_api3.Shotgun = None
@@ -226,6 +227,7 @@ class ShotgridProcessor:
                     )
                     continue
 
+                failed = False
                 for handler in self.handlers_map.get(payload["action"], []):
                     # If theres any handler "subscribed" to this event type..
                     try:
@@ -244,8 +246,47 @@ class ShotgridProcessor:
                             self,
                             payload,
                         )
+                    except MissingParentError:
+                        failed = True
+                        ayon_api.update_event(
+                            event["id"],
+                            status="failed",
+                            description=(
+                                "An error ocurred while processing"
+                                f"{event_id_text}, will be retried"
+                            ),
+                            payload={
+                                "message": traceback.format_exc(),
+                            },
+                            retries=999
+                        )
+                        if not payload.get("already_retried"):
+                            self.log.error(
+                                f"Reprocess handler {handler.__name__}, "
+                                "will be retried in new order",
+                            )
+                            payload["already_retried"] = True
 
+                            # to limit primary key violation
+                            new_event_hash = get_event_hash(
+                                "shotgrid.event",
+                                f"{payload['sg_payload']['id']}_dummy"
+                            )
+                            desc = (source_event['description'].
+                                    replace("Leeched", "Recreated"))
+                            ayon_api.dispatch_event(
+                                "shotgrid.event",
+                                sender=socket.gethostname(),
+                                payload=payload,
+                                summary=summary,
+                                description=desc,
+                                event_hash=new_event_hash
+                            )
+                        else:
+                            self.log.warning("Source event already failed, "
+                                             "won't be retried again.")
                     except Exception:
+                        failed = True
                         self.log.error(
                             f"Unable to process handler {handler.__name__}",
                             exc_info=True
@@ -262,14 +303,15 @@ class ShotgridProcessor:
                             },
                         )
 
-                self.log.info(
-                    "Event has been processed... setting to finished!")
+                if not failed:
+                    self.log.info(
+                        "Event has been processed... setting to finished!")
 
-                ayon_api.update_event(
-                    event["id"],
-                    description=f"Event processed successfully{event_id_text}",
-                    status="finished",
-                )
+                    ayon_api.update_event(
+                        event["id"],
+                        description=f"Event processed successfully{event_id_text}",
+                        status="finished",
+                    )
 
             except Exception:
                 self.log.error(traceback.format_exc())

@@ -39,6 +39,7 @@ from constants import (
     SHOTGRID_TYPE_ATTRIB,  # Ayon Entity Attribute.
     SHOTGRID_REMOVED_VALUE,  # Value for removed entities.
     SG_RESTRICTED_ATTR_FIELDS,
+    MissingParentError
 )
 
 from utils import get_logger
@@ -172,8 +173,9 @@ def create_ay_entity_from_sg_event(
     if not ay_parent_entity:
         # This really should be an edge  ase, since any parent event would
         # happen before this... but hey
-        raise ValueError(
-            "Parent does not exist in Ayon, try doing a Project Sync.")
+        raise MissingParentError(
+            "Parent does not exist in Ayon, this event will be retried"
+            "after while. Hopefully parent will be already created.")
 
     if sg_ay_dict["type"].lower() == "task":
         ay_entity = ayon_entity_hub.add_new_task(
@@ -284,7 +286,7 @@ def update_ayon_entity_from_sg_event(
     )
 
     if not ay_entity:
-        raise ValueError("Unable to update a non existing entity.")
+        raise MissingParentError("Unable to update a non existing entity.")
 
     # make sure the entity is not immutable
     if (
