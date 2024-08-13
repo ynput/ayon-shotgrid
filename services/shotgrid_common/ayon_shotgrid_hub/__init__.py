@@ -306,6 +306,17 @@ class AyonShotgridHub:
                 f"Ignoring event, AYON project {self.project_name} not found.")
             return
 
+        # task revived only sends attribute_change event, before attribute
+        # change of parent assent AND finally entity_revival of Asset event
+        if (sg_event_meta["type"] == "attribute_change"
+            and sg_event_meta["attribute_name"] == "retirement_date"):
+            if sg_event_meta["entity_type"].lower() == "task":
+                self.log.info("changed to entity_revival")
+                sg_event_meta["type"] = "entity_revival"
+            else:
+                # do nothing for update retirement_date on non existing Asset
+                return
+
         match sg_event_meta["type"]:
             case "new_entity" | "entity_revival":
                 self.log.info(
