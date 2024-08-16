@@ -23,6 +23,7 @@ from constants import MissingParentError
 
 class ShotgridProcessor:
     _sg: shotgun_api3.Shotgun = None
+    _RETRIGGERED_TOPIC = "shotgrid.event.retriggered"
     log = get_logger(__file__)
 
     def __init__(self):
@@ -260,22 +261,21 @@ class ShotgridProcessor:
                             },
                             retries=999
                         )
-                        if not payload.get("already_retried"):
+                        if source_event["topic"] != self._RETRIGGERED_TOPIC:
                             self.log.error(
                                 f"Reprocess handler {handler.__name__}, "
                                 "will be retried in new order",
                             )
-                            payload["already_retried"] = True
 
                             # to limit primary key violation
                             new_event_hash = get_event_hash(
-                                "shotgrid.event",
+                                self._RETRIGGERED_TOPIC,
                                 f"{payload['sg_payload']['id']}_dummy"
                             )
                             desc = (source_event['description'].
                                     replace("Leeched", "Recreated"))
                             ayon_api.dispatch_event(
-                                "shotgrid.event",
+                                self._RETRIGGERED_TOPIC,
                                 sender=socket.gethostname(),
                                 payload=payload,
                                 summary=summary,
