@@ -310,12 +310,11 @@ class AyonShotgridHub:
         # change of parent assent AND finally entity_revival of Asset event
         if (sg_event_meta["type"] == "attribute_change"
             and sg_event_meta["attribute_name"] == "retirement_date"):
-            if sg_event_meta["entity_type"].lower() == "task":
-                self.log.info("changed to entity_revival")
-                sg_event_meta["type"] = "entity_revival"
-            else:
+            if sg_event_meta["entity_type"].lower() != "task":
                 # do nothing for update retirement_date on non existing Asset
                 return
+            self.log.info("changed to entity_revival")
+            sg_event_meta["type"] = "entity_revival"
 
         match sg_event_meta["type"]:
             case "new_entity" | "entity_revival":
