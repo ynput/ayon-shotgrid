@@ -1,15 +1,15 @@
 name = "shotgrid"
 title = "Shotgrid"
-version = "0.4.4"
+version = "0.4.4-bpc.1"
 client_dir = "ayon_shotgrid"
 
 services = {
     "ShotgridLeecher": {
-        "image": f"ynput/ayon-shotgrid-leecher:{version}"},
+        "image": "ynput/ayon-shotgrid-leecher:0.4.4"},
     "ShotgridProcessor": {
-        "image": f"ynput/ayon-shotgrid-processor:{version}"},
+        "image": "ynput/ayon-shotgrid-processor:0.4.4"},
     "ShotgridTransmitter": {
-        "image": f"ynput/ayon-shotgrid-transmitter:{version}"},
+        "image": "ynput/ayon-shotgrid-transmitter:0.4.4"},
 }
 ayon_required_addons = {
     "core": ">=0.3.0",
