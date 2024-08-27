@@ -241,13 +241,11 @@ def match_ayon_hierarchy_in_shotgrid(
         CUST_FIELD_CODE_ID: entity_hub.project_name,
         CUST_FIELD_CODE_SYNC: ay_project_sync_status
     }
-    data_to_update.update(
-        get_sg_custom_attributes_data(
-            sg_session,
-            entity_hub.project_entity.attribs.to_dict(),
-            "Project",
-            custom_attribs_map,
-        )
+    data_to_update |= get_sg_custom_attributes_data(
+        sg_session,
+        entity_hub.project_entity.attribs.to_dict(),
+        "Project",
+        custom_attribs_map,
     )
     sg_session.update(
         "Project",
@@ -388,13 +386,11 @@ def _create_new_entity(
             data[sg_parent_field] = sg_parent_entity
 
     # Fill up data with any extra attributes from Ayon we want to sync to SG
-    data.update(
-        get_sg_custom_attributes_data(
-            sg_session,
-            ay_entity.attribs.to_dict(),
-            sg_type,
-            custom_attribs_map
-        )
+    data |= get_sg_custom_attributes_data(
+        sg_session,
+        ay_entity.attribs.to_dict(),
+        sg_type,
+        custom_attribs_map
     )
 
     try:
