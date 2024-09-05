@@ -472,6 +472,80 @@ def get_asset_category(entity_hub, parent_entity, sg_ay_dict):
     return None
 
 
+def get_sequence_category(entity_hub, parent_entity, sg_ay_dict):
+    """Look for existing "Sequence" folders in AYON.
+
+        Asset categories are not entities per se in ShotGrid, they are
+        a "string" field in the `Asset` type, which is then used to visually
+        group `Asset`s; here we attempt to find any `AssetCategory` folder
+        type that already matches the one in ShotGrid.
+
+    Args:
+        entity_hub (ayon_api.EntityHub): The project's entity hub.
+        parent_entity: Ayon parent entity.
+        sg_ay_dict (dict): The ShotGrid entity ready for Ayon consumption.
+
+    """
+    # just in case the asset type doesn't exist yet
+    log.info(f'sg_ay_dict::{sg_ay_dict}')
+
+    sequence_category_name = slugify_string(sg_ay_dict["folder_type"]).lower()
+    log.info(f'sequence_category_name::{sequence_category_name}')
+    sequence_categories = [
+        entity
+        for entity in parent_entity.get_children()
+        if (
+            entity.entity_type == "folder"
+            and entity.folder_type == "Sequence"
+            and entity.name == sequence_category_name
+        )
+    ]
+    log.info(f'sequence_categories::{sequence_categories}')
+    for sequence_category in sequence_categories:
+        return sequence_category
+
+    try:
+        return create_sequence_category(entity_hub, parent_entity, sg_ay_dict)
+    except Exception:
+        log.error("Unable to create Sequence.", exc_info=True)
+
+    return None
+
+
+def create_sequence_category(entity_hub, parent_entity, sg_ay_dict):
+    """Create an "Sequences" folder in AYON.
+
+    Args:
+        entity_hub (ayon_api.EntityHub): The project's entity hub.
+        parent_entity: AYON parent entity.
+        sg_ay_dict (dict): The ShotGrid entity ready for Ayon consumption.
+    """
+    sequence_category = sg_ay_dict["folder_type"]
+    # asset category entity name
+    cat_ent_name = slugify_string(sequence_category).lower()
+
+    sequence_category_entity = {
+        "label": cat_ent_name,
+        "name": cat_ent_name,
+        "attribs": {
+            SHOTGRID_ID_ATTRIB: slugify_string(sequence_category).lower(),
+            SHOTGRID_TYPE_ATTRIB: "Sequence",
+        },
+        "parent_id": parent_entity.id,
+        "data": {
+            CUST_FIELD_CODE_ID: None,
+            CUST_FIELD_CODE_SYNC: None,
+        },
+        "folder_type": "Sequence",
+    }
+
+    sequence_category_entity = entity_hub.add_new_folder(**sequence_category_entity)
+
+    log.info(f"Created Sequence: {sequence_category_entity}")
+    return sequence_category_entity
+
+
+
 def get_or_create_sg_field(
     sg_session: shotgun_api3.Shotgun,
     sg_entity_type: str,
