@@ -22,6 +22,7 @@ from utils import (
     get_sg_entities,
     get_asset_category,
     get_sequence_category,
+    get_shot_category,
     update_ay_entity_custom_attributes,
 )
 
@@ -106,8 +107,6 @@ def match_shotgrid_hierarchy_in_ayon(
                     ay_entity = child
                     break
 
-        log.info(f"SHOTGRID_TYPE_ATTRIB::{sg_ay_dict['attribs'].get(SHOTGRID_TYPE_ATTRIB)}")
-        log.info(f"ay_entity::{ay_entity}")
         # If we couldn't find it we create it.
         if ay_entity is None:
             if sg_ay_dict["attribs"].get(SHOTGRID_TYPE_ATTRIB) == "AssetCategory":  # noqa
@@ -117,8 +116,17 @@ def match_shotgrid_hierarchy_in_ayon(
                     sg_ay_dict
                 )
 
-            if sg_ay_dict["attribs"].get(SHOTGRID_TYPE_ATTRIB) == "Sequence":  # noqa
+            if (sg_ay_dict["attribs"].get(SHOTGRID_TYPE_ATTRIB) == "Sequence"
+                    and not ay_parent_entity):
                 ay_parent_entity = get_sequence_category(
+                    entity_hub,
+                    ay_parent_entity,
+                    sg_ay_dict
+                )
+
+            if (sg_ay_dict["attribs"].get(SHOTGRID_TYPE_ATTRIB) == "Shot"
+                    and not ay_parent_entity):
+                ay_parent_entity = get_shot_category(
                     entity_hub,
                     ay_parent_entity,
                     sg_ay_dict

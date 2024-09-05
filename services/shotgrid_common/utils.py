@@ -545,6 +545,69 @@ def create_sequence_category(entity_hub, parent_entity, sg_ay_dict):
     return sequence_category_entity
 
 
+def get_shot_category(entity_hub, parent_entity, sg_ay_dict):
+    """Look for existing "shot" folders in AYON.
+
+    Args:
+        entity_hub (ayon_api.EntityHub): The project's entity hub.
+        parent_entity: Ayon parent entity.
+        sg_ay_dict (dict): The ShotGrid entity ready for Ayon consumption.
+
+    """
+    shot_category_name = slugify_string(sg_ay_dict["folder_type"]).lower()
+    shot_categories = [
+        entity
+        for entity in parent_entity.get_children()
+        if (
+            entity.entity_type == "folder"
+            and entity.folder_type == "Shot"
+            and entity.name == shot_category_name
+        )
+    ]
+
+    for shot_category in shot_categories:
+        return shot_category
+
+    try:
+        return create_shot_category(entity_hub, parent_entity, sg_ay_dict)
+    except Exception:
+        log.error("Unable to create Shot.", exc_info=True)
+
+    return None
+
+
+def create_shot_category(entity_hub, parent_entity, sg_ay_dict):
+    """Create "shot" subfolder in AYON.
+
+    Args:
+        entity_hub (ayon_api.EntityHub): The project's entity hub.
+        parent_entity: AYON parent entity.
+        sg_ay_dict (dict): The ShotGrid entity ready for Ayon consumption.
+    """
+    shot_category = sg_ay_dict["folder_type"]
+    # asset category entity name
+    cat_ent_name = slugify_string(shot_category).lower()
+
+    sequence_category_entity = {
+        "label": cat_ent_name,
+        "name": cat_ent_name,
+        "attribs": {
+            SHOTGRID_ID_ATTRIB: slugify_string(shot_category).lower(),
+            SHOTGRID_TYPE_ATTRIB: "Shot",
+        },
+        "parent_id": parent_entity.id,
+        "data": {
+            CUST_FIELD_CODE_ID: None,
+            CUST_FIELD_CODE_SYNC: None,
+        },
+        "folder_type": "Shot",
+    }
+
+    shot_category_entity = entity_hub.add_new_folder(**sequence_category_entity)
+
+    log.info(f"Created shot: {shot_category_entity}")
+    return shot_category_entity
+
 
 def get_or_create_sg_field(
     sg_session: shotgun_api3.Shotgun,
