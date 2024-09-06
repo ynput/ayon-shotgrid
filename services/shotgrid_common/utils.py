@@ -547,7 +547,7 @@ def _create_special_category(
         "label": category_name,
         "name": category_name,
         "attribs": {
-            SHOTGRID_ID_ATTRIB: category_name,
+            SHOTGRID_ID_ATTRIB: None,
             SHOTGRID_TYPE_ATTRIB: folder_type,
         },
         "parent_id": parent_entity.id,
