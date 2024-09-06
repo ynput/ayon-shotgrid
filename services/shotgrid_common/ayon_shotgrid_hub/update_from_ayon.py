@@ -422,13 +422,14 @@ def _create_sg_entity(
     else:
         data = {
             "project": sg_project,
-            parent_field: {
-                "type": sg_parent_type,
-                "id": int(sg_parent_id)
-            },
             sg_field_name: ay_entity.name,
             CUST_FIELD_CODE_ID: ay_entity.id,
         }
+        if isinstance(sg_parent_id, int):
+            data[parent_field] = {
+                "type": sg_parent_type,
+                "id": int(sg_parent_id)
+            }
 
     # Fill up data with any extra attributes from Ayon we want to sync to SG
     data.update(get_sg_custom_attributes_data(
