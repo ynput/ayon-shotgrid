@@ -29,6 +29,8 @@ from typing import Dict, List, Optional
 
 from utils import (
     get_asset_category,
+    get_shot_category,
+    get_sequence_category,
     get_sg_entity_as_ay_dict,
     get_sg_entity_parent_field,
     update_ay_entity_custom_attributes,
@@ -84,6 +86,9 @@ def create_ay_entity_from_sg_event(
         extra_fields.append("sg_asset_type")
         sg_parent_field = "sg_asset_type"
 
+    if sg_event["entity_type"] == "Shot":
+        sg_parent_field = "sg_sequence"
+
     sg_ay_dict = get_sg_entity_as_ay_dict(
         sg_session,
         sg_event["entity_type"],
@@ -131,14 +136,11 @@ def create_ay_entity_from_sg_event(
 
             return ay_entity
 
-    # INFO: Parent entity might not be added in SG so this needs to be handled
-    #       with optional way.
-    if sg_ay_dict["data"].get(sg_parent_field) is None:
-        # Parent is the project
-        log.debug(f"ShotGrid Parent is the Project: {sg_project}")
-        ay_parent_entity = ayon_entity_hub.project_entity
-    elif (
-        sg_ay_dict["attribs"][SHOTGRID_TYPE_ATTRIB] == "Asset"
+    shotgrid_type = sg_ay_dict["attribs"][SHOTGRID_TYPE_ATTRIB]
+    sg_parent = sg_ay_dict["data"].get(sg_parent_field)
+
+    if (
+        shotgrid_type == "Asset"
         and sg_ay_dict["data"].get("sg_asset_type")
     ):
         log.debug("ShotGrid Parent is an Asset category.")
@@ -148,12 +150,35 @@ def create_ay_entity_from_sg_event(
             sg_ay_dict,
         )
 
+    elif(shotgrid_type == "Sequence"):
+        log.info("ShotGrid Parent is an Sequence category.")
+        ay_parent_entity = get_sequence_category(
+            ayon_entity_hub,
+            ayon_entity_hub.project_entity,
+            sg_ay_dict,
+        )
+
+    elif(shotgrid_type == "Shot") and not sg_parent:
+        log.info("ShotGrid Parent is an Shot category.")
+        ay_parent_entity = get_shot_category(
+            ayon_entity_hub,
+            ayon_entity_hub.project_entity,
+            sg_ay_dict,
+        )
+
+    # INFO: Parent entity might not be added in SG so this needs to be handled
+    #       with optional way.
+    elif sg_parent is None:
+        # Parent is the project
+        log.debug(f"ShotGrid Parent is the Project: {sg_project}")
+        ay_parent_entity = ayon_entity_hub.project_entity
+
     else:
         # Find parent entity ID
         sg_parent_entity_dict = get_sg_entity_as_ay_dict(
             sg_session,
-            sg_ay_dict["data"][sg_parent_field]["type"],
-            sg_ay_dict["data"][sg_parent_field]["id"],
+            sg_parent["type"],
+            sg_parent["id"],
             project_code_field,
         )
 
