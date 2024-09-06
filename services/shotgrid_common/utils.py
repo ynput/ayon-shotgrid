@@ -445,7 +445,13 @@ def get_sequence_category(entity_hub, parent_entity, sg_ay_dict):
         sg_ay_dict (dict): The ShotGrid entity ready for Ayon consumption.
 
     """
-    return _get_special_category(entity_hub, parent_entity, sg_ay_dict)
+    return _get_special_category(
+        entity_hub,
+        parent_entity,
+        sg_ay_dict,
+        category_name="sequence",
+        folder_type="SequenceCategory"
+    )
 
 
 def get_shot_category(entity_hub, parent_entity, sg_ay_dict):
@@ -457,7 +463,13 @@ def get_shot_category(entity_hub, parent_entity, sg_ay_dict):
         sg_ay_dict (dict): The ShotGrid entity ready for Ayon consumption.
 
     """
-    return _get_special_category(entity_hub, parent_entity, sg_ay_dict)
+    return _get_special_category(
+        entity_hub,
+        parent_entity,
+        sg_ay_dict,
+        category_name="shot",
+        folder_type="ShotCategory"
+    )
 
 
 def _get_special_category(
