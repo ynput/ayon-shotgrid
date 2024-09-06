@@ -109,23 +109,24 @@ def match_shotgrid_hierarchy_in_ayon(
 
         # If we couldn't find it we create it.
         if ay_entity is None:
-            if sg_ay_dict["attribs"].get(SHOTGRID_TYPE_ATTRIB) == "AssetCategory":  # noqa
+            parent_is_project = isinstance(ay_parent_entity, ProjectEntity)
+
+            shotgrid_type = sg_ay_dict["attribs"].get(SHOTGRID_TYPE_ATTRIB)
+            if shotgrid_type == "AssetCategory":
                 ay_entity = get_asset_category(
                     entity_hub,
                     ay_parent_entity,
                     sg_ay_dict
                 )
 
-            if (sg_ay_dict["attribs"].get(SHOTGRID_TYPE_ATTRIB) == "Sequence"
-                    and not ay_parent_entity):
+            if shotgrid_type == "Sequence" and parent_is_project:
                 ay_parent_entity = get_sequence_category(
                     entity_hub,
                     ay_parent_entity,
                     sg_ay_dict
                 )
 
-            if (sg_ay_dict["attribs"].get(SHOTGRID_TYPE_ATTRIB) == "Shot"
-                    and not ay_parent_entity):
+            if shotgrid_type == "Shot" and parent_is_project:
                 ay_parent_entity = get_shot_category(
                     entity_hub,
                     ay_parent_entity,

@@ -397,39 +397,6 @@ def create_sg_entities_in_ay(
     return sg_folder_entities, sg_steps
 
 
-def create_asset_category(entity_hub, parent_entity, sg_ay_dict):
-    """Create an "AssetCategory" folder in AYON.
-
-    Args:
-        entity_hub (ayon_api.EntityHub): The project's entity hub.
-        parent_entity: AYON parent entity.
-        sg_ay_dict (dict): The ShotGrid entity ready for Ayon consumption.
-    """
-    asset_category = sg_ay_dict["data"]["sg_asset_type"]
-    # asset category entity name
-    cat_ent_name = slugify_string(asset_category).lower()
-
-    asset_category_entity = {
-        "label": asset_category,
-        "name": cat_ent_name,
-        "attribs": {
-            SHOTGRID_ID_ATTRIB: slugify_string(asset_category).lower(),
-            SHOTGRID_TYPE_ATTRIB: "AssetCategory",
-        },
-        "parent_id": parent_entity.id,
-        "data": {
-            CUST_FIELD_CODE_ID: None,
-            CUST_FIELD_CODE_SYNC: None,
-        },
-        "folder_type": "AssetCategory",
-    }
-
-    asset_category_entity = entity_hub.add_new_folder(**asset_category_entity)
-
-    log.info(f"Created AssetCategory: {asset_category_entity}")
-    return asset_category_entity
-
-
 def get_asset_category(entity_hub, parent_entity, sg_ay_dict):
     """Look for existing "AssetCategory" folders in AYON.
 
@@ -451,25 +418,13 @@ def get_asset_category(entity_hub, parent_entity, sg_ay_dict):
     asset_category_name = slugify_string(
         sg_ay_dict["data"]["sg_asset_type"]).lower()
 
-    asset_categories = [
-        entity
-        for entity in parent_entity.get_children()
-        if (
-            entity.entity_type == "folder"
-            and entity.folder_type == "AssetCategory"
-            and entity.name == asset_category_name
-        )
-    ]
-
-    for asset_category in asset_categories:
-        return asset_category
-
-    try:
-        return create_asset_category(entity_hub, parent_entity, sg_ay_dict)
-    except Exception:
-        log.error("Unable to create AssetCategory.", exc_info=True)
-
-    return None
+    return _get_special_category(
+        entity_hub,
+        parent_entity,
+        sg_ay_dict,
+        asset_category_name,
+        "AssetCategory"
+    )
 
 
 def get_sequence_category(entity_hub, parent_entity, sg_ay_dict):
@@ -486,67 +441,11 @@ def get_sequence_category(entity_hub, parent_entity, sg_ay_dict):
         sg_ay_dict (dict): The ShotGrid entity ready for Ayon consumption.
 
     """
-    # just in case the asset type doesn't exist yet
-    log.info(f'sg_ay_dict::{sg_ay_dict}')
-
-    sequence_category_name = slugify_string(sg_ay_dict["folder_type"]).lower()
-    log.info(f'sequence_category_name::{sequence_category_name}')
-    sequence_categories = [
-        entity
-        for entity in parent_entity.get_children()
-        if (
-            entity.entity_type == "folder"
-            and entity.folder_type == "Sequence"
-            and entity.name == sequence_category_name
-        )
-    ]
-    log.info(f'sequence_categories::{sequence_categories}')
-    for sequence_category in sequence_categories:
-        return sequence_category
-
-    try:
-        return create_sequence_category(entity_hub, parent_entity, sg_ay_dict)
-    except Exception:
-        log.error("Unable to create Sequence.", exc_info=True)
-
-    return None
-
-
-def create_sequence_category(entity_hub, parent_entity, sg_ay_dict):
-    """Create an "Sequences" folder in AYON.
-
-    Args:
-        entity_hub (ayon_api.EntityHub): The project's entity hub.
-        parent_entity: AYON parent entity.
-        sg_ay_dict (dict): The ShotGrid entity ready for Ayon consumption.
-    """
-    sequence_category = sg_ay_dict["folder_type"]
-    # asset category entity name
-    cat_ent_name = slugify_string(sequence_category).lower()
-
-    sequence_category_entity = {
-        "label": cat_ent_name,
-        "name": cat_ent_name,
-        "attribs": {
-            SHOTGRID_ID_ATTRIB: slugify_string(sequence_category).lower(),
-            SHOTGRID_TYPE_ATTRIB: "Sequence",
-        },
-        "parent_id": parent_entity.id,
-        "data": {
-            CUST_FIELD_CODE_ID: None,
-            CUST_FIELD_CODE_SYNC: None,
-        },
-        "folder_type": "Sequence",
-    }
-
-    sequence_category_entity = entity_hub.add_new_folder(**sequence_category_entity)
-
-    log.info(f"Created Sequence: {sequence_category_entity}")
-    return sequence_category_entity
+    return _get_special_category(entity_hub, parent_entity, sg_ay_dict)
 
 
 def get_shot_category(entity_hub, parent_entity, sg_ay_dict):
-    """Look for existing "shot" folders in AYON.
+    """Look for existing "shot" folders in AYON under "parent_entity".
 
     Args:
         entity_hub (ayon_api.EntityHub): The project's entity hub.
@@ -554,59 +453,99 @@ def get_shot_category(entity_hub, parent_entity, sg_ay_dict):
         sg_ay_dict (dict): The ShotGrid entity ready for Ayon consumption.
 
     """
-    shot_category_name = slugify_string(sg_ay_dict["folder_type"]).lower()
-    shot_categories = [
-        entity
-        for entity in parent_entity.get_children()
-        if (
-            entity.entity_type == "folder"
-            and entity.folder_type == "Shot"
-            and entity.name == shot_category_name
-        )
-    ]
-
-    for shot_category in shot_categories:
-        return shot_category
-
-    try:
-        return create_shot_category(entity_hub, parent_entity, sg_ay_dict)
-    except Exception:
-        log.error("Unable to create Shot.", exc_info=True)
-
-    return None
+    return _get_special_category(entity_hub, parent_entity, sg_ay_dict)
 
 
-def create_shot_category(entity_hub, parent_entity, sg_ay_dict):
-    """Create "shot" subfolder in AYON.
+def _get_special_category(
+        entity_hub,
+        parent_entity,
+        sg_ay_dict,
+        category_name=None,
+        folder_type=None
+):
+    """Returns or creates special subfolders (shot|sequence|AssetCategory).
 
     Args:
         entity_hub (ayon_api.EntityHub): The project's entity hub.
         parent_entity: AYON parent entity.
         sg_ay_dict (dict): The ShotGrid entity ready for Ayon consumption.
+        category_name (Optional[str]): force this category name
+        folder_type (Optional[str]): force this folder type
+    Returns:
+        (FolderEntity)
     """
-    shot_category = sg_ay_dict["folder_type"]
-    # asset category entity name
-    cat_ent_name = slugify_string(shot_category).lower()
+    if not folder_type:
+        folder_type = slugify_string(sg_ay_dict["folder_type"])
+    if not category_name:
+        category_name = folder_type.lower()
+    categories = [
+        entity
+        for entity in parent_entity.get_children()
+        if (
+            entity.entity_type == "folder"
+            and entity.folder_type == folder_type
+            and entity.name == category_name
+        )
+    ]
+    for category in categories:
+        return category
 
-    sequence_category_entity = {
-        "label": cat_ent_name,
-        "name": cat_ent_name,
+    try:
+        return _create_special_category(
+            entity_hub,
+            parent_entity,
+            sg_ay_dict,
+            category_name,
+            folder_type
+        )
+    except Exception:
+        log.error(f"Unable to create {folder_type}.", exc_info=True)
+
+    return None
+
+
+def _create_special_category(
+    entity_hub,
+    parent_entity,
+    sg_ay_dict,
+    category_name=None,
+    folder_type=None
+):
+    """Creates special subfolders (shot|sequence|AssetCategory) in AYON
+
+    Args:
+        entity_hub (ayon_api.EntityHub): The project's entity hub.
+        parent_entity: AYON parent entity.
+        sg_ay_dict (dict): The ShotGrid entity ready for Ayon consumption.
+        category_name (Optional[str]): force this category name
+        folder_type (Optional[str]): force this folder type
+    Returns:
+        (FolderEntity)
+    """
+    if not folder_type:
+        folder_type = slugify_string(sg_ay_dict["folder_type"])
+    if not category_name:
+        category_name = folder_type.lower()
+
+    category_entity = {
+        "label": category_name,
+        "name": category_name,
         "attribs": {
-            SHOTGRID_ID_ATTRIB: slugify_string(shot_category).lower(),
-            SHOTGRID_TYPE_ATTRIB: "Shot",
+            SHOTGRID_ID_ATTRIB: category_name,
+            SHOTGRID_TYPE_ATTRIB: folder_type,
         },
         "parent_id": parent_entity.id,
         "data": {
             CUST_FIELD_CODE_ID: None,
             CUST_FIELD_CODE_SYNC: None,
         },
-        "folder_type": "Shot",
+        "folder_type": folder_type,
     }
 
-    shot_category_entity = entity_hub.add_new_folder(**sequence_category_entity)
+    category_entity = entity_hub.add_new_folder(**category_entity)
 
-    log.info(f"Created shot: {shot_category_entity}")
-    return shot_category_entity
+    log.info(f"Created {folder_type}: {category_entity}")
+    return category_entity
 
 
 def get_or_create_sg_field(
