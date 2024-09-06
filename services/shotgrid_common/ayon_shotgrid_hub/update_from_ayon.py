@@ -271,6 +271,12 @@ def remove_sg_entity_from_ayon_event(
         )
         return
 
+    if not isinstance(sg_id, int):
+        log.warning(
+            f"Entity '{ay_entity_path}' is not Shotgrid real entity, skipping."
+        )
+        return
+
     sg_type = ayon_event["payload"]["entityData"]["attrib"]["shotgridType"]
 
     if not sg_type:
