@@ -124,6 +124,11 @@ def match_ayon_hierarchy_in_shotgrid(
             continue
         elif sg_entity_id:
             # convert sg_entity_id to int if exists
+            if not isinstance(sg_entity_id, int):
+                log.warning(
+                    f"Entity '{ay_entity.name}' not real Shotgrid entity, skipping..."  # noqa
+                )
+                continue
             sg_entity_id = int(sg_entity_id)
 
         if sg_entity_type == "AssetCategory":
