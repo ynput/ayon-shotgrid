@@ -56,7 +56,8 @@ def create_ay_entity_from_sg_event(
     ayon_entity_hub: ayon_api.entity_hub.EntityHub,
     sg_enabled_entities: List[str],
     project_code_field: str,
-    custom_attribs_map: Optional[Dict[str, str]] = None
+    custom_attribs_map: Optional[Dict[str, str]] = None,
+    addon_settings: Optional[Dict[str, str]] = None
 ):
     """Create an AYON entity from a ShotGrid Event.
 
@@ -69,6 +70,7 @@ def create_ay_entity_from_sg_event(
         project_code_field (str): The Shotgrid project code field.
         custom_attribs_map (Optional[dict]): A dictionary that maps ShotGrid
             attributes to Ayon attributes.
+        addon_settings (Optional[dict]): A dictionary of Settings
 
     Returns:
         ay_entity (ayon_api.entity_hub.EntityHub.Entity): The newly
@@ -148,6 +150,7 @@ def create_ay_entity_from_sg_event(
             ayon_entity_hub,
             ayon_entity_hub.project_entity,
             sg_ay_dict,
+            addon_settings
         )
 
     elif(shotgrid_type == "Sequence"):
@@ -156,6 +159,7 @@ def create_ay_entity_from_sg_event(
             ayon_entity_hub,
             ayon_entity_hub.project_entity,
             sg_ay_dict,
+            addon_settings
         )
 
     elif(shotgrid_type == "Shot") and not sg_parent:
@@ -164,6 +168,7 @@ def create_ay_entity_from_sg_event(
             ayon_entity_hub,
             ayon_entity_hub.project_entity,
             sg_ay_dict,
+            addon_settings
         )
 
     # INFO: Parent entity might not be added in SG so this needs to be handled

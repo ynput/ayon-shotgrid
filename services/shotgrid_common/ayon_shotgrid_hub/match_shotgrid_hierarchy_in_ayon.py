@@ -38,7 +38,8 @@ def match_shotgrid_hierarchy_in_ayon(
     sg_session: shotgun_api3.Shotgun,
     sg_enabled_entities: List[str],
     project_code_field: str,
-    custom_attribs_map: Dict[str, str]
+    custom_attribs_map: Dict[str, str],
+    addon_settings: Dict[str, str]
 ):
     """Replicate a Shotgrid project into AYON.
 
@@ -116,21 +117,24 @@ def match_shotgrid_hierarchy_in_ayon(
                 ay_entity = get_asset_category(
                     entity_hub,
                     ay_parent_entity,
-                    sg_ay_dict
+                    sg_ay_dict,
+                    addon_settings
                 )
 
             if shotgrid_type == "Sequence" and parent_is_project:
                 ay_parent_entity = get_sequence_category(
                     entity_hub,
                     ay_parent_entity,
-                    sg_ay_dict
+                    sg_ay_dict,
+                    addon_settings
                 )
 
             if shotgrid_type == "Shot" and parent_is_project:
                 ay_parent_entity = get_shot_category(
                     entity_hub,
                     ay_parent_entity,
-                    sg_ay_dict
+                    sg_ay_dict,
+                    addon_settings
                 )
 
             if not ay_entity:
