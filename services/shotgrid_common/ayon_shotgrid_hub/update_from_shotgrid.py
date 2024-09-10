@@ -175,7 +175,7 @@ def create_ay_entity_from_sg_event(
         # happen before this... but hey
         raise MissingParentError(
             "Parent does not exist in Ayon, this event will be retried"
-            "after while. Hopefully parent will be already created.")
+            " after a while. Hopefully parent will be already created.")
 
     if sg_ay_dict["type"].lower() == "task":
         ay_entity = ayon_entity_hub.add_new_task(
