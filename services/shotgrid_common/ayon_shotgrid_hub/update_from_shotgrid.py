@@ -286,7 +286,7 @@ def update_ayon_entity_from_sg_event(
     )
 
     if not ay_entity:
-        raise MissingParentError("Unable to update a non existing entity.")
+        raise MissingParentError("Unable to update a non existing AYON entity.")
 
     # make sure the entity is not immutable
     if (
