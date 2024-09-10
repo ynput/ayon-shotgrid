@@ -307,7 +307,7 @@ class AyonShotgridHub:
             return
 
         # task revived only sends attribute_change event, before attribute
-        # change of parent assent AND finally entity_revival of Asset event
+        # change of parent asset AND finally entity_revival of Asset event
         if (sg_event_meta["type"] == "attribute_change"
             and sg_event_meta["attribute_name"] == "retirement_date"):
             if sg_event_meta["entity_type"].lower() != "task":
