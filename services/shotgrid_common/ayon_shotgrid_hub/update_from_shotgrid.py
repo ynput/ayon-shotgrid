@@ -179,6 +179,10 @@ def create_ay_entity_from_sg_event(
             " after a while. Hopefully parent will be already created.")
 
     if sg_ay_dict["type"].lower() == "task":
+        if ay_parent_entity.entity_type == "project":
+            log.warning("Cannot create task directly under project")
+            return
+
         ay_entity = ayon_entity_hub.add_new_task(
             sg_ay_dict["task_type"],
             name=sg_ay_dict["name"],
