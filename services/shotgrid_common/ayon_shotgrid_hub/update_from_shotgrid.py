@@ -101,10 +101,11 @@ def create_ay_entity_from_sg_event(
         )
         return
 
-    if sg_ay_dict["data"].get(CUST_FIELD_CODE_ID):
+    ayon_id_stored_in_sg = sg_ay_dict["data"].get(CUST_FIELD_CODE_ID)
+    if ayon_id_stored_in_sg:
         # Revived entity, check if it's still in the Server
         ay_entity = ayon_entity_hub.get_or_query_entity_by_id(
-            sg_ay_dict["data"].get(CUST_FIELD_CODE_ID),
+            ayon_id_stored_in_sg,
             [sg_ay_dict["type"]]
         )
 
