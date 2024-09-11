@@ -29,7 +29,7 @@ import shotgun_api3
 
 # TODO: remove hash in future since it is only used as backward compatibility
 LAST_EVENT_QUERY = """query LastShotgridEvent($eventTopic: String!) {
-  events(last: 20, topics: [$eventTopic]) {  
+  events(last: 20, topics: [$eventTopic]) {
     edges {
       node {
         hash
