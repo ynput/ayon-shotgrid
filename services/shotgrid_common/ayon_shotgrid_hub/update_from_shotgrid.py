@@ -96,7 +96,7 @@ def create_ay_entity_from_sg_event(
     log.debug(f"ShotGrid Entity as AYON dict: {sg_ay_dict}")
     if not sg_ay_dict:
         log.warning(
-            "Entity {sg_event['entity_type']} <{sg_event['entity_id']}> "
+            f"Entity {sg_event['entity_type']} <{sg_event['entity_id']}> "
             "no longer exists in ShotGrid, aborting..."
         )
         return
