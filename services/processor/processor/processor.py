@@ -295,7 +295,7 @@ class ShotgridProcessor:
                             event["id"],
                             status="failed",
                             description=(
-                                "An error ocurred while processing"
+                                "An error occurred while processing"
                                 f"{event_id_text}"
                             ),
                             payload={
