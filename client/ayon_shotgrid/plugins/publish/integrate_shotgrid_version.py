@@ -57,6 +57,14 @@ class IntegrateShotgridVersion(pyblish.api.InstancePlugin):
             if f".{representation['ext']}" in VIDEO_EXTENSIONS:
                 found_reviewable = True
                 data_to_update["sg_path_to_movie"] = local_path
+                for representationSecondary in instance.data.get("representations", []):
+                    if f".{representationSecondary['ext']}" in IMAGE_EXTENSIONS and "thumbnail" not in f".{representationSecondary['name']}":
+                        frames_path = get_publish_repre_path(
+                            instance, representationSecondary, False
+                        )
+                        path_to_frames = re.sub(r"\.\d+\.", ".####.", frames_path)
+                        data_to_update["sg_path_to_frames"] = path_to_frames
+                        self.log.debug(f"setting path_to_frames to {path_to_frames}")
                 if (
                     "slate" in instance.data["families"]
                     and "slate-frame" in representation["tags"]
@@ -72,6 +80,15 @@ class IntegrateShotgridVersion(pyblish.api.InstancePlugin):
                     "sg_path_to_movie": path_to_frame,
                     "sg_path_to_frames": path_to_frame,
                 })
+                for representationSecondary in instance.data.get("representations", []):
+                    if f".{representationSecondary['ext']}" in IMAGE_EXTENSIONS:
+                        if "thumb" not in f".{representationSecondary['name']}" and "review" not in f".{representationSecondary['name']}":
+                            frames_path = get_publish_repre_path(
+                                instance, representationSecondary, False
+                            )
+                            path_to_frames = re.sub(r"\.\d+\.", ".%04d.", frames_path)
+                            data_to_update["sg_path_to_frames"] = path_to_frames
+                            self.log.debug(f"setting path_to_frames to {path_to_frames}")
 
                 if "slate" in instance.data["families"]:
                     data_to_update["sg_frames_have_slate"] = True
