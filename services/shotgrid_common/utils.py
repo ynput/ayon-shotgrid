@@ -116,19 +116,23 @@ def _sg_to_ay_dict(
     if sg_entity["type"] == "Task":
         ay_entity_type = "task"
         if not sg_entity["step"]:
-            raise ValueError(
+            log.warning(
                 f"Task {sg_entity} has no Pipeline Step assigned."
             )
+            task_type = None
+        else:
+            task_type = sg_entity["step"]["name"]
 
         label = sg_entity["content"]
-        task_type = sg_entity["step"]["name"]
 
         if not label and not task_type:
             raise ValueError(f"Unable to parse Task {sg_entity}")
+
         if label:
             name = slugify_string(label)
-        else:
+        elif task_type:
             name = slugify_string(task_type)
+
 
     elif sg_entity["type"] == "Project":
         name = slugify_string(sg_entity[project_code_field])
