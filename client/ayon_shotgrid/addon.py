@@ -1,4 +1,5 @@
 import os
+import re
 
 from ayon_core.addon import (
     AYONAddon,
@@ -85,7 +86,7 @@ class ShotgridAddon(AYONAddon, ITrayAddon, IPluginPaths):
             "shotgrid_url": self._shotgrid_server_url,
         }
 
-        proxy = os.environ.get("HTTPS_PROXY", "").replace("https://", "")
+        proxy = re.sub(r"https?://", "", os.environ.get("HTTPS_PROXY", ""))
         if proxy:
             kwargs["proxy"] = proxy
 

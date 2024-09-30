@@ -6,6 +6,7 @@ Shotgrid and converts them to Ayon events, and can be configured from the Ayon
 Addon settings page.
 """
 import sys
+import json
 import time
 import signal
 import socket
@@ -13,7 +14,10 @@ import traceback
 from typing import Any
 from pprint import pformat
 
-from utils import get_logger
+from utils import (
+    get_logger,
+    get_event_hash,
+)
 
 from constants import (
     SG_EVENT_TYPES,
@@ -22,6 +26,19 @@ from constants import (
 
 import ayon_api
 import shotgun_api3
+
+# TODO: remove hash in future since it is only used as backward compatibility
+LAST_EVENT_QUERY = """query LastShotgridEvent($eventTopic: String!) {
+  events(last: 20, topics: [$eventTopic]) {
+    edges {
+      node {
+        hash
+        summary
+      }
+    }
+  }
+}
+"""
 
 
 class ShotgridListener:
@@ -150,6 +167,46 @@ class ShotgridListener:
             )
         return sg_event_types
 
+    def _find_last_event_id(self):
+        """Find the last event ID processed by AYON.
+
+        Info:
+            This function queries the AYON GraphQL API to get the last event
+            processed by AYON. If none is found we return None. Originally we
+            had iterated all the events in the database to find the last one
+            but this was not efficient in cases where huge amounts of events
+            were present in the database.
+
+        Returns:
+            last_event_id (int): The last known Event id.
+        """
+        response = ayon_api.query_graphql(
+            LAST_EVENT_QUERY,
+            {"eventTopic": "shotgrid.event"},
+        )
+        if response.errors:
+            self.log.error(str(response.errors))
+            return None
+        data = response.data["data"]
+        for node in data["events"]["edges"]:
+            summary = node["node"]["summary"]
+            summary_data = json.loads(summary)
+
+            if summary_data.get("sg_event_id"):
+                return summary_data["sg_event_id"]
+
+            # return it old way
+            # TODO: remove hash in future since it is only used
+            #       as backward compatibility
+            try:
+                return int(node["node"]["hash"])
+            except ValueError:
+                # if hash is not an integer this can happen if project sync
+                # is using old topic `shotgrid.event`
+                pass
+
+        return None
+
     def _get_last_event_processed(self, sg_filters):
         """Find the Event ID for the last SG processed event.
 
@@ -159,13 +216,7 @@ class ShotgridListener:
         Returns:
             last_event_id (int): The last known Event id.
         """
-        last_event_id = None
-
-        for last_event_id in ayon_api.get_events(
-            topics=["shotgrid.leech"], fields=["hash"]
-        ):
-            last_event_id = int(last_event_id["hash"])
-
+        last_event_id = self._find_last_event_id()
         if not last_event_id:
             last_event = self.sg_session.find_one(
                 "EventLogEntry",
@@ -221,6 +272,12 @@ class ShotgridListener:
                     order=[{"column": "id", "direction": "asc"}],
                     limit=50,
                 )
+                if not events:
+                    self.log.debug(
+                        f"Leecher waiting {self.shotgrid_polling_frequency} seconds..."
+                    )
+                    time.sleep(self.shotgrid_polling_frequency)
+                    continue
 
                 self.log.debug(f"Found {len(events)} events in Shotgrid.")
 
@@ -241,12 +298,22 @@ class ShotgridListener:
 
                     if (
                         event["event_type"].endswith("_Change")
-                        and event["attribute_name"].replace("sg_", "")
-                        not in self.custom_sg_attribs
+                        and (
+                            event["attribute_name"].replace("sg_", "")
+                            not in self.custom_sg_attribs
+                        )
                     ):
                         # events related to custom attributes changes
                         # check if event was caused by api user
                         ignore_event = self._is_api_user_event(event)
+
+                        if not ignore_event:
+                            # check meta if in_create is True and ignore
+                            # those events as they are not useful for us
+                            # we are interested only in changes in entities
+                            # not in creation events
+                            ignore_event = event.get("meta", {}).get(
+                                "in_create")
 
                     elif event["event_type"] in supported_event_types:
                         # events related to changes in entities we track
@@ -254,19 +321,14 @@ class ShotgridListener:
                         ignore_event = self._is_api_user_event(event)
 
                     if ignore_event:
-                        self.log.info(f"Ignoring event: {pformat(event)}")
+                        self.log.info(f"Ignoring event: {event['id']}")
+                        self.log.debug(f"event payload: {pformat(event)}")
                         continue
 
                     self.send_shotgrid_event_to_ayon(event, sg_projects_by_id)
 
             except Exception:
                 self.log.error(traceback.format_exc())
-
-            self.log.debug(
-                f"Leecher waiting {self.shotgrid_polling_frequency} seconds..."
-            )
-            time.sleep(self.shotgrid_polling_frequency)
-            continue
 
     def _is_api_user_event(self, event: dict[str, Any]) -> bool:
         """Check if the event was caused by an API user.
@@ -292,11 +354,16 @@ class ShotgridListener:
         Args:
             payload (dict): The Event data.
         """
-        description = f"Leeched {payload['event_type']}"
+        payload_id = payload["id"]
+        payload_type = payload["event_type"]
+        description = f"Leeched '{payload_type}' event  with ID '{payload_id}'"
         user_name = payload.get("user", {}).get("name", "Undefined")
 
         if user_name:
-            description = f"Leeched {payload['event_type']} by {user_name}"
+            description = (
+                f"Leeched '{payload_type}' event  with ID '{payload_id}' "
+                f"by '{user_name}'"
+            )
 
         # fix non serializable datetime
         payload["created_at"] = payload["created_at"].isoformat()
@@ -310,16 +377,20 @@ class ShotgridListener:
             project_id = payload.get("project", {}).get("id", "Undefined")
 
         sg_project = sg_projects_by_id[project_id]
+        new_event_hash = get_event_hash("shotgrid.event", payload["id"])
 
         ayon_api.dispatch_event(
             "shotgrid.event",
             sender=socket.gethostname(),
-            event_hash=payload["id"],
+            event_hash=new_event_hash,
             project_name=project_name,
             username=user_name,
             description=description,
-            summary=None,
+            summary={
+                "sg_event_id": payload_id,
+            },
             payload={
+                "message": json.dumps(payload, indent=2),
                 "action": "shotgrid-event",
                 "user_name": user_name,
                 "project_name": project_name,

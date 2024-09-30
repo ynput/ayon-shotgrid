@@ -1,4 +1,5 @@
 import collections
+import random
 import shotgun_api3
 from typing import Dict, List, Union
 
@@ -209,6 +210,11 @@ def match_shotgrid_hierarchy_in_ayon(
         if attrib_value is None:
             continue
 
+        if ay_attrib == "tags":
+            project_name = entity_hub.project_entity.project_name
+            _add_tags(project_name, attrib_value)
+            continue
+
         entity_hub.project_entity.attribs.set(
             ay_attrib,
             attrib_value
@@ -311,3 +317,44 @@ def _create_new_entity(
 
     log.info(f"Created new entity: {ay_entity.name} ({ay_entity.id})")
     return ay_entity
+
+
+def _add_tags(project_name, tags):
+    """Add tags to AYON project.
+
+    Updates project Anatomy. No explicit way how to do it in ayon_api yet.
+
+    Args:
+        project_name (str)
+        tags (list of dict):
+            [{'id': 408, 'name': 'project_tag', 'type': 'Tag'}]
+    """
+    anatomy_data = ayon_api.get(f"projects/{project_name}/anatomy").data
+
+    existing_tags = {tag["name"] for tag in anatomy_data["tags"]}
+    update = False
+    for tag in tags:
+        tag_name = tag["name"]
+        if tag_name not in existing_tags:
+            new_tag = {
+                "name": tag_name,
+                "color": _create_color(),
+                "original_name": tag_name
+            }
+            anatomy_data["tags"].append(new_tag)
+            existing_tags.add(tag_name)
+            update = True
+
+    if update:
+        result = ayon_api.post(
+            f"projects/{project_name}/anatomy", **anatomy_data)
+        if result.status_code != 204:
+            raise RuntimeError("Failed to update tags")
+
+
+def _create_color() -> str:
+    """Return a random color visible on dark background"""
+    color = [random.randint(0, 255) for _ in range(3)]
+    if sum(color) < 400:
+        color = [255 - x for x in color]
+    return f'#{"".join([f"{x:02x}" for x in color])}'

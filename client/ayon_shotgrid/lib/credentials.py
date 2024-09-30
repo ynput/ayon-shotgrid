@@ -112,7 +112,7 @@ def create_sg_session(
             "login": username,
         })
     if proxy:
-        kwargs["proxy"] = proxy
+        kwargs["http_proxy"] = proxy
 
     session = shotgun_api3.Shotgun(**kwargs)
 

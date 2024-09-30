@@ -1,4 +1,6 @@
 import os
+import json
+import hashlib
 import logging
 import collections
 from typing import Dict, Optional, Union
@@ -68,6 +70,24 @@ def get_logger(name: str) -> logging.Logger:
 
 # create logger
 log = get_logger(__name__)
+
+
+def get_event_hash(event_topic: str, event_id: int) -> str:
+    """Create a SHA-256 hash from the event topic and event ID.
+
+    Arguments:
+        event_topic (str): The event topic.
+        event_id (int): The event ID.
+
+    Returns:
+        str: The SHA-256 hash.
+    """
+    data = {
+        "event_topic": event_topic,
+        "event_id": event_id,
+    }
+    json_data = json.dumps(data)
+    return hashlib.sha256(json_data.encode("utf-8")).hexdigest()
 
 
 def _sg_to_ay_dict(
