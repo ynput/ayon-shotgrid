@@ -325,16 +325,19 @@ def _create_sg_entity(
     sg_field_name = "code"
     sg_step = None
 
-    # parent AssetCategory should not be created in Shotgrid
-    # it is only used for grouping Asset types
+    special_folder_types =["AssetCategory", "ShotCategory", "SequenceCategory"]
+    # parent special folder like AssetCategory should not be created in
+    # Shotgrid it is only used for grouping Asset types
+    is_parent_project_entity = isinstance(ay_entity.parent, ProjectEntity)
     if (
-        isinstance(ay_entity.parent, ProjectEntity)
-        and ay_entity.folder_type == "AssetCategory"
+        is_parent_project_entity
+        and ay_entity.folder_type in special_folder_types
     ):
         return
-    elif ay_entity.parent.folder_type == "AssetCategory":
+    elif (not is_parent_project_entity and
+          ay_entity.parent.folder_type in special_folder_types):
         sg_parent_id = None
-        sg_parent_type = "AssetCategory"
+        sg_parent_type = ay_entity.parent.folder_type
     else:
         sg_parent_id = ay_entity.parent.attribs.get(SHOTGRID_ID_ATTRIB)
         sg_parent_type = ay_entity.parent.attribs.get(SHOTGRID_TYPE_ATTRIB)
@@ -413,13 +416,14 @@ def _create_sg_entity(
     else:
         data = {
             "project": sg_project,
-            parent_field: {
-                "type": sg_parent_type,
-                "id": int(sg_parent_id)
-            },
             sg_field_name: ay_entity.name,
             CUST_FIELD_CODE_ID: ay_entity.id,
         }
+        if isinstance(sg_parent_id, int):
+            data[parent_field] = {
+                "type": sg_parent_type,
+                "id": int(sg_parent_id)
+            }
 
     # Fill up data with any extra attributes from Ayon we want to sync to SG
     data.update(get_sg_custom_attributes_data(

@@ -113,6 +113,14 @@ class AttributesMappingModel(BaseSettingsModel):
     )
 
 
+class FolderLocationsModel(BaseSettingsModel):
+    """AYON folders to store separate of SG types"""
+    asset_folder: str = SettingsField(title="Assets", default="assets")
+    sequence_folder: str = SettingsField(title="Sequences",
+                                         default="sequences")
+    shot_folder: str = SettingsField(title="Shots", default="shots")
+
+
 class ShotgridCompatibilitySettings(BaseSettingsModel):
     """ Settings to define relationships between ShotGrid and AYON.
     """
@@ -133,6 +141,15 @@ class ShotgridCompatibilitySettings(BaseSettingsModel):
             "AYON attributes <> ShotGrid fields (without 'sg_' prefix!) "
             "mapping. Empty ones will be ignored. Scope is the list of "
             "ShotGrid entities that the mapping applies to. Disable any."
+        ),
+    )
+
+    folder_locations: FolderLocationsModel = SettingsField(
+        title="Folder locations",
+        default_factory=FolderLocationsModel,
+        description=(
+            "Locations of AYON folders matching to SG types."
+            "Eg. where SG assets will be stored, where SG shots and sequences."
         ),
     )
 

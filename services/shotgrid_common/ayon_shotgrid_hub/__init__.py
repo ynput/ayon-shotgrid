@@ -280,7 +280,8 @@ class AyonShotgridHub:
                     self._sg,
                     self.sg_enabled_entities,
                     self.sg_project_code_field,
-                    self.custom_attribs_map
+                    self.custom_attribs_map,
+                    self.settings
                 )
 
             case _:
@@ -321,6 +322,7 @@ class AyonShotgridHub:
                     self.sg_enabled_entities,
                     self.sg_project_code_field,
                     self.custom_attribs_map,
+                    self.settings
                 )
 
             case "attribute_change":
