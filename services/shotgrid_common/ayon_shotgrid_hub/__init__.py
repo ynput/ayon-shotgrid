@@ -370,7 +370,9 @@ class AyonShotgridHub:
                 the change encompases, i.e. a new shot, new asset, etc.
         """
         if not self._sg_project[CUST_FIELD_CODE_AUTO_SYNC]:
-            self.log.info(f"Ignoring event, Shotgirid field 'Ayon Auto Sync' is disabled.")
+            self.log.info(
+                "Ignoring event, Shotgrid field 'Ayon Auto Sync' is disabled."
+            )
             return
 
         match ayon_event["topic"]:
