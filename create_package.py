@@ -264,6 +264,34 @@ def create_server_package(current_dir, output_dir, addon_output_dir, log):
     log.info(f"Output package can be found: {output_path}")
 
 
+def _propagate_version(current_dir):
+    # Update client version file with version from 'package.py'
+    client_version_file = os.path.join(
+        current_dir, "client", ADDON_CLIENT_DIR, "version.py"
+    )
+    with open(client_version_file, "w") as stream:
+        stream.write(
+            CLIENT_VERSION_CONTENT.format(ADDON_NAME, ADDON_VERSION)
+        )
+
+    # Update version in services pyproject.toml files
+    for service in ("leecher", "processor", "transmitter"):
+        service_pyproject_path = os.path.join(
+            current_dir, "services", f"{service}/pyproject.toml"
+        )
+        new_lines = []
+        with open(service_pyproject_path, "r") as stream:
+            version_found = False
+            for line in stream.readlines():
+                if not version_found and line.startswith("version"):
+                    line = f'version = "{ADDON_VERSION}"'
+                    version_found = True
+                new_lines.append(line)
+
+        with open(service_pyproject_path, "w") as stream:
+            stream.write("\n".join(new_lines))
+
+
 def main(
     output_dir: Optional[str] = None,
     skip_zip: bool = False,
@@ -277,12 +305,7 @@ def main(
     if not output_dir:
         output_dir = os.path.join(current_dir, "package")
 
-    # Update client version file with version from 'package.py'
-    client_version_file = os.path.join(
-        current_dir, "client", ADDON_CLIENT_DIR, "version.py"
-    )
-    with open(client_version_file, "w") as stream:
-        stream.write(CLIENT_VERSION_CONTENT.format(ADDON_NAME, ADDON_VERSION))
+    _propagate_version(current_dir)
 
     addon_output_root = os.path.join(output_dir, ADDON_NAME)
     addon_output_dir = os.path.join(addon_output_root, ADDON_VERSION)
