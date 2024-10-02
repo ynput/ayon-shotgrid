@@ -97,8 +97,8 @@ def _sg_to_ay_dict(
 ) -> dict:
     """Morph a ShotGrid entity dict into an ayon-api Entity Hub compatible one.
 
-    Create a dictionary that follows the Ayon Entity Hub schema and handle edge
-    cases so it's ready for Ayon consumption.
+    Create a dictionary that follows the AYON Entity Hub schema and handle edge
+    cases so it's ready for AYON consumption.
 
     Folders: https://github.com/ynput/ayon-python-api/blob/30d702618b58676c3708f09f131a0974a92e1002/ayon_api/entity_hub.py#L2397  # noqa
     Tasks: https://github.com/ynput/ayon-python-api/blob/30d702618b58676c3708f09f131a0974a92e1002/ayon_api/entity_hub.py#L2579  # noqa
@@ -149,7 +149,7 @@ def _sg_to_ay_dict(
         "data": {
             # We store the ShotGrid ID and the Sync status in the data
             # dictionary so we can easily access them when needed
-            # And avoid any conflicts with the Ayon attributes we only set
+            # And avoid any conflicts with the AYON attributes we only set
             # sync status to "Failed" if the ID is not set
             CUST_FIELD_CODE_SYNC: (
                 sg_entity.get(CUST_FIELD_CODE_SYNC)
@@ -183,7 +183,7 @@ def create_ay_fields_in_sg_entities(
     custom_attribs_map: dict,
     custom_attribs_types: dict
 ):
-    """Create Ayon fields in ShotGrid entities.
+    """Create AYON fields in ShotGrid entities.
 
     Some fields need to exist in the ShotGrid Entities, mainly the `sg_ayon_id`
     and `sg_ayon_sync_status` for the correct operation of the handlers.
@@ -213,7 +213,7 @@ def create_ay_fields_in_sg_entities(
             CUST_FIELD_CODE_SYNC,
             field_properties={
                 "name": "Ayon Sync Status",
-                "description": "The Synchronization status with Ayon.",
+                "description": "The Synchronization status with AYON.",
                 "valid_values": ["Synced", "Failed", "Skipped"],
             }
         )
@@ -233,7 +233,7 @@ def create_ay_custom_attribs_in_sg_entity(
     custom_attribs_map: dict,
     custom_attribs_types: dict
 ):
-    """Create Ayon custom attributes in ShotGrid entities.
+    """Create AYON custom attributes in ShotGrid entities.
 
     Args:
         sg_session (shotgun_api3.Shotgun): Instance of a ShotGrid API Session.
@@ -282,7 +282,7 @@ def create_ay_fields_in_sg_project(
     custom_attribs_map: dict,
     custom_attribs_types: dict
 ):
-    """Create Ayon Project fields in ShotGrid.
+    """Create AYON Project fields in ShotGrid.
 
     This will create Project Unique attributes into ShotGrid.
 
@@ -343,7 +343,7 @@ def create_sg_entities_in_ay(
         sg_enabled_entities (list): The enabled entities.
     """
 
-    # Types of SG entities to ignore as Ayon folders
+    # Types of SG entities to ignore as AYON folders
     ignored_folder_types = {"task", "version"}
 
     # Find ShotGrid Entities that are to be treated as folders
@@ -403,7 +403,7 @@ def create_asset_category(entity_hub, parent_entity, sg_ay_dict):
     Args:
         entity_hub (ayon_api.EntityHub): The project's entity hub.
         parent_entity: AYON parent entity.
-        sg_ay_dict (dict): The ShotGrid entity ready for Ayon consumption.
+        sg_ay_dict (dict): The ShotGrid entity ready for AYON consumption.
     """
     asset_category = sg_ay_dict["data"]["sg_asset_type"]
     # asset category entity name
@@ -440,8 +440,8 @@ def get_asset_category(entity_hub, parent_entity, sg_ay_dict):
 
     Args:
         entity_hub (ayon_api.EntityHub): The project's entity hub.
-        parent_entity: Ayon parent entity.
-        sg_ay_dict (dict): The ShotGrid entity ready for Ayon consumption.
+        parent_entity: AYON parent entity.
+        sg_ay_dict (dict): The ShotGrid entity ready for AYON consumption.
 
     """
     # just in case the asset type doesn't exist yet
@@ -694,7 +694,7 @@ def get_sg_entity_as_ay_dict(
     extra_fields: Optional[list] = None,
     retired_only: Optional[bool] = False,
 ) -> dict:
-    """Get a ShotGrid entity, and morph it to an Ayon compatible one.
+    """Get a ShotGrid entity, and morph it to an AYON compatible one.
 
     Args:
         sg_session (shotgun_api3.Shotgun): Shotgun Session object.
@@ -706,7 +706,7 @@ def get_sg_entity_as_ay_dict(
         extra_fields (Optional[list]): List of optional fields to query.
         retired_only (bool): Whether to return only retired entities.
     Returns:
-        new_entity (dict): The ShotGrid entity ready for Ayon consumption.
+        new_entity (dict): The ShotGrid entity ready for AYON consumption.
     """
     query_fields = list(SG_COMMON_ENTITY_FIELDS)
     if extra_fields and isinstance(extra_fields, list):
@@ -784,7 +784,7 @@ def get_sg_entity_parent_field(
 
 
 def get_sg_missing_ay_attributes(sg_session: shotgun_api3.Shotgun):
-    """ Ensure all the Ayon required fields are present in ShotGrid.
+    """ Ensure all the AYON required fields are present in ShotGrid.
 
     Args:
         sg_session (shotgun_api3.Shotgun): Instance of a ShotGrid API Session.
@@ -953,7 +953,7 @@ def get_sg_statuses(
     """
     # If given an entity type, we filter out the statuses by just the ones
     # supported by that entity
-    # NOTE: this is a limitation in Ayon as the statuses are global and not
+    # NOTE: this is a limitation in AYON as the statuses are global and not
     # per entity
     if sg_entity_type:
         if sg_entity_type == "Project":
@@ -1075,7 +1075,7 @@ def update_ay_entity_custom_attributes(
     custom_attribs_map: dict,
     values_to_update: Optional[list] = None,
 ):
-    """Update Ayon entity custom attributes from ShotGrid dictionary"""
+    """Update AYON entity custom attributes from ShotGrid dictionary"""
     for ay_attrib, _ in custom_attribs_map.items():
         if values_to_update and ay_attrib not in values_to_update:
             continue

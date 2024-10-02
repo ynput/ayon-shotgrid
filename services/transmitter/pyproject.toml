@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "shotgrid-transmitter"
 version = "0.4.6-dev.1"
-description = "Shotgrid Integration for Ayon"
+description = "Shotgrid Integration for AYON"
 authors = ["Oscar Domingo <oscar.domingo@ynput.com>"]
 
 [tool.poetry.dependencies]

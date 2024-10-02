@@ -1,6 +1,6 @@
 """ Influenced by the `ayon_api.EntityHub` the `AyonShotgridHub` is a class
 that provided a valid Project name and code, will perform all the necessary
-checks and provide methods to keep an Ayon and Shotgrid project in sync.
+checks and provide methods to keep an AYON and Shotgrid project in sync.
 """
 import re
 
@@ -400,7 +400,7 @@ class AyonShotgridHub:
                 attrib_key = next(iter(ayon_event["payload"]["newValue"]))
                 if attrib_key not in self.custom_attribs_map:
                     self.log.warning(
-                        f"Updating attribute '{attrib_key}' from Ayon to SG "
+                        f"Updating attribute '{attrib_key}' from AYON to SG "
                         f"not supported: {self.custom_attribs_map}."
                     )
                     return
