@@ -410,7 +410,7 @@ def _create_sg_entity(
             sg_field_name: ay_entity.name,
             CUST_FIELD_CODE_ID: ay_entity.id,
         }
-    else:
+    elif ay_entity.entity_type == "folder":
         data = {
             "project": sg_project,
             parent_field: {
@@ -421,6 +421,9 @@ def _create_sg_entity(
             CUST_FIELD_CODE_ID: ay_entity.id,
         }
 
+    if not data:
+        return
+    
     # Fill up data with any extra attributes from Ayon we want to sync to SG
     data.update(get_sg_custom_attributes_data(
         sg_session,
