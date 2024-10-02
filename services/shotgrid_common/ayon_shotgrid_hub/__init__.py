@@ -139,7 +139,7 @@ class AyonShotgridHub:
         try:
             self._ay_project = EntityHub(project_name)
             self._ay_project.project_entity
-        except Exception as err:
+        except Exception:
             self.log.warning(f"Project {project_name} does not exist in AYON.")
             self._ay_project = None
 
@@ -156,7 +156,7 @@ class AyonShotgridHub:
                 self.project_name,
                 custom_fields=custom_fields
             )
-        except Exception as e:
+        except Exception:
             self.log.warning(f"Project {project_name} does not exist in Shotgrid. ")
             self._sg_project = None
 
@@ -370,7 +370,9 @@ class AyonShotgridHub:
                 the change encompases, i.e. a new shot, new asset, etc.
         """
         if not self._sg_project[CUST_FIELD_CODE_AUTO_SYNC]:
-            self.log.info(f"Ignoring event, Shotgirid field 'Ayon Auto Sync' is disabled.")
+            self.log.info(
+                "Ignoring event, Shotgrid field 'Ayon Auto Sync' is disabled."
+            )
             return
 
         match ayon_event["topic"]:

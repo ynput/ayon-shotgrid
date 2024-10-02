@@ -282,7 +282,7 @@ def _create_new_entity(
         try:
             # INFO: it was causing error so trying to set status directly
             ay_entity.status = status
-        except ValueError as e:
+        except ValueError:
             # `ValueError: Status ip is not available on project.`
             # log.warning(f"Status sync not implemented: {e}")
             pass
