@@ -284,12 +284,12 @@ def _propagate_version(current_dir):
             version_found = False
             for line in stream.readlines():
                 if not version_found and line.startswith("version"):
-                    line = f'version = "{ADDON_VERSION}"'
+                    line = f'version = "{ADDON_VERSION}"\n'
                     version_found = True
                 new_lines.append(line)
 
         with open(service_pyproject_path, "w") as stream:
-            stream.write("\n".join(new_lines))
+            stream.write("".join(new_lines))
 
 
 def main(
