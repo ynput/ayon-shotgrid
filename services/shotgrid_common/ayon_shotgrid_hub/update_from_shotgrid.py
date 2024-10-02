@@ -39,6 +39,7 @@ from constants import (
     SHOTGRID_TYPE_ATTRIB,  # Ayon Entity Attribute.
     SHOTGRID_REMOVED_VALUE,  # Value for removed entities.
     SG_RESTRICTED_ATTR_FIELDS,
+    MissingParentError
 )
 
 from utils import get_logger
@@ -95,15 +96,16 @@ def create_ay_entity_from_sg_event(
     log.debug(f"ShotGrid Entity as AYON dict: {sg_ay_dict}")
     if not sg_ay_dict:
         log.warning(
-            "Entity {sg_event['entity_type']} <{sg_event['entity_id']}> "
+            f"Entity {sg_event['entity_type']} <{sg_event['entity_id']}> "
             "no longer exists in ShotGrid, aborting..."
         )
         return
 
-    if sg_ay_dict["data"].get(CUST_FIELD_CODE_ID):
+    ayon_id_stored_in_sg = sg_ay_dict["data"].get(CUST_FIELD_CODE_ID)
+    if ayon_id_stored_in_sg:
         # Revived entity, check if it's still in the Server
         ay_entity = ayon_entity_hub.get_or_query_entity_by_id(
-            sg_ay_dict["data"].get(CUST_FIELD_CODE_ID),
+            ayon_id_stored_in_sg,
             [sg_ay_dict["type"]]
         )
 
@@ -172,10 +174,15 @@ def create_ay_entity_from_sg_event(
     if not ay_parent_entity:
         # This really should be an edge  ase, since any parent event would
         # happen before this... but hey
-        raise ValueError(
-            "Parent does not exist in Ayon, try doing a Project Sync.")
+        raise MissingParentError(
+            "Parent does not exist in Ayon, this event will be retried"
+            " after a while. Hopefully parent will be already created.")
 
     if sg_ay_dict["type"].lower() == "task":
+        if ay_parent_entity.entity_type == "project":
+            log.warning("Cannot create task directly under project")
+            return
+
         ay_entity = ayon_entity_hub.add_new_task(
             sg_ay_dict["task_type"],
             name=sg_ay_dict["name"],
@@ -284,7 +291,7 @@ def update_ayon_entity_from_sg_event(
     )
 
     if not ay_entity:
-        raise ValueError("Unable to update a non existing entity.")
+        raise MissingParentError("Unable to update a non existing AYON entity.")
 
     # make sure the entity is not immutable
     if (
