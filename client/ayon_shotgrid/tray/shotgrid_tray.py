@@ -62,7 +62,7 @@ class ShotgridTrayWrapper:
     def set_username_label(self):
         """Set the Username Label based on local login setting.
 
-        Depending on the login credentiasl we want to display one message or
+        Depending on the login credentials we want to display one message or
         another in the Shotgrid submenu action.
         """
         sg_username, _ = credentials.get_local_login()
