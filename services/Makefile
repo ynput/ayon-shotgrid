@@ -4,7 +4,7 @@ SERVICE = $(error Please specify the service to build with 'SERVICE', for exampl
 
 default:
 	@echo ""
-	@echo "Ayon Shotgrid $(ADDON_VERSION) Service Builder"
+	@echo "AYON Shotgrid $(ADDON_VERSION) Service Builder"
 	@echo ""
 	@echo "Usage: make SERVICE=[service-name] [target]"
 	@echo ""

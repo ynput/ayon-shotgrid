@@ -1,7 +1,7 @@
-# Shotgrid integration for Ayon
+# Shotgrid integration for AYON
 
-This project provides three elements for the Ayon pipeline:
- * server/ - The Ayon Backend Addon.
+This project provides three elements for the AYON pipeline:
+ * server/ - The AYON Backend Addon.
  * frontend/ - The AYON server Shotgrid settings tab.
  * client/ - The AYON desktop integration.
  * services/ - Standalone dockerized daemons that act based on events (aka `leecher` and `processors`).
@@ -22,7 +22,7 @@ We can now go into the `Settings > Studio settings > Shotgrid` page in AYON and 
 
 
 ## Desktop application
-When launching Ayon for the first time you'll be asked to provide a login (only the username) for Shotgrid, this is the user that will be used for publishing.
+When launching AYON for the first time you'll be asked to provide a login (only the username) for Shotgrid, this is the user that will be used for publishing.
 After providing a login people can publish normally, the integartion will ensure that the user can connect to Shotgrid, that has the correct permissions and will create the Version and PublishedFile in Shotgrid if the publish is succesful.
 
 ## Services
@@ -35,7 +35,7 @@ The three provided services are:
  * `leecher` - Periodically queries the `EventLogEntry` table on Shotgrid and ingests any event that interests us dispatching it as a `shotgrid.event`, this will only query projects that have the "Ayon Auto Sync" field enabled.
  * `transmitter` - Periodically check for new events in AYON of topic `entity.*`, and push any changes to Shotgrid, only affects to projects that have the "Ayon Auto Sync" field enabled.
 
-The most straighforward way to get this up and running is by using ASH (Ayon Service Host), after loading the Addon on the server, you should be able to spawn services in the "Services" page.
+The most straighforward way to get this up and running is by using ASH (AYON Service Host), after loading the Addon on the server, you should be able to spawn services in the "Services" page.
 
 ### Development
 There's a single `Makefile` at the root of the `services` folder, which is used to `build` the docker images and to run the services locally with the `dev` target, this is UNIX only for the time being, running `make` without argument will print information as to how to run use it.
@@ -46,7 +46,7 @@ To build the docker images you can run `make SERVICE=<service-name> build`, so f
 #### Running the Service locally
 In order to run the service locally we need to specify certain environment variables, to do so, copy the `sample_env` file, rename to `.env` and fill the fields acordingly:
 ```
-AYON_API_KEY=<AYON_API_KEY> # You can create a `service` user in Ayon, and then get the Key from there.
+AYON_API_KEY=<AYON_API_KEY> # You can create a `service` user in AYON, and then get the Key from there.
 AYON_SERVER_URL=<YOUR_AYON_URL>
 PYTHONDONTWRITEBYTECODE=1
 ```
@@ -60,7 +60,7 @@ You should now see something similar to:
 ```sh
 INFO       Initializing the Shotgrid Processor.
 DEBUG      Found these handlers: {'create-project': [<module 'project_sync'>], 'sync-from-shotgrid': [<module 'sync_from_shotgrid'>], 'shotgrid-event': [<module 'update_from_shotgrid'>]}
-INFO       Start enrolling for Ayon `shotgrid.event` Events...
+INFO       Start enrolling for AYON `shotgrid.event` Events...
 INFO       Querying for new `shotgrid.event` events...
 INFO       No event of origin `shotgrid.event` is pending.
 ```
