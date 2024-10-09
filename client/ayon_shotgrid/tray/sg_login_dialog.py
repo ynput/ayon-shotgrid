@@ -21,7 +21,7 @@ class SgLoginDialog(QtWidgets.QDialog):
         self.login_type = self.addon.get_client_login_type()
 
         self.setWindowTitle("AYON - Shotgrid Login")
-        icon = QtGui.QIcon(resources.get_openpype_icon_filepath())
+        icon = QtGui.QIcon(resources.get_ayon_icon_filepath())
         self.setWindowIcon(icon)
 
         self.setWindowFlags(
