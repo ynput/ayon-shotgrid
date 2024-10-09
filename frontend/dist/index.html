@@ -9,6 +9,7 @@
 
   <body>
     <h1>ShotGrid Sync</h1>
+    <button id="sync-users-button"  class="sync-users-button" onclick="syncUsers();">Sync Users</button>
     <p>
         From this page you can Import projects from ShotGrid or trigger a project Sync!<br>
         In order for the Synchronization to work, a <b><code>ShotgridProcessor</code> <a target="_parent" href="/services">service</a> must be running</b>, this page will only create <a target="_parent" href="/events"> events (with the topic: "shotgrid.event.project.sync") </a> for the processor to handle.
