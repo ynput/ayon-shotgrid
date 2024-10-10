@@ -16,7 +16,7 @@ class IntegrateShotgridVersion(pyblish.api.InstancePlugin):
     label = "Shotgrid Version"
 
     # Dictionary of SG fields we want to update that map to other fields in the
-    # Ayon entity
+    # AYON entity
     fields_to_add = {
         "comment": (str, "description"),
         "productType": (str, "sg_version_type"),

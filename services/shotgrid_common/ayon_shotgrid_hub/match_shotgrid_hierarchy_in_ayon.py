@@ -166,7 +166,7 @@ def match_shotgrid_hierarchy_in_ayon(
                 CUST_FIELD_CODE_ID: ay_entity.id,
                 CUST_FIELD_CODE_SYNC: sg_entity_sync_status
             }
-            # Update Shotgrid entity with Ayon ID and sync status
+            # Update Shotgrid entity with AYON ID and sync status
             sg_session.update(
                 sg_ay_dict["attribs"][SHOTGRID_TYPE_ATTRIB],
                 sg_entity_id,
@@ -216,7 +216,7 @@ def match_shotgrid_hierarchy_in_ayon(
 
     entity_hub.commit_changes()
 
-    # Update Shotgrid project with Ayon ID and sync status
+    # Update Shotgrid project with AYON ID and sync status
     sg_session.update(
         "Project",
         sg_project["id"],
@@ -243,8 +243,8 @@ def _create_new_entity(
 
     Args:
         entity_hub (ayon_api.EntityHub): The project's entity hub.
-        parent_entity: Ayon parent entity.
-        sg_ay_dict (dict): Ayon ShotGrid entity to create.
+        parent_entity: AYON parent entity.
+        sg_ay_dict (dict): AYON ShotGrid entity to create.
     """
     if sg_ay_dict["type"].lower() == "task":
         # only create if parent_entity type is not project
@@ -282,7 +282,7 @@ def _create_new_entity(
         try:
             # INFO: it was causing error so trying to set status directly
             ay_entity.status = status
-        except ValueError as e:
+        except ValueError:
             # `ValueError: Status ip is not available on project.`
             # log.warning(f"Status sync not implemented: {e}")
             pass

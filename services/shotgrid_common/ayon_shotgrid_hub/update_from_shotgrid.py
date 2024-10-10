@@ -12,7 +12,7 @@ The updates come through `meta` dictionaries such as:
     "retirement_date": "2023-03-31 15:26:16 UTC"
 }
 
-And most of the times it fetches the ShotGrid entity as an Ayon dict like:
+And most of the times it fetches the ShotGrid entity as an AYON dict like:
 {
     "label": label,
     "name": name,
@@ -34,9 +34,9 @@ from utils import (
     update_ay_entity_custom_attributes,
 )
 from constants import (
-    CUST_FIELD_CODE_ID,  # ShotGrid Field for the Ayon ID.
-    SHOTGRID_ID_ATTRIB,  # Ayon Entity Attribute.
-    SHOTGRID_TYPE_ATTRIB,  # Ayon Entity Attribute.
+    CUST_FIELD_CODE_ID,  # ShotGrid Field for the AYON ID.
+    SHOTGRID_ID_ATTRIB,  # AYON Entity Attribute.
+    SHOTGRID_TYPE_ATTRIB,  # AYON Entity Attribute.
     SHOTGRID_REMOVED_VALUE,  # Value for removed entities.
     SG_RESTRICTED_ATTR_FIELDS,
     MissingParentError
@@ -67,7 +67,7 @@ def create_ay_entity_from_sg_event(
         sg_enabled_entities (list[str]): List of entity strings enabled.
         project_code_field (str): The Shotgrid project code field.
         custom_attribs_map (Optional[dict]): A dictionary that maps ShotGrid
-            attributes to Ayon attributes.
+            attributes to AyonAYON attributes.
 
     Returns:
         ay_entity (ayon_api.entity_hub.EntityHub.Entity): The newly
@@ -111,10 +111,10 @@ def create_ay_entity_from_sg_event(
 
         if ay_entity:
             log.debug("ShotGrid Entity exists in AYON.")
-            # Ensure Ayon Entity has the correct ShotGrid ID
+            # Ensure AYON Entity has the correct ShotGrid ID
             ayon_entity_sg_id = str(
                 ay_entity.attribs.get_attribute(SHOTGRID_ID_ATTRIB).value)
-            # Ensure Ayon Entity has the correct Shotgrid ID
+            # Ensure AYON Entity has the correct Shotgrid ID
             ay_shotgrid_id = str(
               sg_ay_dict["attribs"].get(SHOTGRID_ID_ATTRIB, ""))
             if ayon_entity_sg_id != ay_shotgrid_id:
@@ -236,7 +236,7 @@ def update_ayon_entity_from_sg_event(
     project_code_field: str,
     custom_attribs_map: Optional[Dict[str, str]] = None
 ):
-    """Try to update an entity in Ayon.
+    """Try to update an entity in AYON.
 
     Args:
         sg_event (dict): The `meta` key from a ShotGrid Event.
@@ -246,7 +246,7 @@ def update_ayon_entity_from_sg_event(
         sg_enabled_entities (list[str]): List of entity strings enabled.
         project_code_field (str): The ShotGrid project code field.
         custom_attribs_map (dict): A dictionary that maps ShotGrid
-            attributes to Ayon attributes.
+            attributes to AYON attributes.
 
     Returns:
         ay_entity (ayon_api.entity_hub.EntityHub.Entity): The modified entity.
@@ -267,7 +267,7 @@ def update_ayon_entity_from_sg_event(
         )
         return
 
-    # if the entity does not have an Ayon ID, try to create it
+    # if the entity does not have an AYON ID, try to create it
     # and no need to update
     if not sg_ay_dict["data"].get(CUST_FIELD_CODE_ID):
         log.debug(f"Creating AYON Entity: {sg_ay_dict}")
@@ -300,13 +300,13 @@ def update_ayon_entity_from_sg_event(
     ):
         raise ValueError("Entity is immutable, aborting...")
 
-    # Ensure Ayon Entity has the correct ShotGrid ID
+    # Ensure AYON Entity has the correct ShotGrid ID
     ayon_entity_sg_id = str(
         ay_entity.attribs.get_attribute(SHOTGRID_ID_ATTRIB).value)
     sg_entity_sg_id = str(
         sg_ay_dict["attribs"].get(SHOTGRID_ID_ATTRIB, "")
     )
-    log.debug(f"Updating Ayon Entity: {ay_entity.name}")
+    log.debug(f"Updating AYON Entity: {ay_entity.name}")
 
     if ayon_entity_sg_id != sg_entity_sg_id:
         raise ValueError("Mismatching ShotGrid IDs, aborting...")
@@ -339,13 +339,13 @@ def remove_ayon_entity_from_sg_event(
     ayon_entity_hub: ayon_api.entity_hub.EntityHub,
     project_code_field: str,
 ):
-    """Try to remove an entity in Ayon.
+    """Try to remove an entity in AYON.
 
     Args:
         sg_event (dict): The `meta` key from a ShotGrid Event.
         sg_session (shotgun_api3.Shotgun): The ShotGrid API session.
         ayon_entity_hub (ayon_api.entity_hub.EntityHub): The AYON EntityHub.
-        project_code_field (str): The ShotGrid field that contains the Ayon ID.
+        project_code_field (str): The ShotGrid field that contains the AYON ID.
     """
     # for now we are ignoring Task type entities
     # TODO: Handle Task entities
@@ -383,7 +383,7 @@ def remove_ayon_entity_from_sg_event(
 
     if not sg_ay_dict["data"].get(CUST_FIELD_CODE_ID):
         log.warning(
-            "Entity does not have an Ayon ID, aborting..."
+            "Entity does not have an AYON ID, aborting..."
         )
         return
 

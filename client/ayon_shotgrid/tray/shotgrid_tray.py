@@ -7,7 +7,7 @@ from ayon_shotgrid.tray.sg_login_dialog import SgLoginDialog
 
 
 class ShotgridTrayWrapper:
-    """ Shotgrid menu entry for the Ayon tray.
+    """ Shotgrid menu entry for the AYON tray.
 
     Displays the Shotgrid URL specified in the Server Addon Settings and
     allows the person to set a username to be used with the API.
@@ -21,7 +21,7 @@ class ShotgridTrayWrapper:
         server_url = self.addon.get_sg_url()
 
         if not server_url:
-            server_url = "No Shotgrid Server set in Ayon Settings."
+            server_url = "No Shotgrid Server set in AYON Settings."
 
         self.sg_server_label = QtWidgets.QAction("Server: {0}".format(
                 server_url
@@ -45,13 +45,13 @@ class ShotgridTrayWrapper:
         self.sg_username_dialog.raise_()
 
     def tray_menu(self, tray_menu):
-        """Add Shotgrid Submenu to Ayon tray.
+        """Add Shotgrid Submenu to AYON tray.
 
         A non-actionable action displays the Shotgrid URL and the other
         action allows the person to set and check their Shotgrid username.
 
         Args:
-            tray_menu (QtWidgets.QMenu): The Ayon Tray menu.
+            tray_menu (QtWidgets.QMenu): The AYON Tray menu.
         """
         shotgrid_tray_menu = QtWidgets.QMenu("Shotgrid", tray_menu)
         shotgrid_tray_menu.addAction(self.sg_server_label)
