@@ -28,6 +28,7 @@ import ayon_api
 from typing import Dict, List, Optional
 
 from utils import (
+    create_new_ayon_entity,
     get_asset_category,
     get_sg_entity_as_ay_dict,
     get_sg_entity_parent_field,
@@ -178,51 +179,12 @@ def create_ay_entity_from_sg_event(
             "Parent does not exist in Ayon, this event will be retried"
             " after a while. Hopefully parent will be already created.")
 
-    if sg_ay_dict["type"].lower() == "task":
-        if ay_parent_entity.entity_type == "project":
-            log.warning("Cannot create task directly under project")
-            return
-
-        ay_entity = ayon_entity_hub.add_new_task(
-            sg_ay_dict["task_type"],
-            name=sg_ay_dict["name"],
-            label=sg_ay_dict["label"],
-            entity_id=sg_ay_dict["data"][CUST_FIELD_CODE_ID],
-            parent_id=ay_parent_entity.id,
-            attribs=sg_ay_dict["attribs"]
-        )
-    else:
-        ay_entity = ayon_entity_hub.add_new_folder(
-            sg_ay_dict["folder_type"],
-            name=sg_ay_dict["name"],
-            label=sg_ay_dict["label"],
-            entity_id=sg_ay_dict["data"][CUST_FIELD_CODE_ID],
-            parent_id=ay_parent_entity.id,
-            attribs=sg_ay_dict["attribs"]
-        )
-
-    log.debug(f"Created new AYON entity: {ay_entity}")
-    ay_entity.attribs.set(
-        SHOTGRID_ID_ATTRIB,
-        sg_ay_dict["attribs"].get(SHOTGRID_ID_ATTRIB, "")
+    ay_entity = create_new_ayon_entity(
+        sg_session,
+        ayon_entity_hub,
+        ay_parent_entity,
+        sg_ay_dict
     )
-    ay_entity.attribs.set(
-        SHOTGRID_TYPE_ATTRIB,
-        sg_ay_dict["attribs"].get(SHOTGRID_TYPE_ATTRIB, "")
-    )
-
-    try:
-        ayon_entity_hub.commit_changes()
-
-        sg_session.update(
-            sg_ay_dict["attribs"][SHOTGRID_TYPE_ATTRIB],
-            sg_ay_dict["attribs"][SHOTGRID_ID_ATTRIB],
-            {
-                CUST_FIELD_CODE_ID: ay_entity.id
-            }
-        )
-    except Exception:
-        log.error("AYON Entity could not be created", exc_info=True)
 
     return ay_entity
 
