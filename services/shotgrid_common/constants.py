@@ -156,22 +156,3 @@ SG_EVENT_QUERY_FIELDS = [
     "session_uuid",
     "created_at",
 ]
-
-
-class MissingParentError(Exception):
-    """This error could depend on order of processing.
-
-    Logic should capture this exception and dispatch source event again for
-    reprocessing. Source event couldn't be only failed as it would keep same
-    order. New event will be placed at the end of the queue.
-
-    This exception should be only raised if parent of the created/updated
-    object doesn't exist yet.
-
-    (Use case - task should be updated, but its parent Asset doesn't exist
-    yet.)
-
-    Source event payload should contain some additional key (like
-    `already_retried` that would protect from infinitive retries.
-    """
-    pass
