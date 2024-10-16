@@ -17,6 +17,8 @@ default:
 	@echo "Targets:"
 	@echo "  build        Build docker image."
 	@echo "  build-all    Build docker image for 'leecher', 'procesor' and 'transmitter'."
+	@echo "  dist         Push docker image to DockerHub."
+	@echo "  dist-all     Push docker image for 'leecher', 'procesor' and 'transmitter'."
 	@echo "  clean        Remove local images."
 	@echo "  clean-build  Remove local images and build without docker cache."
 	@echo "  dev          Run a service locally"
@@ -27,6 +29,12 @@ build:
 
 build-all:
 	$(foreach service,leecher processor transmitter, docker build --network=host -t ynput/ayon-shotgrid-$(service):$(ADDON_VERSION) -f $(service)/Dockerfile . &)
+
+dist:
+	docker push $(IMAGE) --network=host
+
+dist-all:
+	$(foreach service,leecher processor transmitter, docker push ynput/ayon-shotgrid-$(service):$(ADDON_VERSION) --network=host&)
 
 clean:
 	if docker images "$(IMAGE)"; then \
