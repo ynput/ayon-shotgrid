@@ -28,13 +28,17 @@ build:
 	docker build --network=host -t $(IMAGE) -f $(SERVICE)/Dockerfile .
 
 build-all:
-	$(foreach service,leecher processor transmitter, docker build --network=host -t ynput/ayon-shotgrid-$(service):$(ADDON_VERSION) -f $(service)/Dockerfile . &)
+	docker build --network=host -t ynput/ayon-shotgrid-leecher:$(ADDON_VERSION) -f ./leecher/Dockerfile .
+	docker build --network=host -t ynput/ayon-shotgrid-processor:$(ADDON_VERSION) -f ./processor/Dockerfile .
+	docker build --network=host -t ynput/ayon-shotgrid-transmitter:$(ADDON_VERSION) -f ./transmitter/Dockerfile .
 
 dist:
-	docker push $(IMAGE) --network=host
+	docker push --network=host $(IMAGE)
 
 dist-all:
-	$(foreach service,leecher processor transmitter, docker push ynput/ayon-shotgrid-$(service):$(ADDON_VERSION) --network=host &)
+	docker push --network=host ynput/ayon-shotgrid-leecher:$(ADDON_VERSION)
+	docker push --network=host ynput/ayon-shotgrid-processor:$(ADDON_VERSION)
+	docker push --network=host ynput/ayon-shotgrid-transmitter:$(ADDON_VERSION)
 
 clean:
 	if docker images "$(IMAGE)"; then \
