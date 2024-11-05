@@ -27,7 +27,7 @@ class ShotgridAddon(BaseServerAddon):
             self.request_server_restart()
 
     async def create_shotgrid_attributes(self) -> bool:
-        """Make sure Ayon has the `shotgridId` and `shotgridPath` attributes.
+        """Make sure AYON has the `shotgridId` and `shotgridPath` attributes.
 
         Returns:
             bool: 'True' if an attribute was created or updated.

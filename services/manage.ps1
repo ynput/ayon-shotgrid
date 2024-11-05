@@ -34,7 +34,7 @@ function Get-ServiceImage {
 # Show help message with details on how to use this script
 function Show-Help {
     Write-Host ""
-    Write-Host "Ayon Shotgrid $AddonVersion Service Builder"
+    Write-Host "AYON Shotgrid $AddonVersion Service Builder"
     Write-Host ""
     Write-Host "Usage: .\manage.ps1 [target] -Service [service-name]"
     Write-Host ""

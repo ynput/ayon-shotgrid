@@ -1,7 +1,7 @@
 """
 A AYON Events listener to push changes to Shotgrid.
 
-This service will continually run and query the Ayon Events Server in order to
+This service will continually run and query the AYON Events Server in order to
 enroll the events of topic `entity.folder` and `entity.task` when any of the
 two are `created`, `renamed` or `deleted`.
 """
@@ -23,7 +23,7 @@ class ShotgridTransmitter:
     _sg: shotgun_api3.Shotgun = None
 
     def __init__(self):
-        """ Ensure both Ayon and Shotgrid connections are available.
+        """ Ensure both AYON and Shotgrid connections are available.
 
         Set up common needed attributes and handle shotgrid connection
         closure via signal handlers.
