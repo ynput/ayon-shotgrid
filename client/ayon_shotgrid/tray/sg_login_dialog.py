@@ -44,7 +44,7 @@ class SgLoginDialog(QtWidgets.QDialog):
         server_url = self.addon.get_sg_url()
 
         if not server_url:
-            server_url = "No Shotgrid Server set in Ayon Settings."
+            server_url = "No Shotgrid Server set in AYON Settings."
 
         sg_server_url_label = QtWidgets.QLabel(
             "Please provide the credentials to log in into the "
