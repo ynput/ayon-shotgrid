@@ -89,8 +89,8 @@ class ShotgridAddon(AYONAddon, ITrayAddon, IPluginPaths):
 
         else:
             user_login, sg_password = credentials.get_local_login()
-        
-        return user_login, sg_password 
+
+        return user_login, sg_password
 
     def create_shotgrid_session(self):
         from .lib import credentials
@@ -101,18 +101,18 @@ class ShotgridAddon(AYONAddon, ITrayAddon, IPluginPaths):
         proxy = re.sub(r"https?://", "", os.environ.get("HTTPS_PROXY", ""))
         if proxy:
             kwargs["proxy"] = proxy
-        
+
         sg_username, sg_password = self.get_credentials()
 
         if self._client_login_type in {"env", "tray_api_key"}:
-            
+
             kwargs.update({
                 "username": sg_username,
                 "api_key": self._shotgrid_api_key,
                 "script_name": self._shotgrid_script_name,
             })
         elif self._client_login_type == "tray_pass":
-           
+
             if not sg_username or not sg_password:
                 return None
 
