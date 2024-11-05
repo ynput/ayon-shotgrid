@@ -83,7 +83,7 @@ class ShotgridAddon(AYONAddon, ITrayAddon, IPluginPaths):
     def get_credentials(self):
         from .lib import credentials
 
-        if self._client_login_type == "env":
+        if self._client_login_type == "env" or os.getenv("HEADLESS_PUBLISH"):
             user_login = os.getenv("AYON_SG_USERNAME")
             sg_password = None
 
