@@ -13,10 +13,7 @@ class CollectShotgridSession(pyblish.api.ContextPlugin):
     client_login_type = "env"
 
     def process(self, context):
-        addons_manager = context.data["ayonAddonsManager"]
-        shotgrid_addon = addons_manager["shotgrid"]
-
-        user_login, _ = shotgrid_addon.get_credentials()
+        user_login = os.environ.get("AYON_SG_USERNAME")
 
         self.log.info(f"User login: {user_login}")
         if not user_login:
