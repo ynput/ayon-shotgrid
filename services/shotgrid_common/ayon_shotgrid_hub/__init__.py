@@ -313,7 +313,8 @@ class AyonShotgridHub:
             if sg_event_meta["entity_type"].lower() != "task":
                 # do nothing for update retirement_date on non existing Asset
                 return
-            self.log.info("changed to entity_revival")
+            self.log.info("Changed 'retirement_date' event to "
+                          "'entity_revival'.")
             sg_event_meta["type"] = "entity_revival"
 
         match sg_event_meta["type"]:
