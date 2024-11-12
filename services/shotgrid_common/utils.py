@@ -1119,6 +1119,9 @@ def create_new_ayon_entity(
         entity_hub (ayon_api.EntityHub): The project's entity hub.
         parent_entity: AYON parent entity.
         sg_ay_dict (dict): AYON ShotGrid entity to create.
+
+    Returns:
+        FolderEntity|TaskEntity: Added task entity.
     """
     if sg_ay_dict["type"].lower() == "task":
         if parent_entity.entity_type == "project":
