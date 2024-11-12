@@ -176,7 +176,7 @@ class IntegrateShotgridVersion(pyblish.api.InstancePlugin):
                 "Instance doesn't have a 'versionEntity' to extract the id."
             )
             version_id = "-"
-        data_to_update["sg_ayon_id"] = version_id
+        data_to_update["sg_ayon_id"] = str(version_id)
 
         self.log.info(f"Updating Shotgrid version with {data_to_update}")
         sg_session.update("Version", sg_version["id"], data_to_update)

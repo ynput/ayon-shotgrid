@@ -180,16 +180,6 @@ def match_shotgrid_hierarchy_in_ayon(
         for sg_child_id in sg_ay_dicts_parents.get(sg_entity_id, []):
             sg_ay_dicts_deck.append((ay_entity, sg_child_id))
 
-    try:
-        entity_hub.commit_changes()
-    except Exception:
-        log.error(
-            "Unable to commit all entities to AYON!", exc_info=True)
-
-    log.info(
-        "Processed entities successfully!. "
-        f"Amount of entities: {len(processed_ids)}"
-    )
     # Sync project attributes from Shotgrid to AYON
     entity_hub.project_entity.attribs.set(
         SHOTGRID_ID_ATTRIB,
@@ -216,7 +206,16 @@ def match_shotgrid_hierarchy_in_ayon(
             attrib_value
         )
 
-    entity_hub.commit_changes()
+    try:
+        entity_hub.commit_changes()
+    except Exception:
+        log.error(
+            "Unable to commit all entities to AYON!", exc_info=True)
+
+    log.info(
+        "Processed entities successfully!. "
+        f"Amount of entities: {len(processed_ids)}"
+    )
 
     # Update Shotgrid project with AYON ID and sync status
     sg_session.update(
