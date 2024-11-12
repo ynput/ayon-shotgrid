@@ -17,9 +17,9 @@ from utils import (
     get_sg_custom_attributes_data
 )
 from constants import (
-    CUST_FIELD_CODE_ID,  # Shotgrid Field for the Ayon ID.
-    SHOTGRID_ID_ATTRIB,  # Ayon Entity Attribute.
-    SHOTGRID_TYPE_ATTRIB,  # Ayon Entity Attribute.
+    CUST_FIELD_CODE_ID,  # Shotgrid Field for the AYON ID.
+    SHOTGRID_ID_ATTRIB,  # AYON Entity Attribute.
+    SHOTGRID_TYPE_ATTRIB,  # AYON Entity Attribute.
 )
 
 from utils import get_logger
@@ -45,7 +45,7 @@ def create_sg_entity_from_ayon_event(
         sg_project (dict): The Shotgrid project.
         sg_enabled_entities (list): List of Shotgrid entities to be enabled.
         custom_attribs_map (dict): Dictionary that maps a list of attribute names from
-            Ayon to Shotgrid.
+            AYON to Shotgrid.
 
     Returns:
         ay_entity (ayon_api.entity_hub.EntityHub.Entity): The newly
@@ -289,7 +289,7 @@ def remove_sg_entity_from_ayon_event(
 
     if not sg_entity:
         log.warning(
-            f"Unable to find Ayon entity with id '{ay_id}' in Shotgrid.")
+            f"Unable to find AYON entity with id '{ay_id}' in Shotgrid.")
         return
 
     sg_id = sg_entity["id"]
@@ -425,7 +425,7 @@ def _create_sg_entity(
                 "id": int(sg_parent_id)
             }
 
-    # Fill up data with any extra attributes from Ayon we want to sync to SG
+    # Fill up data with any extra attributes from AYON we want to sync to SG
     data.update(get_sg_custom_attributes_data(
         sg_session,
         ay_entity.attribs.to_dict(),

@@ -1,8 +1,8 @@
 """
-A Shotgrid Events listener leecher for Ayon.
+A Shotgrid Events listener leecher for AYON.
 
 This service will continually run and query the EventLogEntry table from
-Shotgrid and converts them to Ayon events, and can be configured from the Ayon
+Shotgrid and converts them to AYON events, and can be configured from the AYON
 Addon settings page.
 """
 import sys
@@ -45,7 +45,7 @@ class ShotgridListener:
     log = get_logger(__file__)
 
     def __init__(self):
-        """Ensure both Ayon and Shotgrid connections are available.
+        """Ensure both AYON and Shotgrid connections are available.
 
         Set up common needed attributes and handle shotgrid connection
         closure via signal handlers.
@@ -232,7 +232,7 @@ class ShotgridListener:
         """Main loop querying the Shotgrid database for new events
 
         Since Shotgrid does not have an event hub per se, we need to query
-        the "EventLogEntry table and send these as Ayon events for processing.
+        the "EventLogEntry table and send these as AYON events for processing.
 
         We try to continue from the last Event processed by the leecher, if
         none is found we start at the moment in time.
@@ -293,7 +293,7 @@ class ShotgridListener:
                     if not event:
                         continue
 
-                    ignore_event = False
+                    ignore_event = True
                     last_event_id = event["id"]
 
                     if (
@@ -349,7 +349,7 @@ class ShotgridListener:
     def send_shotgrid_event_to_ayon(
         self, payload: dict[str, Any], sg_projects_by_id: dict[str, Any]
     ):
-        """Send the Shotgrid event as an Ayon event.
+        """Send the Shotgrid event as an AYON event.
 
         Args:
             payload (dict): The Event data.
@@ -400,7 +400,7 @@ class ShotgridListener:
             },
         )
 
-        self.log.info("Dispatched Ayon event with payload:", payload)
+        self.log.info("Dispatched AYON event with payload:", payload)
 
 
 def service_main():
