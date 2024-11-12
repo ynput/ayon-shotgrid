@@ -1115,7 +1115,6 @@ def create_new_ayon_entity(
     Folder Creation:
         https://github.com/ynput/ayon-python-api/blob/30d702618b58676c3708f09f131a0974a92e1002/ayon_api/entity_hub.py#L254
 
-
     Args:
         entity_hub (ayon_api.EntityHub): The project's entity hub.
         parent_entity: AYON parent entity.
