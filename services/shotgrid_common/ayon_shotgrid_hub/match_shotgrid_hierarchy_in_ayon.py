@@ -1,13 +1,9 @@
 import collections
 import random
 import shotgun_api3
-from typing import Dict, List, Union
+from typing import Dict, List
 
 import ayon_api
-from ayon_api.entity_hub import (
-    ProjectEntity,
-    FolderEntity,
-)
 
 from ayon_api import slugify_string
 
