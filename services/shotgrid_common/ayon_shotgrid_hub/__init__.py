@@ -306,6 +306,23 @@ class AyonShotgridHub:
                 f"Ignoring event, AYON project {self.project_name} not found.")
             return
 
+        # revival of Asset with tasks will send first retirement_date changes
+        # on tasks, then retirement_date change on Asset AND only then revival
+        # of Asset
+        if (
+            sg_event_meta["type"] == "attribute_change"
+            and sg_event_meta["attribute_name"] == "retirement_date"
+            and sg_event_meta["new_value"] is None  # eg revival
+        ):
+            if sg_event_meta["entity_type"].lower() == "asset":
+                # do not do updates on not yet existing asset
+                return
+
+            self.log.info("Changed 'retirement_date' event to "
+                          f"'entity_revival' for Task | "
+                          f"{sg_event_meta['entity_id']}.")
+            sg_event_meta["type"] = "entity_revival"
+
         match sg_event_meta["type"]:
             case "new_entity" | "entity_revival":
                 self.log.info(

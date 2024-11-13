@@ -400,7 +400,7 @@ class ShotgridListener:
             },
         )
 
-        self.log.info("Dispatched AYON event with payload:", payload)
+        self.log.debug(f"Dispatched AYON event with payload:{payload}")
 
 
 def service_main():

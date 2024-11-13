@@ -1,13 +1,9 @@
 import collections
 import random
 import shotgun_api3
-from typing import Dict, List, Union
+from typing import Dict, List
 
 import ayon_api
-from ayon_api.entity_hub import (
-    ProjectEntity,
-    FolderEntity,
-)
 
 from ayon_api import slugify_string
 
@@ -19,6 +15,7 @@ from constants import (
 )
 
 from utils import (
+    create_new_ayon_entity,
     get_sg_entities,
     get_asset_category,
     update_ay_entity_custom_attributes,
@@ -115,7 +112,8 @@ def match_shotgrid_hierarchy_in_ayon(
                 )
 
             if not ay_entity:
-                ay_entity = _create_new_entity(
+                ay_entity = create_new_ayon_entity(
+                    sg_session,
                     entity_hub,
                     ay_parent_entity,
                     sg_ay_dict
@@ -224,74 +222,6 @@ def match_shotgrid_hierarchy_in_ayon(
             CUST_FIELD_CODE_SYNC: sg_project_sync_status
         }
     )
-
-
-def _create_new_entity(
-    entity_hub: ayon_api.entity_hub.EntityHub,
-    parent_entity: Union[ProjectEntity, FolderEntity],
-    sg_ay_dict: Dict
-):
-    """Helper method to create entities in the EntityHub.
-
-    Task Creation:
-        https://github.com/ynput/ayon-python-api/blob/30d702618b58676c3708f09f131a0974a92e1002/ayon_api/entity_hub.py#L284
-
-    Folder Creation:
-        https://github.com/ynput/ayon-python-api/blob/30d702618b58676c3708f09f131a0974a92e1002/ayon_api/entity_hub.py#L254
-
-
-    Args:
-        entity_hub (ayon_api.EntityHub): The project's entity hub.
-        parent_entity: AYON parent entity.
-        sg_ay_dict (dict): AYON ShotGrid entity to create.
-    """
-    if sg_ay_dict["type"].lower() == "task":
-        # only create if parent_entity type is not project
-        if parent_entity.entity_type == "project":
-            log.warning(
-                f"Can't create task '{sg_ay_dict['name']}' under project "
-                "'{parent_entity.name}'. Parent should not be project it self!"
-            )
-            return
-
-        ay_entity = entity_hub.add_new_task(
-            sg_ay_dict["task_type"],
-            name=sg_ay_dict["name"],
-            label=sg_ay_dict["label"],
-            entity_id=sg_ay_dict["data"][CUST_FIELD_CODE_ID],
-            parent_id=parent_entity.id,
-            attribs=sg_ay_dict["attribs"],
-            data=sg_ay_dict["data"],
-        )
-    else:
-        ay_entity = entity_hub.add_new_folder(
-            sg_ay_dict["folder_type"],
-            name=sg_ay_dict["name"],
-            label=sg_ay_dict["label"],
-            entity_id=sg_ay_dict["data"][CUST_FIELD_CODE_ID],
-            parent_id=parent_entity.id,
-            attribs=sg_ay_dict["attribs"],
-            data=sg_ay_dict["data"],
-        )
-
-    # TODO: this doesn't work yet
-    status = sg_ay_dict["attribs"].get("status")
-    if status:
-        # TODO: Implement status update
-        try:
-            # INFO: it was causing error so trying to set status directly
-            ay_entity.status = status
-        except ValueError:
-            # `ValueError: Status ip is not available on project.`
-            # log.warning(f"Status sync not implemented: {e}")
-            pass
-
-    tags = sg_ay_dict["attribs"].get("tags")
-    if tags:
-        ay_entity.tags = [tag["name"] for tag in tags]
-
-    log.info(f"Created new entity: {ay_entity.name} ({ay_entity.id})")
-    return ay_entity
 
 
 def _add_tags(project_name, tags):
