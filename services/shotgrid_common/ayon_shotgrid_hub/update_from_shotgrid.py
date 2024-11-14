@@ -228,7 +228,7 @@ def _get_ayon_parent_entity(ayon_entity_hub, project_code_field, sg_ay_dict,
             addon_settings
         )
 
-    elif(shotgrid_type == "Shot") and not sg_parent:
+    elif(shotgrid_type == "Shot"):
         log.info("ShotGrid Parent is an Shot category.")
         ay_parent_entity = get_shot_category(
             ayon_entity_hub,
