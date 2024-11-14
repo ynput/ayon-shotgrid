@@ -253,18 +253,12 @@ def remove_sg_entity_from_ayon_event(
         sg_session (shotgun_api3.Shotgun): The Shotgrid API session.
     """
     ay_id = ayon_event["payload"]["entityData"]["id"]
-    ay_entity_path = ayon_event["payload"]["entityData"].get("path")
     log.debug(f"Removing Shotgrid entity: {ayon_event['payload']}")
-
-    if not ay_entity_path:
-        log.warning(
-            f"Entity '{ay_id}' does not have a path to remove from Shotgrid."
-        )
-        return
 
     sg_id = ayon_event["payload"]["entityData"]["attrib"].get("shotgridId")
 
     if not sg_id:
+        ay_entity_path = ayon_event["payload"]["entityData"]["path"]
         log.warning(
             f"Entity '{ay_entity_path}' does not have a "
             "ShotGrid ID to remove."
