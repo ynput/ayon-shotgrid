@@ -14,6 +14,8 @@ from constants import (
     SHOTGRID_TYPE_ATTRIB,
 )
 
+from ayon_api.entity_hub import ProjectEntity
+
 from utils import (
     create_new_ayon_entity,
     get_sg_entities,
