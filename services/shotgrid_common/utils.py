@@ -5,6 +5,8 @@ import logging
 import collections
 from typing import Dict, Optional, Union
 
+import ayon_api
+
 from constants import (
     AYON_SHOTGRID_ATTRIBUTES_MAP,
     CUST_FIELD_CODE_ID,
@@ -1209,3 +1211,74 @@ def update_ay_entity_custom_attributes(
                 log.warning(f"Status sync not implemented: {e}")
         else:
             ay_entity.attribs.set(ay_attrib, attrib_value)
+
+
+def create_new_ayon_entity(
+    sg_session: shotgun_api3.Shotgun,
+    entity_hub: ayon_api.entity_hub.EntityHub,
+    parent_entity: Union[ProjectEntity, FolderEntity],
+    sg_ay_dict: Dict
+):
+    """Helper method to create entities in the EntityHub.
+
+    Task Creation:
+        https://github.com/ynput/ayon-python-api/blob/30d702618b58676c3708f09f131a0974a92e1002/ayon_api/entity_hub.py#L284
+
+    Folder Creation:
+        https://github.com/ynput/ayon-python-api/blob/30d702618b58676c3708f09f131a0974a92e1002/ayon_api/entity_hub.py#L254
+
+    Args:
+        entity_hub (ayon_api.EntityHub): The project's entity hub.
+        parent_entity: AYON parent entity.
+        sg_ay_dict (dict): AYON ShotGrid entity to create.
+
+    Returns:
+        FolderEntity|TaskEntity: Added task entity.
+    """
+    if sg_ay_dict["type"].lower() == "task":
+        if parent_entity.entity_type == "project":
+            log.warning("Cannot create task directly under project")
+            return
+
+        ay_entity = entity_hub.add_new_task(
+            sg_ay_dict["task_type"],
+            name=sg_ay_dict["name"],
+            label=sg_ay_dict["label"],
+            entity_id=sg_ay_dict["data"][CUST_FIELD_CODE_ID],
+            parent_id=parent_entity.id,
+            attribs=sg_ay_dict["attribs"]
+        )
+    else:
+        ay_entity = entity_hub.add_new_folder(
+            sg_ay_dict["folder_type"],
+            name=sg_ay_dict["name"],
+            label=sg_ay_dict["label"],
+            entity_id=sg_ay_dict["data"][CUST_FIELD_CODE_ID],
+            parent_id=parent_entity.id,
+            attribs=sg_ay_dict["attribs"]
+        )
+
+    log.debug(f"Created new AYON entity: {ay_entity}")
+    ay_entity.attribs.set(
+        SHOTGRID_ID_ATTRIB,
+        sg_ay_dict["attribs"].get(SHOTGRID_ID_ATTRIB, "")
+    )
+    ay_entity.attribs.set(
+        SHOTGRID_TYPE_ATTRIB,
+        sg_ay_dict["attribs"].get(SHOTGRID_TYPE_ATTRIB, "")
+    )
+
+    try:
+        entity_hub.commit_changes()
+
+        sg_session.update(
+            sg_ay_dict["attribs"][SHOTGRID_TYPE_ATTRIB],
+            sg_ay_dict["attribs"][SHOTGRID_ID_ATTRIB],
+            {
+                CUST_FIELD_CODE_ID: ay_entity.id
+            }
+        )
+    except Exception:
+        log.error("AYON Entity could not be created", exc_info=True)
+
+    return ay_entity

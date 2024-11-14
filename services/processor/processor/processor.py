@@ -22,6 +22,7 @@ from utils import get_logger
 
 class ShotgridProcessor:
     _sg: shotgun_api3.Shotgun = None
+    _RETRIGGERED_TOPIC = "shotgrid.event.retriggered"
     log = get_logger(__file__)
 
     def __init__(self):
@@ -226,6 +227,7 @@ class ShotgridProcessor:
                     )
                     continue
 
+                failed = False
                 for handler in self.handlers_map.get(payload["action"], []):
                     # If theres any handler "subscribed" to this event type..
                     try:
@@ -244,8 +246,8 @@ class ShotgridProcessor:
                             self,
                             payload,
                         )
-
                     except Exception:
+                        failed = True
                         self.log.error(
                             f"Unable to process handler {handler.__name__}",
                             exc_info=True
@@ -254,7 +256,7 @@ class ShotgridProcessor:
                             event["id"],
                             status="failed",
                             description=(
-                                "An error ocurred while processing"
+                                "An error occurred while processing"
                                 f"{event_id_text}"
                             ),
                             payload={
@@ -262,14 +264,15 @@ class ShotgridProcessor:
                             },
                         )
 
-                self.log.info(
-                    "Event has been processed... setting to finished!")
+                if not failed:
+                    self.log.info(
+                        "Event has been processed... setting to finished!")
 
-                ayon_api.update_event(
-                    event["id"],
-                    description=f"Event processed successfully{event_id_text}",
-                    status="finished",
-                )
+                    ayon_api.update_event(
+                        event["id"],
+                        description=f"Event processed successfully{event_id_text}",
+                        status="finished",
+                    )
 
             except Exception:
                 self.log.error(traceback.format_exc())
