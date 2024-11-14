@@ -201,13 +201,7 @@ def _get_ayon_parent_entity(ayon_entity_hub, project_code_field, sg_ay_dict,
     shotgrid_type = sg_ay_dict["attribs"][SHOTGRID_TYPE_ATTRIB]
     sg_parent = sg_ay_dict["data"].get(sg_parent_field)
 
-    # INFO: Parent entity might not be added in SG so this needs to be handled
-    #       with optional way.
-    if sg_ay_dict["data"].get(sg_parent_field) is None:
-        # Parent is the project
-        log.debug(f"ShotGrid Parent is the Project: {sg_project}")
-        ay_parent_entity = ayon_entity_hub.project_entity
-    elif (
+    if (
         shotgrid_type == "Asset"
         and sg_ay_dict["data"].get("sg_asset_type")
     ):
