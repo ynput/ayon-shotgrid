@@ -127,15 +127,6 @@ class AttributesMappingModel(BaseSettingsModel):
         enum_resolver=default_shotgrid_entities
     )
 
-
-class FolderLocationsModel(BaseSettingsModel):
-    """AYON folders to store separate of SG types"""
-    asset_folder: str = SettingsField(title="Assets", default="assets")
-    sequence_folder: str = SettingsField(title="Sequences",
-                                         default="sequences")
-    shot_folder: str = SettingsField(title="Shots", default="shots")
-
-
 class FolderReparentingParentsModel(BaseSettingsModel):
     sg_entity_type: str = SettingsField(
         "Asset",
@@ -231,14 +222,6 @@ class ShotgridCompatibilitySettings(BaseSettingsModel):
         ),
     )
 
-    folder_locations: FolderLocationsModel = SettingsField(
-        title="Folder locations",
-        default_factory=FolderLocationsModel,
-        description=(
-            "Locations of AYON folders matching to SG types."
-            "Eg. where SG assets will be stored, where SG shots and sequences."
-        ),
-    )
     folder_parenting: FolderReparentingModel = SettingsField(
         title="Folder re-parenting",
         default_factory=FolderReparentingModel,
