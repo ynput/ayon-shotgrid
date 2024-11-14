@@ -196,8 +196,31 @@ def create_ay_entity_from_sg_event(
     return ay_entity
 
 
-def _get_ayon_parent_entity(ayon_entity_hub, project_code_field, sg_ay_dict,
-                            sg_parent_field, sg_project, sg_session, addon_settings):
+def _get_ayon_parent_entity(
+    ayon_entity_hub,
+    project_code_field,
+    sg_ay_dict,
+    sg_parent_field,
+    sg_project,
+    sg_session,
+    addon_settings
+):
+    """Tries to find parent entity in AYON
+
+    Args:
+        ayon_entity_hub (ayon_api.entity_hub.EntityHub): The AYON EntityHub.
+        project_code_field (str): The Shotgrid project code field.
+        sg_ay_dict (dict): The ShotGrid entity ready for AYON consumption.:
+        sg_parent_field (str): 'project'|'sequence'
+        sg_project (dict): The ShotGrid project.
+        sg_session (shotgun_api3.Shotgun): The ShotGrid API session.
+        addon_settings (Optional[dict]): A dictionary of Settings. Used to
+            query location of custom folders (`shots`, `sequences`)
+
+    Returns:
+        ay_entity (ayon_api.entity_hub.EntityHub.Entity):
+            FolderEntity|ProjectEntity
+    """
     shotgrid_type = sg_ay_dict["attribs"][SHOTGRID_TYPE_ATTRIB]
     sg_parent = sg_ay_dict["data"].get(sg_parent_field)
 
