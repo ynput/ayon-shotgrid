@@ -1,6 +1,10 @@
 from ayon_server.entities.core.attrib import attribute_library
 from ayon_server.settings import BaseSettingsModel, SettingsField
-from ayon_server.settings.enum import secrets_enum, anatomy_presets_enum
+from ayon_server.settings.enum import (
+    secrets_enum,
+    anatomy_presets_enum,
+    folder_types_enum
+)
 
 
 def default_shotgrid_entities():
@@ -27,6 +31,17 @@ def default_shotgrid_enabled_entities():
         "Asset",
         "Task",
         "Version",
+    ]
+
+
+def default_shotgrid_reparenting_entities():
+    """The entity types in ShotGrid that are enabled by default in AYON."""
+    return [
+        "Episode",
+        "Sequence",
+        "Shot",
+        "AssetCategory",
+        "Asset",
     ]
 
 
@@ -121,6 +136,78 @@ class FolderLocationsModel(BaseSettingsModel):
     shot_folder: str = SettingsField(title="Shots", default="shots")
 
 
+class FolderReparentingParentsModel(BaseSettingsModel):
+    sg_entity_type: str = SettingsField(
+        "Asset",
+        title="ShotGrid Entity Type",
+        enum_resolver=(
+            lambda: default_shotgrid_reparenting_entities() + ["< None >"]
+        ),
+        description=(
+            "Type of the ShotGrid entity to parent in AYON. "
+            "' < None > ' means no SG type and can be used just as folder."
+        ),
+    )
+    folder_type: str = SettingsField(
+        "asset",
+        title="Parent Folder Type",
+        enum_resolver=folder_types_enum,
+        description="Type of the parent folder in AYON",
+    )
+    folder_name: str = SettingsField(
+        "assets",
+        title="Parent Folder Name",
+        description="Name of the parent folder in AYON",
+    )
+
+
+class FolderReparentingPresetsModel(BaseSettingsModel):
+
+    reparenting_type: str = SettingsField(
+        "root_relocate",
+        title="Re-parenting Type",
+        enum_resolver=lambda: [
+            {"value": "root_relocate", "label": "Root relocation"},
+            {"value": "type_grouping", "label": "Type grouping"},
+        ],
+        description="Type of the parenting",
+    )
+    filter_by_sg_entity_type: str = SettingsField(
+        "Asset",
+        title="Filter by ShotGrid Entity Type",
+        enum_resolver=default_shotgrid_reparenting_entities,
+        description=("Type of the ShotGrid entity to filter preset on."),
+    )
+    parents: list[FolderReparentingParentsModel] = SettingsField(
+        title="Parents",
+        default_factory=list,
+        description=(
+            "List of parent folders. If empty default behavior will be used. "
+            "The order of the parents from top to bottom is important."
+            "Within 'Root relocation' type the first parent will be "
+            "the root folder."
+        ),
+    )
+
+
+class FolderReparentingModel(BaseSettingsModel):
+    """Re-parent folders for AYON folders matching to SG types"""
+    enabled: bool = SettingsField(
+        False,
+        title="Enabled",
+        description="Enable or disable the re-parenting",
+    )
+
+    presets: list[FolderReparentingPresetsModel] = SettingsField(
+        title="Presets",
+        default_factory=list,
+        description=(
+            "List of presets for re-parenting. "
+            "If empty default behavior will be used."
+        ),
+    )
+
+
 class ShotgridCompatibilitySettings(BaseSettingsModel):
     """ Settings to define relationships between ShotGrid and AYON.
     """
@@ -151,6 +238,11 @@ class ShotgridCompatibilitySettings(BaseSettingsModel):
             "Locations of AYON folders matching to SG types."
             "Eg. where SG assets will be stored, where SG shots and sequences."
         ),
+    )
+    folder_parenting: FolderReparentingModel = SettingsField(
+        title="Folder re-parenting",
+        default_factory=FolderReparentingModel,
+        description=("Parent folders for AYON folders matching to SG types."),
     )
 
 
