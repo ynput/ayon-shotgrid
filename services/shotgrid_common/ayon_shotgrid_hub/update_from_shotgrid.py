@@ -123,9 +123,6 @@ def create_ay_entity_from_sg_event(
 
             return ay_entity
 
-    shotgrid_type = sg_ay_dict["attribs"][SHOTGRID_TYPE_ATTRIB]
-    sg_parent = sg_ay_dict["data"].get(sg_parent_field)
-
     ay_parent_entity = None
     items_to_create = collections.deque()
     while ay_parent_entity is None:
@@ -168,14 +165,13 @@ def create_ay_entity_from_sg_event(
     while items_to_create:
         sg_ay_dict = items_to_create.pop()
 
-        shotgrid_type = sg_ay_dict["attribs"]["shotgridType"]
+        shotgrid_type = sg_ay_dict["attribs"][SHOTGRID_TYPE_ATTRIB]
         sg_parent_field = get_sg_entity_parent_field(
             sg_session,
             sg_project,
             shotgrid_type,
             sg_enabled_entities,
         )
-
         ay_parent_entity = _get_ayon_parent_entity(
             ayon_entity_hub,
             project_code_field,
