@@ -82,7 +82,7 @@ class AyonShotgridHub:
         custom_attribs_types=None,
         sg_enabled_entities=None,
     ):
-        self.settings = ayon_api.get_service_addon_settings()
+        self.settings = ayon_api.get_service_addon_settings(project_name)
 
         self._sg = sg_connection
 
