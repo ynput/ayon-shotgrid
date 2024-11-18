@@ -424,6 +424,9 @@ def get_asset_category(entity_hub, parent_entity, sg_ay_dict, addon_settings):
     asset_category_name = slugify_string(
         sg_ay_dict["data"]["sg_asset_type"]).lower()
 
+    # TODO: this needs to be changed to implement the new re parenting
+    #  structure from `folder_parenting` presets
+    # addon_settings["compatibility_settings"]["folder_parenting"]
     folder_path = (addon_settings["compatibility_settings"]
                                  ["folder_locations"]
                                  ["asset_folder"])
@@ -453,6 +456,9 @@ def get_sequence_category(entity_hub, parent_entity, sg_ay_dict, addon_settings)
         sg_ay_dict (dict): The ShotGrid entity ready for AYON consumption.
 
     """
+    # TODO: this needs to be changed to implement the new re parenting
+    #  structure from `folder_parenting` presets
+    # addon_settings["compatibility_settings"]["folder_parenting"]
     folder_path = (addon_settings["compatibility_settings"]
                                  ["folder_locations"]
                                  ["sequence_folder"])
@@ -474,6 +480,9 @@ def get_shot_category(entity_hub, parent_entity, sg_ay_dict, addon_settings):
         sg_ay_dict (dict): The ShotGrid entity ready for Ayon consumption.
 
     """
+    # TODO: this needs to be changed to implement the new re parenting
+    #  structure from `folder_parenting` presets
+    # addon_settings["compatibility_settings"]["folder_parenting"]
     folder_path = (addon_settings["compatibility_settings"]
                                  ["folder_locations"]
                                  ["shot_folder"])
