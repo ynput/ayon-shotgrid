@@ -113,7 +113,7 @@ def match_shotgrid_hierarchy_in_ayon(
 
             shotgrid_type = sg_ay_dict["attribs"].get(SHOTGRID_TYPE_ATTRIB)
             if shotgrid_type == "AssetCategory":
-                ay_entity = get_asset_category(
+                ay_parent_entity = get_asset_category(
                     entity_hub,
                     ay_parent_entity,
                     sg_ay_dict,

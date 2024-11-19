@@ -417,28 +417,15 @@ def get_asset_category(entity_hub, parent_entity, sg_ay_dict, addon_settings):
         sg_ay_dict (dict): The ShotGrid entity ready for Ayon consumption.
         addon_settings (dict): Settings
     """
-    # just in case the asset type doesn't exist yet
-    if not sg_ay_dict["data"].get("sg_asset_type"):
-        sg_ay_dict["data"]["sg_asset_type"] = sg_ay_dict["name"]
-
-    asset_category_name = slugify_string(
-        sg_ay_dict["data"]["sg_asset_type"]).lower()
-
-    # TODO: this needs to be changed to implement the new re parenting
-    #  structure from `folder_parenting` presets
-    # addon_settings["compatibility_settings"]["folder_parenting"]
-    folder_path = (addon_settings["compatibility_settings"]
-                                 ["folder_locations"]
-                                 ["asset_folder"])
-
-    folder_path = "/".join([folder_path, asset_category_name])
+    transfer_type = "type_grouping"
+    folders_and_types = _get_parents_and_types(
+        addon_settings, transfer_type, "Asset")
 
     return _get_special_category(
         entity_hub,
         parent_entity,
         sg_ay_dict,
-        folder_path=folder_path,
-        folder_type="AssetCategory"
+        folders_and_types=folders_and_types
     )
 
 
@@ -456,18 +443,14 @@ def get_sequence_category(entity_hub, parent_entity, sg_ay_dict, addon_settings)
         sg_ay_dict (dict): The ShotGrid entity ready for AYON consumption.
 
     """
-    # TODO: this needs to be changed to implement the new re parenting
-    #  structure from `folder_parenting` presets
-    # addon_settings["compatibility_settings"]["folder_parenting"]
-    folder_path = (addon_settings["compatibility_settings"]
-                                 ["folder_locations"]
-                                 ["sequence_folder"])
+    transfer_type = "type_grouping"
+    folders_and_types = _get_parents_and_types(
+        addon_settings, transfer_type, "Sequence")
     return _get_special_category(
         entity_hub,
         parent_entity,
         sg_ay_dict,
-        folder_path=folder_path,
-        folder_type="SequenceCategory"
+        folders_and_types=folders_and_types
     )
 
 
@@ -480,18 +463,14 @@ def get_shot_category(entity_hub, parent_entity, sg_ay_dict, addon_settings):
         sg_ay_dict (dict): The ShotGrid entity ready for Ayon consumption.
 
     """
-    # TODO: this needs to be changed to implement the new re parenting
-    #  structure from `folder_parenting` presets
-    # addon_settings["compatibility_settings"]["folder_parenting"]
-    folder_path = (addon_settings["compatibility_settings"]
-                                 ["folder_locations"]
-                                 ["shot_folder"])
+    transfer_type = "type_grouping"
+    folders_and_types = _get_parents_and_types(
+        addon_settings, transfer_type, "Shot")
     return _get_special_category(
         entity_hub,
         parent_entity,
         sg_ay_dict,
-        folder_path=folder_path,
-        folder_type="ShotCategory"
+        folders_and_types=folders_and_types
     )
 
 
@@ -499,8 +478,7 @@ def _get_special_category(
         entity_hub,
         parent_entity,
         sg_ay_dict,
-        folder_path,
-        folder_type=None
+        folders_and_types=None
 ):
     """Returns or creates special subfolders (shot|sequence|AssetCategory).
 
@@ -508,27 +486,24 @@ def _get_special_category(
         entity_hub (ayon_api.EntityHub): The project's entity hub.
         parent_entity: AYON parent entity.
         sg_ay_dict (dict): The ShotGrid entity ready for Ayon consumption.
-        folder_path (str): where folder should be located
-        folder_type (Optional[str]): force this folder type
+        folders_and_types (deque(([str], [str])))
     Returns:
         (FolderEntity)
     """
-    if not folder_type:
-        folder_type = slugify_string(sg_ay_dict["folder_type"])
-
-    if not folder_path:
-        return parent_entity
-
-    folders = collections.deque(folder_path.split("/"))
-
-    while folders:
+    while folders_and_types:
         found_folder = None
-        folder_name = folders.popleft()
+        parent = folders_and_types.popleft()
+        folder_name, folder_type = parent
+        placeholders = {"shotgrid_type": sg_ay_dict["attribs"]["shotgridType"]}
+        try:
+            folder_name = folder_name.format(**placeholders)
+        except KeyError:
+            # ignore superfluous placeholders
+            pass
 
         for entity in parent_entity.get_children():
             if (
-                entity.entity_type == "folder"
-                and entity.folder_type == folder_type
+                entity.folder_type == folder_type
                 and entity.name == folder_name
             ):
                 parent_entity = entity
@@ -593,6 +568,32 @@ def _create_special_category(
 
     log.info(f"Created {folder_type}: {category_entity}")
     return category_entity
+
+
+def _get_parents_and_types(addon_settings, transfer_type, sg_entity_type):
+    parents_presets = (addon_settings["compatibility_settings"]
+                                     ["folder_parenting"]
+                                     [transfer_type])
+
+    if not parents_presets["enabled"]:
+        return
+
+    found_preset = None
+    for preset in parents_presets["presets"]:
+        if preset["filter_by_sg_entity_type"] != sg_entity_type:
+            continue
+        found_preset = preset
+
+    if not found_preset:
+        return
+
+    folders_and_types = collections.deque()
+    for parent in found_preset["parents"]:
+        folders_and_types.append(
+            (parent["folder_name"], parent["folder_type"])
+        )
+
+    return folders_and_types
 
 
 def get_or_create_sg_field(
