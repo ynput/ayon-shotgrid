@@ -1129,7 +1129,7 @@ def create_new_ayon_entity(
             return
 
         ay_entity = entity_hub.add_new_task(
-            sg_ay_dict["task_type"],
+            task_type=sg_ay_dict["task_type"],
             name=sg_ay_dict["name"],
             label=sg_ay_dict["label"],
             entity_id=sg_ay_dict["data"][CUST_FIELD_CODE_ID],
@@ -1138,7 +1138,7 @@ def create_new_ayon_entity(
         )
     else:
         ay_entity = entity_hub.add_new_folder(
-            sg_ay_dict["folder_type"],
+            folder_type=sg_ay_dict["folder_type"],
             name=sg_ay_dict["name"],
             label=sg_ay_dict["label"],
             entity_id=sg_ay_dict["data"][CUST_FIELD_CODE_ID],
