@@ -255,33 +255,34 @@ def _get_ayon_parent_entity(
             addon_settings
         )
 
-    # INFO: Parent entity might not be added in SG so this needs to be handled
-    #       with optional way.
-    elif sg_parent is None:
-        # Parent is the project
-        log.debug(f"ShotGrid Parent is the Project: {sg_project}")
-        ay_parent_entity = ayon_entity_hub.project_entity
+    if ay_parent_entity is None:
+        # INFO: Parent entity might not be added in SG so this needs to
+        # be handled with optional way.
+        if sg_parent is None:
+            # Parent is the project
+            log.debug(f"ShotGrid Parent is the Project: {sg_project}")
+            ay_parent_entity = ayon_entity_hub.project_entity
 
-    else:
-        # Find parent entity ID
-        sg_parent_entity_dict = get_sg_entity_as_ay_dict(
-            sg_session,
-            sg_parent["type"],
-            sg_parent["id"],
-            project_code_field,
-        )
+        else:
+            # Find parent entity ID
+            sg_parent_entity_dict = get_sg_entity_as_ay_dict(
+                sg_session,
+                sg_parent["type"],
+                sg_parent["id"],
+                project_code_field,
+            )
 
-        log.debug(f"ShotGrid Parent entity: {sg_parent_entity_dict}")
-        ay_parent_entity = ayon_entity_hub.get_or_query_entity_by_id(
-            sg_parent_entity_dict["data"].get(CUST_FIELD_CODE_ID),
-            [
-                (
-                    "task"
-                    if sg_parent_entity_dict["type"] == "task"
-                    else "folder"
-                )
-            ],
-        )
+            log.debug(f"ShotGrid Parent entity: {sg_parent_entity_dict}")
+            ay_parent_entity = ayon_entity_hub.get_or_query_entity_by_id(
+                sg_parent_entity_dict["data"].get(CUST_FIELD_CODE_ID),
+                [
+                    (
+                        "task"
+                        if sg_parent_entity_dict["type"] == "task"
+                        else "folder"
+                    )
+                ],
+            )
     return ay_parent_entity
 
 
