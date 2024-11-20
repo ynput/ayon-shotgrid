@@ -219,6 +219,7 @@ def _get_ayon_parent_entity(
     """
     shotgrid_type = sg_ay_dict["attribs"][SHOTGRID_TYPE_ATTRIB]
     sg_parent = sg_ay_dict["data"].get(sg_parent_field)
+    ay_parent_entity = None
 
     if (
         shotgrid_type == "Asset"
