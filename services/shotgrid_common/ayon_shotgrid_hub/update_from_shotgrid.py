@@ -137,6 +137,10 @@ def create_ay_entity_from_sg_event(
             addon_settings
         )
 
+        sg_parent = sg_ay_dict["data"].get(sg_parent_field)
+        if not ay_parent_entity and not sg_parent:
+            ay_parent_entity = ayon_entity_hub.project_entity
+
         if not ay_parent_entity:
             sg_ay_parent_dict = get_sg_entity_as_ay_dict(
                 sg_session,
