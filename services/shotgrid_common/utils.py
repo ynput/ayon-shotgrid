@@ -506,11 +506,14 @@ def _get_special_category(
     Returns:
         (FolderEntity)
     """
+    found_folder = None
+
+    placeholders = _get_placeholders(sg_ay_dict)
     while folders_and_types:
         found_folder = None
         parent = folders_and_types.popleft()
         folder_name, folder_type = parent
-        placeholders = {"shotgrid_type": sg_ay_dict["attribs"]["shotgridType"]}
+
         try:
             folder_name = folder_name.format(**placeholders)
         except KeyError:
@@ -540,6 +543,27 @@ def _get_special_category(
                 log.error(f"Unable to create {folder_type}.", exc_info=True)
 
     return found_folder
+
+
+def _get_placeholders(sg_ay_dict):
+    """Returns dynamic values for placeholders used in folder name.
+
+    Currently implemented only `shotgrid_type` which points to name of
+    AssetCategory
+    TODO probably refactor `shotgrid_type` to different name if ShotCategory
+    removed
+    """
+    placeholders = {}
+    # regular update process
+    sg_asset_type = sg_ay_dict["data"].get("sg_asset_type")
+    if sg_asset_type:
+        placeholders["shotgrid_type"] = sg_asset_type.lower()
+    else:
+        # AssetCategory for match_
+        sg_asset_type = sg_ay_dict["attribs"].get("shotgridType")
+        if sg_asset_type:
+            placeholders["shotgrid_type"] = sg_ay_dict["name"]
+    return placeholders
 
 
 def _create_special_category(
@@ -599,6 +623,7 @@ def _get_parents_and_types(addon_settings, transfer_type, sg_entity_type):
         if preset["filter_by_sg_entity_type"] != sg_entity_type:
             continue
         found_preset = preset
+        break
 
     if not found_preset:
         return
