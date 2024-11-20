@@ -101,16 +101,6 @@ def match_shotgrid_hierarchy_in_ayon(
         # If we haven't found the ay_entity by its id, check by its name
         # to avoid creating duplicates and erroring out
         if ay_entity is None:
-            name = slugify_string(sg_ay_dict["name"])
-            for child in ay_parent_entity.children:
-                if child.name.lower() == name.lower():
-                    ay_entity = child
-                    break
-
-        # If we couldn't find it we create it.
-        if ay_entity is None:
-            parent_is_project = isinstance(ay_parent_entity, ProjectEntity)
-
             shotgrid_type = sg_ay_dict["attribs"].get(SHOTGRID_TYPE_ATTRIB)
             if shotgrid_type == "AssetCategory":
                 ay_parent_entity = get_asset_category(
@@ -119,8 +109,12 @@ def match_shotgrid_hierarchy_in_ayon(
                     sg_ay_dict,
                     addon_settings
                 )
+                # If the entity has children, add it to the deck
+                for sg_child_id in sg_ay_dicts_parents.get(sg_entity_id, []):
+                    sg_ay_dicts_deck.append((ay_parent_entity, sg_child_id))
+                continue
 
-            if shotgrid_type == "Sequence" and parent_is_project:
+            elif shotgrid_type == "Sequence":
                 ay_parent_entity = get_sequence_category(
                     entity_hub,
                     ay_parent_entity,
@@ -128,7 +122,7 @@ def match_shotgrid_hierarchy_in_ayon(
                     addon_settings
                 )
 
-            if shotgrid_type == "Shot" and parent_is_project:
+            elif shotgrid_type == "Shot":
                 ay_parent_entity = get_shot_category(
                     entity_hub,
                     ay_parent_entity,
@@ -136,6 +130,14 @@ def match_shotgrid_hierarchy_in_ayon(
                     addon_settings
                 )
 
+            name = slugify_string(sg_ay_dict["name"])
+            for child in ay_parent_entity.children:
+                if child.name.lower() == name.lower():
+                    ay_entity = child
+                    break
+
+        # If we couldn't find it we create it.
+        if ay_entity is None:
             if not ay_entity:
                 ay_entity = create_new_ayon_entity(
                     sg_session,
@@ -196,10 +198,6 @@ def match_shotgrid_hierarchy_in_ayon(
                 update_data
             )
             ay_entity.data.update(update_data)
-
-        # If the entity has children, add it to the deck
-        for sg_child_id in sg_ay_dicts_parents.get(sg_entity_id, []):
-            sg_ay_dicts_deck.append((ay_entity, sg_child_id))
 
     # Sync project attributes from Shotgrid to AYON
     entity_hub.project_entity.attribs.set(
