@@ -140,7 +140,7 @@ class FolderReparentingParentsModel(BaseSettingsModel):
         description=(
             "Name of the parent folder in AYON. Anatomy presets can be used."
             "`sg_` prefix can be used to refer to ShotGrid entities. Example: "
-            "`{sg_asset[type]}` will be replaced with the ShotGrid Asset Type."
+            "`{shotgrid_type}` will be replaced with the ShotGrid Asset Type."
         ),
     )
 
