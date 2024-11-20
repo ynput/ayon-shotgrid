@@ -162,6 +162,10 @@ def _sg_to_ay_dict(
             CUST_FIELD_CODE_ID: sg_entity.get(CUST_FIELD_CODE_ID),
         }
     }
+
+    if sg_entity["type"] == "Shot" and sg_entity.get("sg_sequence"):
+        sg_ay_dict["data"]["sg_sequence"] = sg_entity["sg_sequence"]
+
     if custom_attribs_map:
         for ay_attrib, sg_attrib in custom_attribs_map.items():
             sg_value = sg_entity.get(sg_attrib) or sg_entity.get(f"sg_{sg_attrib}")
