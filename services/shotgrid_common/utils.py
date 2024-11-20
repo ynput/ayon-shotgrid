@@ -15,6 +15,7 @@ from constants import (
     SG_PROJECT_ATTRS,
     SHOTGRID_ID_ATTRIB,
     SHOTGRID_TYPE_ATTRIB,
+    FOLDER_REPARENTING_TYPE
 )
 
 from ayon_api.entity_hub import (
@@ -417,7 +418,7 @@ def get_asset_category(entity_hub, parent_entity, sg_ay_dict, addon_settings):
         sg_ay_dict (dict): The ShotGrid entity ready for Ayon consumption.
         addon_settings (dict): Settings
     """
-    transfer_type = "type_grouping"
+    transfer_type = _get_parenting_transfer_type(addon_settings)
     folders_and_types = _get_parents_and_types(
         addon_settings, transfer_type, "Asset")
 
@@ -443,7 +444,7 @@ def get_sequence_category(entity_hub, parent_entity, sg_ay_dict, addon_settings)
         sg_ay_dict (dict): The ShotGrid entity ready for AYON consumption.
 
     """
-    transfer_type = "type_grouping"
+    transfer_type = _get_parenting_transfer_type(addon_settings)
     folders_and_types = _get_parents_and_types(
         addon_settings, transfer_type, "Sequence")
     return _get_special_category(
@@ -463,9 +464,24 @@ def get_shot_category(entity_hub, parent_entity, sg_ay_dict, addon_settings):
         sg_ay_dict (dict): The ShotGrid entity ready for Ayon consumption.
 
     """
-    transfer_type = "type_grouping"
+    sg_entity_type = "Shot"
+    transfer_type = _get_parenting_transfer_type(addon_settings)
+    parent_sequence = None
+    if transfer_type == FOLDER_REPARENTING_TYPE.ROOT_RELOCATE:
+        # TODO what if non standard mapping of shots
+        sg_parent = sg_ay_dict["data"].get("sg_sequence")
+        if sg_parent:
+            sg_entity_type = "Sequence"  # look for custom parents of Sequence
+            parent_sequence = (sg_parent["name"], sg_parent["type"])
+        else:
+            return entity_hub.project_entity
+
     folders_and_types = _get_parents_and_types(
-        addon_settings, transfer_type, "Shot")
+        addon_settings, transfer_type, sg_entity_type)
+
+    if parent_sequence:
+        folders_and_types.append(parent_sequence)
+
     return _get_special_category(
         entity_hub,
         parent_entity,
@@ -594,6 +610,30 @@ def _get_parents_and_types(addon_settings, transfer_type, sg_entity_type):
         )
 
     return folders_and_types
+
+def _get_parenting_transfer_type(addon_settings):
+    """Select which workflow is enabled.
+
+    TODO refactor to single object with type selector not two object
+    current implementation will be only for development and easier testing
+
+    Returns:
+        (str):
+            "root_relocate" - keep SG hierachy, put in additional AYON folder
+            "type_grouping" - separate SG objects into AYON folders
+    """
+    folder_parenting = (addon_settings["compatibility_settings"]
+                                      ["folder_parenting"])
+
+    enabled_transfer_type = None
+    for transfer_type, transfer_type_info in folder_parenting.items():
+        if transfer_type_info["enabled"]:
+            if enabled_transfer_type:
+                raise RuntimeError("Both types cannot be enabled. Please "
+                                   "disable one.")
+            enabled_transfer_type = transfer_type
+
+    return enabled_transfer_type
 
 
 def get_or_create_sg_field(

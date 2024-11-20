@@ -156,3 +156,9 @@ SG_EVENT_QUERY_FIELDS = [
     "session_uuid",
     "created_at",
 ]
+
+
+class FOLDER_REPARENTING_TYPE:
+    ROOT_RELOCATE = "root_relocate"
+    TYPE_GROUPING = "type_grouping"
+
