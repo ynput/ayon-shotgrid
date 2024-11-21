@@ -184,7 +184,7 @@ def match_shotgrid_hierarchy_in_ayon(
 
         # If the entity has children, add it to the deck
         for sg_child_id in sg_ay_dicts_parents.get(sg_entity_id, []):
-            sg_ay_dicts_deck.append((ay_parent_entity, sg_child_id))
+            sg_ay_dicts_deck.append((ay_entity, sg_child_id))
 
     _sync_project_attributes(entity_hub, custom_attribs_map, sg_project)
 
