@@ -254,6 +254,8 @@ def _update_sg_entity(
             sg_entity_id,
             update_data
         )
+        if not ay_entity.data:
+            ay_entity.data = {}
         ay_entity.data.update(update_data)
 
 
