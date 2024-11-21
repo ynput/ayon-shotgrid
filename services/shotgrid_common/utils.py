@@ -366,9 +366,7 @@ def create_sg_entities_in_ay(
     new_folder_types = sg_folder_entities + project_entity.folder_types
     # So we can have a specific folder for AssetCategory
     new_folder_types.extend([
-        {"name": "AssetCategory"},
-        {"name": "ShotCategory"},
-        {"name": "SequenceCategory"},
+        {"name": "AssetCategory"}
     ])
 
     # Make sure list items are unique
@@ -550,8 +548,7 @@ def _get_placeholders(sg_ay_dict):
 
     Currently implemented only `shotgrid_type` which points to name of
     AssetCategory
-    TODO probably refactor `shotgrid_type` to different name if ShotCategory
-    removed
+    TODO probably refactor `shotgrid_type` to different name
     """
     placeholders = {}
     # regular update process

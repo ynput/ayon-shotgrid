@@ -319,7 +319,7 @@ def _create_sg_entity(
     sg_field_name = "code"
     sg_step = None
 
-    special_folder_types =["AssetCategory", "ShotCategory", "SequenceCategory"]
+    special_folder_types = ["AssetCategory"]
     # parent special folder like AssetCategory should not be created in
     # Shotgrid it is only used for grouping Asset types
     is_parent_project_entity = isinstance(ay_entity.parent, ProjectEntity)
