@@ -112,6 +112,8 @@ def match_shotgrid_hierarchy_in_ayon(
                 # If the entity has children, add it to the deck
                 for sg_child_id in sg_ay_dicts_parents.get(sg_entity_id, []):
                     sg_ay_dicts_deck.append((ay_parent_entity, sg_child_id))
+
+                # AssetCategory is not "real" entity to create or update ids
                 continue
 
             elif shotgrid_type == "Sequence":
