@@ -203,31 +203,7 @@ def match_shotgrid_hierarchy_in_ayon(
         for sg_child_id in sg_ay_dicts_parents.get(sg_entity_id, []):
             sg_ay_dicts_deck.append((ay_parent_entity, sg_child_id))
 
-    # Sync project attributes from Shotgrid to AYON
-    entity_hub.project_entity.attribs.set(
-        SHOTGRID_ID_ATTRIB,
-        sg_project["id"]
-    )
-    entity_hub.project_entity.attribs.set(
-        SHOTGRID_TYPE_ATTRIB,
-        "Project"
-    )
-    for ay_attrib, sg_attrib in custom_attribs_map.items():
-        attrib_value = sg_project.get(sg_attrib) \
-            or sg_project.get(f"sg_{sg_attrib}")
-
-        if attrib_value is None:
-            continue
-
-        if ay_attrib == "tags":
-            project_name = entity_hub.project_entity.project_name
-            _add_tags(project_name, attrib_value)
-            continue
-
-        entity_hub.project_entity.attribs.set(
-            ay_attrib,
-            attrib_value
-        )
+    _sync_project_attributes(entity_hub, custom_attribs_map, sg_project)
 
     try:
         entity_hub.commit_changes()
@@ -249,6 +225,41 @@ def match_shotgrid_hierarchy_in_ayon(
             CUST_FIELD_CODE_SYNC: sg_project_sync_status
         }
     )
+
+
+def _sync_project_attributes(entity_hub, custom_attribs_map, sg_project):
+    """Sync project attributes from Shotgrid to AYON
+
+    Args:
+        entity_hub (ayon_api.entity_hub.EntityHub): The AYON EntityHub.
+        custom_attribs_map (dict): A dictionary mapping AYON attributes to
+            Shotgrid fields, without the `sg_` prefix.
+        sg_project (dict): The Shotgrid project.
+    """
+    entity_hub.project_entity.attribs.set(
+        SHOTGRID_ID_ATTRIB,
+        sg_project["id"]
+    )
+    entity_hub.project_entity.attribs.set(
+        SHOTGRID_TYPE_ATTRIB,
+        "Project"
+    )
+    for ay_attrib, sg_attrib in custom_attribs_map.items():
+        attrib_value = sg_project.get(sg_attrib) \
+                       or sg_project.get(f"sg_{sg_attrib}")
+
+        if attrib_value is None:
+            continue
+
+        if ay_attrib == "tags":
+            project_name = entity_hub.project_entity.project_name
+            _add_tags(project_name, attrib_value)
+            continue
+
+        entity_hub.project_entity.attribs.set(
+            ay_attrib,
+            attrib_value
+        )
 
 
 def _add_tags(project_name, tags):
