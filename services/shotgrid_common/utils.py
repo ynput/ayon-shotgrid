@@ -428,7 +428,6 @@ def get_asset_category(entity_hub, parent_entity, sg_ay_dict, addon_settings):
 
     return _get_special_category(
         entity_hub,
-        parent_entity,
         sg_ay_dict,
         folders_and_types=folders_and_types
     )
@@ -453,7 +452,6 @@ def get_sequence_category(entity_hub, parent_entity, sg_ay_dict, addon_settings)
         addon_settings, transfer_type, "Sequence")
     return _get_special_category(
         entity_hub,
-        parent_entity,
         sg_ay_dict,
         folders_and_types=folders_and_types
     )
@@ -488,28 +486,26 @@ def get_shot_category(entity_hub, parent_entity, sg_ay_dict, addon_settings):
 
     return _get_special_category(
         entity_hub,
-        parent_entity,
         sg_ay_dict,
         folders_and_types=folders_and_types
     )
 
 
 def _get_special_category(
-        entity_hub,
-        parent_entity,
-        sg_ay_dict,
-        folders_and_types=None
+    entity_hub,
+    sg_ay_dict,
+    folders_and_types=None
 ):
     """Returns or creates special subfolders (shot|sequence|AssetCategory).
 
     Args:
         entity_hub (ayon_api.EntityHub): The project's entity hub.
-        parent_entity: AYON parent entity.
         sg_ay_dict (dict): The ShotGrid entity ready for Ayon consumption.
         folders_and_types (deque(([str], [str])))
     Returns:
         (FolderEntity)
     """
+    parent_entity = entity_hub.project_entity
     found_folder = None
 
     placeholders = _get_placeholders(sg_ay_dict)
