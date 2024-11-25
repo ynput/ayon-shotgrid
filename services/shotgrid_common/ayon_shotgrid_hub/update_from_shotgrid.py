@@ -232,7 +232,6 @@ def _get_ayon_parent_entity(
         log.debug("ShotGrid Parent is an Asset category.")
         ay_parent_entity = get_asset_category(
             ayon_entity_hub,
-            ayon_entity_hub.project_entity,
             sg_ay_dict,
             addon_settings
         )
@@ -241,7 +240,6 @@ def _get_ayon_parent_entity(
         log.info("ShotGrid Parent is an Sequence category.")
         ay_parent_entity = get_sequence_category(
             ayon_entity_hub,
-            ayon_entity_hub.project_entity,
             sg_ay_dict,
             addon_settings
         )
@@ -250,7 +248,6 @@ def _get_ayon_parent_entity(
         log.info("ShotGrid Parent is an Shot category.")
         ay_parent_entity = get_shot_category(
             ayon_entity_hub,
-            ayon_entity_hub.project_entity,
             sg_ay_dict,
             addon_settings
         )

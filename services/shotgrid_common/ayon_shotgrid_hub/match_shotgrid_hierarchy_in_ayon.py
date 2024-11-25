@@ -103,7 +103,6 @@ def match_shotgrid_hierarchy_in_ayon(
             if shotgrid_type == "AssetCategory":
                 ay_parent_entity = get_asset_category(
                     entity_hub,
-                    ay_parent_entity,
                     sg_ay_dict,
                     addon_settings
                 )
@@ -117,7 +116,6 @@ def match_shotgrid_hierarchy_in_ayon(
             elif shotgrid_type == "Sequence":
                 ay_parent_entity = get_sequence_category(
                     entity_hub,
-                    ay_parent_entity,
                     sg_ay_dict,
                     addon_settings
                 )
@@ -125,7 +123,6 @@ def match_shotgrid_hierarchy_in_ayon(
             elif shotgrid_type == "Shot":
                 ay_parent_entity = get_shot_category(
                     entity_hub,
-                    ay_parent_entity,
                     sg_ay_dict,
                     addon_settings
                 )
