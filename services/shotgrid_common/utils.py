@@ -406,7 +406,7 @@ def create_sg_entities_in_ay(
     return sg_folder_entities, sg_steps
 
 
-def get_asset_category(entity_hub, parent_entity, sg_ay_dict, addon_settings):
+def get_asset_category(entity_hub, sg_ay_dict, addon_settings):
     """Look for existing "AssetCategory" folders in AYON.
 
         Asset categories are not entities per se in ShotGrid, they are
@@ -431,7 +431,7 @@ def get_asset_category(entity_hub, parent_entity, sg_ay_dict, addon_settings):
     )
 
 
-def get_sequence_category(entity_hub, parent_entity, sg_ay_dict, addon_settings):
+def get_sequence_category(entity_hub, sg_ay_dict, addon_settings):
     """Look for existing "Sequence" folders in AYON.
 
         Asset categories are not entities per se in ShotGrid, they are
@@ -455,7 +455,7 @@ def get_sequence_category(entity_hub, parent_entity, sg_ay_dict, addon_settings)
     )
 
 
-def get_shot_category(entity_hub, parent_entity, sg_ay_dict, addon_settings):
+def get_shot_category(entity_hub, sg_ay_dict, addon_settings):
     """Look for existing "shot" folders in AYON under "parent_entity".
 
     Args:
@@ -473,8 +473,6 @@ def get_shot_category(entity_hub, parent_entity, sg_ay_dict, addon_settings):
         if sg_parent:
             sg_entity_type = "Sequence"  # look for custom parents of Sequence
             parent_sequence = (sg_parent["name"], sg_parent["type"])
-        else:
-            return entity_hub.project_entity
 
     folders_and_types = _get_parents_and_types(
         addon_settings, transfer_type, sg_entity_type)
@@ -507,6 +505,9 @@ def _get_special_category(
     found_folder = None
 
     placeholders = _get_placeholders(sg_ay_dict)
+    if not folders_and_types:
+        return parent_entity
+
     while folders_and_types:
         found_folder = None
         parent = folders_and_types.popleft()
@@ -613,7 +614,7 @@ def _get_parents_and_types(addon_settings, transfer_type, sg_entity_type):
                                      [transfer_type])
 
     if not parents_presets["enabled"]:
-        return
+        return []
 
     found_preset = None
     for preset in parents_presets["presets"]:
@@ -623,7 +624,7 @@ def _get_parents_and_types(addon_settings, transfer_type, sg_entity_type):
         break
 
     if not found_preset:
-        return
+        return []
 
     folders_and_types = collections.deque()
     for parent in found_preset["parents"]:
