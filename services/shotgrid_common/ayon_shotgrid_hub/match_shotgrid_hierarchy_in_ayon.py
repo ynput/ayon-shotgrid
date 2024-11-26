@@ -238,7 +238,8 @@ def _update_sg_entity(
         )
     ):
         log.debug(
-            "Updating AYON entity ID and sync status in SG and AYON")
+            f"Updating AYON entity ID '{ay_entity.id}' and "
+            f"sync status in SG '{sg_ay_dict['name']}' and AYON")
         update_data = {
             CUST_FIELD_CODE_ID: ay_entity.id,
             CUST_FIELD_CODE_SYNC: sg_entity_sync_status
