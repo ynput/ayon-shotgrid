@@ -1319,7 +1319,8 @@ def create_new_ayon_entity(
             label=sg_ay_dict["label"],
             entity_id=sg_ay_dict["data"][CUST_FIELD_CODE_ID],
             parent_id=parent_entity.id,
-            attribs=sg_ay_dict["attribs"]
+            attribs=sg_ay_dict["attribs"],
+            data=sg_ay_dict["data"]
         )
     else:
         ay_entity = entity_hub.add_new_folder(
@@ -1328,7 +1329,8 @@ def create_new_ayon_entity(
             label=sg_ay_dict["label"],
             entity_id=sg_ay_dict["data"][CUST_FIELD_CODE_ID],
             parent_id=parent_entity.id,
-            attribs=sg_ay_dict["attribs"]
+            attribs=sg_ay_dict["attribs"],
+            data=sg_ay_dict["data"]
         )
 
     log.debug(f"Created new AYON entity: {ay_entity}")
