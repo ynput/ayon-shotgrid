@@ -250,9 +250,8 @@ def _update_sg_entity(
             sg_entity_id,
             update_data
         )
-        if not ay_entity.data:
-            ay_entity.data = {}
-        ay_entity.data.update(update_data)
+        if ay_entity.data:
+            ay_entity.data.update(update_data)
 
 
 def _sync_project_attributes(entity_hub, custom_attribs_map, sg_project):
