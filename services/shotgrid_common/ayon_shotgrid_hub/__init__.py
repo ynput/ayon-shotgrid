@@ -82,7 +82,7 @@ class AyonShotgridHub:
         custom_attribs_types=None,
         sg_enabled_entities=None,
     ):
-        self.settings = ayon_api.get_service_addon_settings()
+        self.settings = ayon_api.get_service_addon_settings(project_name)
 
         self._sg = sg_connection
 
@@ -280,7 +280,8 @@ class AyonShotgridHub:
                     self._sg,
                     self.sg_enabled_entities,
                     self.sg_project_code_field,
-                    self.custom_attribs_map
+                    self.custom_attribs_map,
+                    self.settings
                 )
 
             case _:
@@ -338,6 +339,7 @@ class AyonShotgridHub:
                     self.sg_enabled_entities,
                     self.sg_project_code_field,
                     self.custom_attribs_map,
+                    self.settings
                 )
 
             case "attribute_change":

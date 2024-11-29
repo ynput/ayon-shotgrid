@@ -15,6 +15,7 @@ from constants import (
     SG_PROJECT_ATTRS,
     SHOTGRID_ID_ATTRIB,
     SHOTGRID_TYPE_ATTRIB,
+    FOLDER_REPARENTING_TYPE
 )
 
 from ayon_api.entity_hub import (
@@ -161,6 +162,10 @@ def _sg_to_ay_dict(
             CUST_FIELD_CODE_ID: sg_entity.get(CUST_FIELD_CODE_ID),
         }
     }
+
+    if sg_entity["type"] == "Shot" and sg_entity.get("sg_sequence"):
+        sg_ay_dict["data"]["sg_sequence"] = sg_entity["sg_sequence"]
+
     if custom_attribs_map:
         for ay_attrib, sg_attrib in custom_attribs_map.items():
             sg_value = sg_entity.get(sg_attrib) or sg_entity.get(f"sg_{sg_attrib}")
@@ -360,7 +365,10 @@ def create_sg_entities_in_ay(
 
     new_folder_types = sg_folder_entities + project_entity.folder_types
     # So we can have a specific folder for AssetCategory
-    new_folder_types.append({"name": "AssetCategory"})
+    new_folder_types.extend([
+        {"name": "AssetCategory"},
+        {"name": "Folder"}
+    ])
 
     # Make sure list items are unique
     new_folder_types = list({
@@ -399,41 +407,33 @@ def create_sg_entities_in_ay(
     return sg_folder_entities, sg_steps
 
 
-def create_asset_category(entity_hub, parent_entity, sg_ay_dict):
-    """Create an "AssetCategory" folder in AYON.
+def get_asset_category(entity_hub, sg_ay_dict, addon_settings):
+    """Look for existing "AssetCategory" folders in AYON.
+
+        Asset categories are not entities per se in ShotGrid, they are
+        a "string" field in the `Asset` type, which is then used to visually
+        group `Asset`s; here we attempt to find any `AssetCategory` folder
+        type that already matches the one in ShotGrid.
 
     Args:
         entity_hub (ayon_api.EntityHub): The project's entity hub.
-        parent_entity: AYON parent entity.
-        sg_ay_dict (dict): The ShotGrid entity ready for AYON consumption.
+        parent_entity: Ayon parent entity.
+        sg_ay_dict (dict): The ShotGrid entity ready for Ayon consumption.
+        addon_settings (dict): Settings
     """
-    asset_category = sg_ay_dict["data"]["sg_asset_type"]
-    # asset category entity name
-    cat_ent_name = slugify_string(asset_category).lower()
+    transfer_type = _get_parenting_transfer_type(addon_settings)
+    folders_and_types = _get_parents_and_types(
+        addon_settings, transfer_type, "Asset")
 
-    asset_category_entity = {
-        "label": asset_category,
-        "name": cat_ent_name,
-        "attribs": {
-            SHOTGRID_ID_ATTRIB: slugify_string(asset_category).lower(),
-            SHOTGRID_TYPE_ATTRIB: "AssetCategory",
-        },
-        "parent_id": parent_entity.id,
-        "data": {
-            CUST_FIELD_CODE_ID: None,
-            CUST_FIELD_CODE_SYNC: None,
-        },
-        "folder_type": "AssetCategory",
-    }
-
-    asset_category_entity = entity_hub.add_new_folder(**asset_category_entity)
-
-    log.info(f"Created AssetCategory: {asset_category_entity}")
-    return asset_category_entity
+    return _get_special_category(
+        entity_hub,
+        sg_ay_dict,
+        folders_and_types=folders_and_types
+    )
 
 
-def get_asset_category(entity_hub, parent_entity, sg_ay_dict):
-    """Look for existing "AssetCategory" folders in AYON.
+def get_sequence_category(entity_hub, sg_ay_dict, addon_settings):
+    """Look for existing "Sequence" folders in AYON.
 
         Asset categories are not entities per se in ShotGrid, they are
         a "string" field in the `Asset` type, which is then used to visually
@@ -446,32 +446,218 @@ def get_asset_category(entity_hub, parent_entity, sg_ay_dict):
         sg_ay_dict (dict): The ShotGrid entity ready for AYON consumption.
 
     """
-    # just in case the asset type doesn't exist yet
-    if not sg_ay_dict["data"].get("sg_asset_type"):
-        sg_ay_dict["data"]["sg_asset_type"] = sg_ay_dict["name"]
+    transfer_type = _get_parenting_transfer_type(addon_settings)
+    folders_and_types = _get_parents_and_types(
+        addon_settings, transfer_type, "Sequence")
+    return _get_special_category(
+        entity_hub,
+        sg_ay_dict,
+        folders_and_types=folders_and_types
+    )
 
-    asset_category_name = slugify_string(
-        sg_ay_dict["data"]["sg_asset_type"]).lower()
 
-    asset_categories = [
-        entity
-        for entity in parent_entity.get_children()
-        if (
-            entity.entity_type == "folder"
-            and entity.folder_type == "AssetCategory"
-            and entity.name == asset_category_name
+def get_shot_category(entity_hub, sg_ay_dict, addon_settings):
+    """Look for existing "shot" folders in AYON under "parent_entity".
+
+    Args:
+        entity_hub (ayon_api.EntityHub): The project's entity hub.
+        parent_entity: Ayon parent entity.
+        sg_ay_dict (dict): The ShotGrid entity ready for Ayon consumption.
+
+    """
+    sg_entity_type = "Shot"
+    transfer_type = _get_parenting_transfer_type(addon_settings)
+    parent_sequence = None
+    if transfer_type == FOLDER_REPARENTING_TYPE.ROOT_RELOCATE:
+        # TODO what if non standard mapping of shots
+        sg_parent = sg_ay_dict["data"].get("sg_sequence")
+        if sg_parent:
+            sg_entity_type = "Sequence"  # look for custom parents of Sequence
+            parent_sequence = (sg_parent["name"], sg_parent["type"])
+
+    folders_and_types = _get_parents_and_types(
+        addon_settings, transfer_type, sg_entity_type)
+
+    if parent_sequence:
+        folders_and_types.append(parent_sequence)
+
+    return _get_special_category(
+        entity_hub,
+        sg_ay_dict,
+        folders_and_types=folders_and_types
+    )
+
+
+def _get_special_category(
+    entity_hub,
+    sg_ay_dict,
+    folders_and_types=None
+):
+    """Returns or creates special subfolders (shot|sequence|AssetCategory).
+
+    Args:
+        entity_hub (ayon_api.EntityHub): The project's entity hub.
+        sg_ay_dict (dict): The ShotGrid entity ready for Ayon consumption.
+        folders_and_types (deque(([str], [str])))
+    Returns:
+        (FolderEntity)
+    """
+    parent_entity = entity_hub.project_entity
+    found_folder = None
+
+    placeholders = _get_placeholders(sg_ay_dict)
+    if not folders_and_types:
+        return parent_entity
+
+    while folders_and_types:
+        found_folder = None
+        parent = folders_and_types.popleft()
+        folder_name, folder_type = parent
+
+        try:
+            folder_name = folder_name.format(**placeholders)
+        except KeyError:
+            # ignore superfluous placeholders
+            pass
+
+        for entity in parent_entity.get_children():
+            if (
+                entity.folder_type == folder_type
+                and entity.name == folder_name
+            ):
+                parent_entity = entity
+                found_folder = entity
+                break
+
+        if not found_folder:
+            try:
+                found_folder = _create_special_category(
+                    entity_hub,
+                    parent_entity,
+                    sg_ay_dict,
+                    folder_name,
+                    folder_type
+                )
+                parent_entity = found_folder
+            except Exception:
+                log.error(f"Unable to create {folder_type}.", exc_info=True)
+
+    return found_folder
+
+
+def _get_placeholders(sg_ay_dict):
+    """Returns dynamic values for placeholders used in folder name.
+
+    Currently implemented only `shotgrid_type` which points to name of
+    AssetCategory
+    TODO probably refactor `shotgrid_type` to different name
+    """
+    placeholders = {}
+    # regular update process
+    sg_asset_type = sg_ay_dict["data"].get("sg_asset_type")
+    if sg_asset_type:
+        placeholders["shotgrid_type"] = sg_asset_type.lower()
+    else:
+        # AssetCategory for match_
+        sg_asset_type = sg_ay_dict["attribs"].get("shotgridType")
+        if sg_asset_type:
+            placeholders["shotgrid_type"] = sg_ay_dict["name"]
+    return placeholders
+
+
+def _create_special_category(
+    entity_hub,
+    parent_entity,
+    sg_ay_dict,
+    category_name=None,
+    folder_type=None
+):
+    """Creates special subfolders (shot|sequence|AssetCategory) in AYON
+
+    Args:
+        entity_hub (ayon_api.EntityHub): The project's entity hub.
+        parent_entity: AYON parent entity.
+        sg_ay_dict (dict): The ShotGrid entity ready for Ayon consumption.
+        category_name (Optional[str]): force this category name
+        folder_type (Optional[str]): force this folder type
+    Returns:
+        (FolderEntity)
+    """
+    if not folder_type:
+        folder_type = slugify_string(sg_ay_dict["folder_type"])
+    if not category_name:
+        category_name = folder_type.lower()
+
+    category_entity = {
+        "label": category_name,
+        "name": category_name,
+        "attribs": {
+            SHOTGRID_ID_ATTRIB: None,
+            SHOTGRID_TYPE_ATTRIB: folder_type,
+        },
+        "parent_id": parent_entity.id,
+        "data": {
+            CUST_FIELD_CODE_ID: None,
+            CUST_FIELD_CODE_SYNC: None,
+        },
+        "folder_type": folder_type,
+    }
+
+    category_entity = entity_hub.add_new_folder(**category_entity)
+
+    log.info(f"Created {folder_type}: {category_entity}")
+    return category_entity
+
+
+def _get_parents_and_types(addon_settings, transfer_type, sg_entity_type):
+    parents_presets = (addon_settings["compatibility_settings"]
+                                     ["folder_parenting"]
+                                     [transfer_type])
+
+    if not parents_presets["enabled"]:
+        return []
+
+    found_preset = None
+    for preset in parents_presets["presets"]:
+        if preset["filter_by_sg_entity_type"] != sg_entity_type:
+            continue
+        found_preset = preset
+        break
+
+    if not found_preset:
+        return []
+
+    folders_and_types = collections.deque()
+    for parent in found_preset["parents"]:
+        folders_and_types.append(
+            (parent["folder_name"], parent["folder_type"])
         )
-    ]
 
-    for asset_category in asset_categories:
-        return asset_category
+    return folders_and_types
 
-    try:
-        return create_asset_category(entity_hub, parent_entity, sg_ay_dict)
-    except Exception:
-        log.error("Unable to create AssetCategory.", exc_info=True)
+def _get_parenting_transfer_type(addon_settings):
+    """Select which workflow is enabled.
 
-    return None
+    TODO refactor to single object with type selector not two object
+    current implementation will be only for development and easier testing
+
+    Returns:
+        (str):
+            "root_relocate" - keep SG hierachy, put in additional AYON folder
+            "type_grouping" - separate SG objects into AYON folders
+    """
+    folder_parenting = (addon_settings["compatibility_settings"]
+                                      ["folder_parenting"])
+
+    enabled_transfer_type = None
+    for transfer_type, transfer_type_info in folder_parenting.items():
+        if transfer_type_info["enabled"]:
+            if enabled_transfer_type:
+                raise RuntimeError("Both types cannot be enabled. Please "
+                                   "disable one.")
+            enabled_transfer_type = transfer_type
+
+    return enabled_transfer_type
 
 
 def get_or_create_sg_field(
@@ -1134,7 +1320,8 @@ def create_new_ayon_entity(
             label=sg_ay_dict["label"],
             entity_id=sg_ay_dict["data"][CUST_FIELD_CODE_ID],
             parent_id=parent_entity.id,
-            attribs=sg_ay_dict["attribs"]
+            attribs=sg_ay_dict["attribs"],
+            data=sg_ay_dict["data"]
         )
     else:
         ay_entity = entity_hub.add_new_folder(
@@ -1143,7 +1330,8 @@ def create_new_ayon_entity(
             label=sg_ay_dict["label"],
             entity_id=sg_ay_dict["data"][CUST_FIELD_CODE_ID],
             parent_id=parent_entity.id,
-            attribs=sg_ay_dict["attribs"]
+            attribs=sg_ay_dict["attribs"],
+            data=sg_ay_dict["data"]
         )
 
     log.debug(f"Created new AYON entity: {ay_entity}")
