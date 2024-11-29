@@ -218,13 +218,13 @@ class ShotgridSettings(BaseSettingsModel):
     shotgrid_project_code_field: str = SettingsField(
         default="code",
         title="ShotGrid Project Code field name",
-        disabled=True,
         description=(
             "In order to create AYON projects, we need a Project Code, you "
             "can specify here which field in the ShotGrid Project "
             "entity represents it."
         ),
-        example="sg_code"
+        example="sg_code",
+        scope=["studio"],
     )
     enable_shotgrid_local_storage: bool = SettingsField(
         default=True,

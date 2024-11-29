@@ -17,17 +17,16 @@ class ShotgridAddon(BaseServerAddon):
     frontend_scopes: dict[str, Any] = {"settings": {}}
 
     async def setup(self):
-        logging.info(f"Performing {self.name} addon setup.")
         need_restart = await self.create_shotgrid_attributes()
         if need_restart:
-            logging.info(
+            logging.debug(
                 "Created or updated attributes in database, "
                 "requesting a server restart."
             )
             self.request_server_restart()
 
     async def create_shotgrid_attributes(self) -> bool:
-        """Make sure Ayon has the `shotgridId` and `shotgridPath` attributes.
+        """Make sure AYON has the `shotgridId` and `shotgridPath` attributes.
 
         Returns:
             bool: 'True' if an attribute was created or updated.

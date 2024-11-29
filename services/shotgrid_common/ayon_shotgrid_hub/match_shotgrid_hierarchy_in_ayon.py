@@ -1,12 +1,9 @@
 import collections
+import random
 import shotgun_api3
-from typing import Dict, List, Union
+from typing import Dict, List
 
 import ayon_api
-from ayon_api.entity_hub import (
-    ProjectEntity,
-    FolderEntity,
-)
 
 from ayon_api import slugify_string
 
@@ -18,6 +15,7 @@ from constants import (
 )
 
 from utils import (
+    create_new_ayon_entity,
     get_sg_entities,
     get_asset_category,
     update_ay_entity_custom_attributes,
@@ -114,7 +112,8 @@ def match_shotgrid_hierarchy_in_ayon(
                 )
 
             if not ay_entity:
-                ay_entity = _create_new_entity(
+                ay_entity = create_new_ayon_entity(
+                    sg_session,
                     entity_hub,
                     ay_parent_entity,
                     sg_ay_dict
@@ -165,7 +164,7 @@ def match_shotgrid_hierarchy_in_ayon(
                 CUST_FIELD_CODE_ID: ay_entity.id,
                 CUST_FIELD_CODE_SYNC: sg_entity_sync_status
             }
-            # Update Shotgrid entity with Ayon ID and sync status
+            # Update Shotgrid entity with AYON ID and sync status
             sg_session.update(
                 sg_ay_dict["attribs"][SHOTGRID_TYPE_ATTRIB],
                 sg_entity_id,
@@ -177,16 +176,6 @@ def match_shotgrid_hierarchy_in_ayon(
         for sg_child_id in sg_ay_dicts_parents.get(sg_entity_id, []):
             sg_ay_dicts_deck.append((ay_entity, sg_child_id))
 
-    try:
-        entity_hub.commit_changes()
-    except Exception:
-        log.error(
-            "Unable to commit all entities to AYON!", exc_info=True)
-
-    log.info(
-        "Processed entities successfully!. "
-        f"Amount of entities: {len(processed_ids)}"
-    )
     # Sync project attributes from Shotgrid to AYON
     entity_hub.project_entity.attribs.set(
         SHOTGRID_ID_ATTRIB,
@@ -203,14 +192,28 @@ def match_shotgrid_hierarchy_in_ayon(
         if attrib_value is None:
             continue
 
+        if ay_attrib == "tags":
+            project_name = entity_hub.project_entity.project_name
+            _add_tags(project_name, attrib_value)
+            continue
+
         entity_hub.project_entity.attribs.set(
             ay_attrib,
             attrib_value
         )
 
-    entity_hub.commit_changes()
+    try:
+        entity_hub.commit_changes()
+    except Exception:
+        log.error(
+            "Unable to commit all entities to AYON!", exc_info=True)
 
-    # Update Shotgrid project with Ayon ID and sync status
+    log.info(
+        "Processed entities successfully!. "
+        f"Amount of entities: {len(processed_ids)}"
+    )
+
+    # Update Shotgrid project with AYON ID and sync status
     sg_session.update(
         "Project",
         sg_project["id"],
@@ -221,69 +224,42 @@ def match_shotgrid_hierarchy_in_ayon(
     )
 
 
-def _create_new_entity(
-    entity_hub: ayon_api.entity_hub.EntityHub,
-    parent_entity: Union[ProjectEntity, FolderEntity],
-    sg_ay_dict: Dict
-):
-    """Helper method to create entities in the EntityHub.
+def _add_tags(project_name, tags):
+    """Add tags to AYON project.
 
-    Task Creation:
-        https://github.com/ynput/ayon-python-api/blob/30d702618b58676c3708f09f131a0974a92e1002/ayon_api/entity_hub.py#L284
-
-    Folder Creation:
-        https://github.com/ynput/ayon-python-api/blob/30d702618b58676c3708f09f131a0974a92e1002/ayon_api/entity_hub.py#L254
-
+    Updates project Anatomy. No explicit way how to do it in ayon_api yet.
 
     Args:
-        entity_hub (ayon_api.EntityHub): The project's entity hub.
-        parent_entity: Ayon parent entity.
-        sg_ay_dict (dict): Ayon ShotGrid entity to create.
+        project_name (str)
+        tags (list of dict):
+            [{'id': 408, 'name': 'project_tag', 'type': 'Tag'}]
     """
-    if sg_ay_dict["type"].lower() == "task":
-        # only create if parent_entity type is not project
-        if parent_entity.entity_type == "project":
-            log.warning(
-                f"Can't create task '{sg_ay_dict['name']}' under project "
-                "'{parent_entity.name}'. Parent should not be project it self!"
-            )
-            return
+    anatomy_data = ayon_api.get(f"projects/{project_name}/anatomy").data
 
-        ay_entity = entity_hub.add_new_task(
-            sg_ay_dict["task_type"],
-            name=sg_ay_dict["name"],
-            label=sg_ay_dict["label"],
-            entity_id=sg_ay_dict["data"][CUST_FIELD_CODE_ID],
-            parent_id=parent_entity.id,
-            attribs=sg_ay_dict["attribs"],
-            data=sg_ay_dict["data"],
-        )
-    else:
-        ay_entity = entity_hub.add_new_folder(
-            sg_ay_dict["folder_type"],
-            name=sg_ay_dict["name"],
-            label=sg_ay_dict["label"],
-            entity_id=sg_ay_dict["data"][CUST_FIELD_CODE_ID],
-            parent_id=parent_entity.id,
-            attribs=sg_ay_dict["attribs"],
-            data=sg_ay_dict["data"],
-        )
+    existing_tags = {tag["name"] for tag in anatomy_data["tags"]}
+    update = False
+    for tag in tags:
+        tag_name = tag["name"]
+        if tag_name not in existing_tags:
+            new_tag = {
+                "name": tag_name,
+                "color": _create_color(),
+                "original_name": tag_name
+            }
+            anatomy_data["tags"].append(new_tag)
+            existing_tags.add(tag_name)
+            update = True
 
-    # TODO: this doesn't work yet
-    status = sg_ay_dict["attribs"].get("status")
-    if status:
-        # TODO: Implement status update
-        try:
-            # INFO: it was causing error so trying to set status directly
-            ay_entity.status = status
-        except ValueError as e:
-            # `ValueError: Status ip is not available on project.`
-            # log.warning(f"Status sync not implemented: {e}")
-            pass
+    if update:
+        result = ayon_api.post(
+            f"projects/{project_name}/anatomy", **anatomy_data)
+        if result.status_code != 204:
+            raise RuntimeError("Failed to update tags")
 
-    tags = sg_ay_dict["attribs"].get("tags")
-    if tags:
-        ay_entity.tags = [tag["name"] for tag in tags]
 
-    log.info(f"Created new entity: {ay_entity.name} ({ay_entity.id})")
-    return ay_entity
+def _create_color() -> str:
+    """Return a random color visible on dark background"""
+    color = [random.randint(0, 255) for _ in range(3)]
+    if sum(color) < 400:
+        color = [255 - x for x in color]
+    return f'#{"".join([f"{x:02x}" for x in color])}'

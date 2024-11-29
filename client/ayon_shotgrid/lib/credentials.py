@@ -138,7 +138,7 @@ def save_local_login(username, password):
     reg = AYONSecureRegistry("shotgrid/user")
     reg.set_item("value", username)
     reg = AYONSecureRegistry("shotgrid/pass")
-    reg.set_item("value", password)
+    reg.set_item("value", password or "")
 
 
 def clear_local_login():
