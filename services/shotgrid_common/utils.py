@@ -366,7 +366,8 @@ def create_sg_entities_in_ay(
     new_folder_types = sg_folder_entities + project_entity.folder_types
     # So we can have a specific folder for AssetCategory
     new_folder_types.extend([
-        {"name": "AssetCategory"}
+        {"name": "AssetCategory"},
+        {"name": "Folder"}
     ])
 
     # Make sure list items are unique
