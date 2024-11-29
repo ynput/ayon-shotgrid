@@ -136,7 +136,8 @@ const syncUsers = async () => {
       }
     })
     if (!already_exists) {
-      createNewUserInAyon(sg_user.login, sg_user.email, sg_user.name)
+      createNewUserInAyon(
+        sg_user.id ,sg_user.login, sg_user.email, sg_user.name)
     }
   })
 }
@@ -184,6 +185,7 @@ const getShotgridUsers = async () => {
           !users_to_ignore.some(item => sg_user.attributes.email.includes(item))
         ) {
           sgUsersConformed.push({
+            "id": sg_user.id,
             "login": sg_user.attributes.login,
             "name": sg_user.attributes.name,
             "email": sg_user.attributes.email,
@@ -235,18 +237,47 @@ const getAyonUsers = async () => {
     return ayonUsersConformed
 }
 
+function validateLogin(login) {
+  // First sanitize by replacing @ with underscore
+  let new_login = login.replace(/@/g, '_');
 
-const createNewUserInAyon = async (login, email, name) => {
+  // Ensure valid pattern
+  const validPattern = /^[a-zA-Z0-9][a-zA-Z0-9_\.\-]*[a-zA-Z0-9]$/;
+
+  if (!validPattern.test(new_login)) {
+    // If invalid, create valid string by:
+    // 1. Remove invalid chars
+    // 2. Ensure starts/ends with alphanumeric
+    let _new_login = new_login.replace(/[^a-zA-Z0-9_\.\-]/g, '')
+      .replace(/^[^a-zA-Z0-9]+/, '')
+      .replace(/[^a-zA-Z0-9]+$/, '');
+
+    // If result too short, append 'user'
+    if (_new_login.length < 2) {
+      new_login = 'user' + _new_login;
+    }
+  }
+
+  return new_login;
+}
+
+const createNewUserInAyon = async (id, login, email, name) => {
   /* Spawn an AYON Event of topic "shotgrid.event" to synchcronize a project
   from Shotgrid into AYON. */
   call_result_paragraph = document.getElementById("call-result");
 
+  // make sure no @ and . or - is in login string
+  let fixed_login = validateLogin(login);
+
   response = await ayonAPI
-    .put("/api/users/" + login, {
+    .put("/api/users/" + fixed_login, {
       "active": true,
       "attrib": {
         "fullName": name,
         "email": email,
+      },
+      "data": {
+        "sg_user_id": id
       },
       "password": login,
     })
