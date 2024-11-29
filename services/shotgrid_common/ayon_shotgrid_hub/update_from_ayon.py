@@ -413,11 +413,14 @@ def _create_sg_entity(
             sg_field_name: ay_entity.name,
             CUST_FIELD_CODE_ID: ay_entity.id,
         }
-        if isinstance(sg_parent_id, int):
+        try:
             data[parent_field] = {
                 "type": sg_parent_type,
                 "id": int(sg_parent_id)
             }
+        except TypeError:
+            log.warning(f"Cannot convert '{sg_parent_id} to parent "
+                        "it correctly.")
 
     # Fill up data with any extra attributes from AYON we want to sync to SG
     data.update(get_sg_custom_attributes_data(
