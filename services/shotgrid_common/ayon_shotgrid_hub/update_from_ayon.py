@@ -17,9 +17,9 @@ from utils import (
     get_sg_custom_attributes_data
 )
 from constants import (
-    CUST_FIELD_CODE_ID,  # Shotgrid Field for the Ayon ID.
-    SHOTGRID_ID_ATTRIB,  # Ayon Entity Attribute.
-    SHOTGRID_TYPE_ATTRIB,  # Ayon Entity Attribute.
+    CUST_FIELD_CODE_ID,  # Shotgrid Field for the AYON ID.
+    SHOTGRID_ID_ATTRIB,  # AYON Entity Attribute.
+    SHOTGRID_TYPE_ATTRIB,  # AYON Entity Attribute.
 )
 
 from utils import get_logger
@@ -45,7 +45,7 @@ def create_sg_entity_from_ayon_event(
         sg_project (dict): The Shotgrid project.
         sg_enabled_entities (list): List of Shotgrid entities to be enabled.
         custom_attribs_map (dict): Dictionary that maps a list of attribute names from
-            Ayon to Shotgrid.
+            AYON to Shotgrid.
 
     Returns:
         ay_entity (ayon_api.entity_hub.EntityHub.Entity): The newly
@@ -253,18 +253,12 @@ def remove_sg_entity_from_ayon_event(
         sg_session (shotgun_api3.Shotgun): The Shotgrid API session.
     """
     ay_id = ayon_event["payload"]["entityData"]["id"]
-    ay_entity_path = ayon_event["payload"]["entityData"].get("path")
     log.debug(f"Removing Shotgrid entity: {ayon_event['payload']}")
-
-    if not ay_entity_path:
-        log.warning(
-            f"Entity '{ay_id}' does not have a path to remove from Shotgrid."
-        )
-        return
 
     sg_id = ayon_event["payload"]["entityData"]["attrib"].get("shotgridId")
 
     if not sg_id:
+        ay_entity_path = ayon_event["payload"]["entityData"]["path"]
         log.warning(
             f"Entity '{ay_entity_path}' does not have a "
             "ShotGrid ID to remove."
@@ -289,7 +283,7 @@ def remove_sg_entity_from_ayon_event(
 
     if not sg_entity:
         log.warning(
-            f"Unable to find Ayon entity with id '{ay_id}' in Shotgrid.")
+            f"Unable to find AYON entity with id '{ay_id}' in Shotgrid.")
         return
 
     sg_id = sg_entity["id"]
@@ -325,16 +319,19 @@ def _create_sg_entity(
     sg_field_name = "code"
     sg_step = None
 
-    # parent AssetCategory should not be created in Shotgrid
-    # it is only used for grouping Asset types
+    special_folder_types = ["AssetCategory"]
+    # parent special folder like AssetCategory should not be created in
+    # Shotgrid it is only used for grouping Asset types
+    is_parent_project_entity = isinstance(ay_entity.parent, ProjectEntity)
     if (
-        isinstance(ay_entity.parent, ProjectEntity)
-        and ay_entity.folder_type == "AssetCategory"
+        is_parent_project_entity
+        and ay_entity.folder_type in special_folder_types
     ):
         return
-    elif ay_entity.parent.folder_type == "AssetCategory":
+    elif (not is_parent_project_entity and
+          ay_entity.parent.folder_type in special_folder_types):
         sg_parent_id = None
-        sg_parent_type = "AssetCategory"
+        sg_parent_type = ay_entity.parent.folder_type
     else:
         sg_parent_id = ay_entity.parent.attribs.get(SHOTGRID_ID_ATTRIB)
         sg_parent_type = ay_entity.parent.attribs.get(SHOTGRID_TYPE_ATTRIB)
@@ -413,18 +410,22 @@ def _create_sg_entity(
     elif ay_entity.entity_type == "folder":
         data = {
             "project": sg_project,
-            parent_field: {
-                "type": sg_parent_type,
-                "id": int(sg_parent_id)
-            },
             sg_field_name: ay_entity.name,
             CUST_FIELD_CODE_ID: ay_entity.id,
         }
+        try:
+            data[parent_field] = {
+                "type": sg_parent_type,
+                "id": int(sg_parent_id)
+            }
+        except TypeError:
+            log.warning(f"Cannot convert '{sg_parent_id} to parent "
+                        "it correctly.")
 
     if not data:
         return
-    
-    # Fill up data with any extra attributes from Ayon we want to sync to SG
+
+    # Fill up data with any extra attributes from AYON we want to sync to SG
     data.update(get_sg_custom_attributes_data(
         sg_session,
         ay_entity.attribs.to_dict(),

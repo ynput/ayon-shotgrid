@@ -1,6 +1,10 @@
 from ayon_server.entities.core.attrib import attribute_library
 from ayon_server.settings import BaseSettingsModel, SettingsField
-from ayon_server.settings.enum import secrets_enum, anatomy_presets_enum
+from ayon_server.settings.enum import (
+    secrets_enum,
+    anatomy_presets_enum,
+    folder_types_enum
+)
 
 
 def default_shotgrid_entities():
@@ -27,6 +31,16 @@ def default_shotgrid_enabled_entities():
         "Asset",
         "Task",
         "Version",
+    ]
+
+
+def default_shotgrid_reparenting_entities():
+    """The entity types in ShotGrid that are enabled by default in AYON."""
+    return [
+        "Episode",
+        "Sequence",
+        "Shot",
+        "Asset",
     ]
 
 
@@ -113,6 +127,92 @@ class AttributesMappingModel(BaseSettingsModel):
     )
 
 
+class FolderReparentingParentsModel(BaseSettingsModel):
+    folder_type: str = SettingsField(
+        "asset",
+        title="Parent Ayon Folder Type",
+        enum_resolver=folder_types_enum,
+        description="Type of the parent folder in AYON",
+    )
+    folder_name: str = SettingsField(
+        "assets",
+        title="Parent Ayon Folder Name",
+        description=(
+            "Name of the parent folder in AYON. Anatomy presets can be used."
+            "`sg_` prefix can be used to refer to ShotGrid entities. Example: "
+            "`{shotgrid_type}` will be replaced with the ShotGrid Asset Type."
+        ),
+    )
+
+
+class FolderReparentingPresetsModel(BaseSettingsModel):
+
+    filter_by_sg_entity_type: str = SettingsField(
+        "Asset",
+        title="Filter by ShotGrid Entity Type",
+        enum_resolver=default_shotgrid_reparenting_entities,
+        description=("Type of the ShotGrid entity to filter preset on."),
+    )
+    parents: list[FolderReparentingParentsModel] = SettingsField(
+        title="Parents",
+        default_factory=list,
+        description=(
+            "List of parent folders. If empty default behavior will be used. "
+            "The order of the parents from top to bottom is important."
+            "Within 'Root relocation' type the first parent will be "
+            "the root folder."
+        ),
+    )
+
+
+class FolderReparentingRelocateModel(BaseSettingsModel):
+    """Re-parent folders with Root relocation"""
+    enabled: bool = SettingsField(
+        False,
+        title="Enabled",
+        description="Enable or disable the re-parenting",
+    )
+
+    presets: list[FolderReparentingPresetsModel] = SettingsField(
+        title="Presets",
+        default_factory=list,
+        description=(
+            "List of presets for re-parenting. "
+            "If empty default behavior will be used."
+        ),
+    )
+
+
+class FolderReparentingTypeGroupingModel(BaseSettingsModel):
+    """Re-parent folders with Type grouping"""
+    enabled: bool = SettingsField(
+        False,
+        title="Enabled",
+        description="Enable or disable the re-parenting",
+    )
+
+    presets: list[FolderReparentingPresetsModel] = SettingsField(
+        title="Presets",
+        default_factory=list,
+        description=(
+            "List of presets for re-parenting. "
+            "If empty default behavior will be used."
+        ),
+    )
+
+
+class FolderReparentingModel(BaseSettingsModel):
+
+    root_relocate: FolderReparentingRelocateModel = SettingsField(
+        default_factory=FolderReparentingRelocateModel,
+        title="Root relocation",
+    )
+
+    type_grouping: FolderReparentingTypeGroupingModel = SettingsField(
+        default_factory=FolderReparentingTypeGroupingModel,
+        title="Type grouping",
+    )
+
 class ShotgridCompatibilitySettings(BaseSettingsModel):
     """ Settings to define relationships between ShotGrid and AYON.
     """
@@ -134,6 +234,12 @@ class ShotgridCompatibilitySettings(BaseSettingsModel):
             "mapping. Empty ones will be ignored. Scope is the list of "
             "ShotGrid entities that the mapping applies to. Disable any."
         ),
+    )
+
+    folder_parenting: FolderReparentingModel = SettingsField(
+        title="Folder re-parenting",
+        default_factory=FolderReparentingModel,
+        description=("Parent folders for AYON folders matching to SG types."),
     )
 
 

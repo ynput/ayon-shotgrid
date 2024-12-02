@@ -20,7 +20,7 @@ class ValidateShotgridUser(pyblish.api.ContextPlugin):
         if not (user_login and sg_session and sg_project):
             raise PublishValidationError("Missing Shotgrid Credentials")
 
-        self.log.info("Login ShotGrid set in Ayon is {}".format(user_login))
+        self.log.info("Login ShotGrid set in AYON is {}".format(user_login))
         self.log.info("Current ShotGrid Project is {}".format(sg_project))
 
         sg_user = sg_session.find_one(

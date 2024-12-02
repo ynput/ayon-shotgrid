@@ -1,6 +1,6 @@
 """ Influenced by the `ayon_api.EntityHub` the `AyonShotgridHub` is a class
 that provided a valid Project name and code, will perform all the necessary
-checks and provide methods to keep an Ayon and Shotgrid project in sync.
+checks and provide methods to keep an AYON and Shotgrid project in sync.
 """
 import re
 
@@ -83,7 +83,7 @@ class AyonShotgridHub:
         custom_attribs_types=None,
         sg_enabled_entities=None,
     ):
-        self.settings = ayon_api.get_service_addon_settings()
+        self.settings = ayon_api.get_service_addon_settings(project_name)
 
         self._sg = sg_connection
 
@@ -140,7 +140,7 @@ class AyonShotgridHub:
         try:
             self._ay_project = EntityHub(project_name)
             self._ay_project.project_entity
-        except Exception as err:
+        except Exception:
             self.log.warning(f"Project {project_name} does not exist in AYON.")
             self._ay_project = None
 
@@ -157,7 +157,7 @@ class AyonShotgridHub:
                 self.project_name,
                 custom_fields=custom_fields
             )
-        except Exception as e:
+        except Exception:
             self.log.warning(f"Project {project_name} does not exist in Shotgrid. ")
             self._sg_project = None
 
@@ -281,7 +281,8 @@ class AyonShotgridHub:
                     self._sg,
                     self.sg_enabled_entities,
                     self.sg_project_code_field,
-                    self.custom_attribs_map
+                    self.custom_attribs_map,
+                    self.settings
                 )
 
             case _:
@@ -307,6 +308,23 @@ class AyonShotgridHub:
                 f"Ignoring event, AYON project {self.project_name} not found.")
             return
 
+        # revival of Asset with tasks will send first retirement_date changes
+        # on tasks, then retirement_date change on Asset AND only then revival
+        # of Asset
+        if (
+            sg_event_meta["type"] == "attribute_change"
+            and sg_event_meta["attribute_name"] == "retirement_date"
+            and sg_event_meta["new_value"] is None  # eg revival
+        ):
+            if sg_event_meta["entity_type"].lower() == "asset":
+                # do not do updates on not yet existing asset
+                return
+
+            self.log.info("Changed 'retirement_date' event to "
+                          f"'entity_revival' for Task | "
+                          f"{sg_event_meta['entity_id']}.")
+            sg_event_meta["type"] = "entity_revival"
+
         match sg_event_meta["type"]:
             case "new_entity" | "entity_revival":
                 self.log.info(
@@ -322,6 +340,7 @@ class AyonShotgridHub:
                     self.sg_enabled_entities,
                     self.sg_project_code_field,
                     self.custom_attribs_map,
+                    self.settings
                 )
 
             case "attribute_change":
@@ -371,7 +390,9 @@ class AyonShotgridHub:
                 the change encompases, i.e. a new shot, new asset, etc.
         """
         if not self._sg_project[CUST_FIELD_CODE_AUTO_SYNC]:
-            self.log.info(f"Ignoring event, Shotgirid field 'Ayon Auto Sync' is disabled.")
+            self.log.info(
+                "Ignoring event, Shotgrid field 'Ayon Auto Sync' is disabled."
+            )
             return
 
         match ayon_event["topic"]:
@@ -402,7 +423,7 @@ class AyonShotgridHub:
                 attrib_key = next(iter(ayon_event["payload"]["newValue"]))
                 if attrib_key not in self.custom_attribs_map:
                     self.log.warning(
-                        f"Updating attribute '{attrib_key}' from Ayon to SG "
+                        f"Updating attribute '{attrib_key}' from AYON to SG "
                         f"not supported: {self.custom_attribs_map}."
                     )
                     return
