@@ -4,7 +4,7 @@ SERVICE = $(error Please specify the service to build with 'SERVICE', for exampl
 
 default:
 	@echo ""
-	@echo "Ayon Shotgrid $(ADDON_VERSION) Service Builder"
+	@echo "AYON Shotgrid $(ADDON_VERSION) Service Builder"
 	@echo ""
 	@echo "Usage: make SERVICE=[service-name] [target]"
 	@echo ""
@@ -17,16 +17,28 @@ default:
 	@echo "Targets:"
 	@echo "  build        Build docker image."
 	@echo "  build-all    Build docker image for 'leecher', 'procesor' and 'transmitter'."
+	@echo "  dist         Push docker image to DockerHub."
+	@echo "  dist-all     Push docker image for 'leecher', 'procesor' and 'transmitter'."
 	@echo "  clean        Remove local images."
 	@echo "  clean-build  Remove local images and build without docker cache."
 	@echo "  dev          Run a service locally"
 
 
 build:
-	docker build --network=host -t $(IMAGE) -f $(SERVICE)/Dockerfile .
+	docker build -t $(IMAGE) -f $(SERVICE)/Dockerfile .
 
 build-all:
-	$(foreach service,leecher processor transmitter, docker build --network=host -t ynput/ayon-shotgrid-$(service):$(ADDON_VERSION) -f $(service)/Dockerfile . &)
+	docker build -t ynput/ayon-shotgrid-leecher:$(ADDON_VERSION) -f ./leecher/Dockerfile .
+	docker build -t ynput/ayon-shotgrid-processor:$(ADDON_VERSION) -f ./processor/Dockerfile .
+	docker build -t ynput/ayon-shotgrid-transmitter:$(ADDON_VERSION) -f ./transmitter/Dockerfile .
+
+dist:
+	docker push $(IMAGE)
+
+dist-all:
+	docker push ynput/ayon-shotgrid-leecher:$(ADDON_VERSION)
+	docker push ynput/ayon-shotgrid-processor:$(ADDON_VERSION)
+	docker push ynput/ayon-shotgrid-transmitter:$(ADDON_VERSION)
 
 clean:
 	if docker images "$(IMAGE)"; then \
@@ -34,10 +46,12 @@ clean:
 	fi
 
 clean-build: clean
-	docker build --network=host --no-cache -t $(IMAGE) -f $(SERVICE)/Dockerfile .
+	docker build --no-cache -t $(IMAGE) -f $(SERVICE)/Dockerfile .
 
 clean-build-all:
-	$(foreach service,leecher processor transmitter, docker build --network=host --no-cache -t ynput/ayon-shotgrid-$(service):$(ADDON_VERSION) -f $(service)/Dockerfile . &)
+	docker build --no-cache -t ynput/ayon-shotgrid-leecher:$(ADDON_VERSION) -f ./leecher/Dockerfile .
+	docker build --no-cache -t ynput/ayon-shotgrid-processor:$(ADDON_VERSION) -f ./processor/Dockerfile .
+	docker build --no-cache -t ynput/ayon-shotgrid-transmitter:$(ADDON_VERSION) -f ./transmitter/Dockerfile .
 
 
 dev:
@@ -51,7 +65,6 @@ dev:
 		--attach=stdin \
 		--attach=stdout \
 		--attach=stderr \
-		--network=host \
 		$(IMAGE) python -m $(SERVICE)
 
 	find $(CURDIR)/$(SERVICE) -type l -delete

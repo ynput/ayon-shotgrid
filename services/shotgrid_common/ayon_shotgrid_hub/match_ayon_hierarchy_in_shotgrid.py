@@ -123,7 +123,6 @@ def match_ayon_hierarchy_in_shotgrid(
             )
             continue
         elif sg_entity_id:
-            # convert sg_entity_id to int if exists
             sg_entity_id = int(sg_entity_id)
 
         if sg_entity_type == "AssetCategory":
@@ -385,7 +384,7 @@ def _create_new_entity(
         ):
             data[sg_parent_field] = sg_parent_entity
 
-    # Fill up data with any extra attributes from Ayon we want to sync to SG
+    # Fill up data with any extra attributes from AYON we want to sync to SG
     data |= get_sg_custom_attributes_data(
         sg_session,
         ay_entity.attribs.to_dict(),
