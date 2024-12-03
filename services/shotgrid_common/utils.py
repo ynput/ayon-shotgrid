@@ -173,7 +173,8 @@ def _sg_to_ay_dict(
 
     if custom_attribs_map:
         for ay_attrib, sg_attrib in custom_attribs_map.items():
-            sg_value = sg_entity.get(sg_attrib) or sg_entity.get(f"sg_{sg_attrib}")
+            sg_value = (sg_entity.get(f"sg_{sg_attrib}")
+                        or sg_entity.get(sg_attrib))
 
             # If no value in SG entity skip
             if sg_value is None:
