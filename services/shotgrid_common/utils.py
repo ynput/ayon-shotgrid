@@ -867,23 +867,7 @@ def get_sg_entities(
 
                 parent_id = cat_ent_name
 
-            # Transform task_assignees list of dictionary entries
-            # to just a list of the login names as used in AYON DB
-            # so it's easier later to set
-            task_assignees = sg_entity.get("task_assignees")
-            if task_assignees:
-                task_assignees_list = []
-                for assignee in task_assignees:
-                    # Skip task assignments that aren't from a human user (i.e. groups)
-                    # TODO: add support for group assignments
-                    if assignee["type"] != "HumanUser":
-                        continue
-                    sg_user = get_sg_user_by_id(
-                        sg_session, assignee["id"], extra_fields=["login"]
-                    )
-                    task_assignees_list.append(sg_user["login"])
-                
-                sg_entity["task_assignees"] = task_assignees_list
+            _add_task_assignees(sg_entity)
 
             sg_ay_dict = _sg_to_ay_dict(
                 sg_entity,
@@ -948,23 +932,7 @@ def get_sg_entity_as_ay_dict(
     if not sg_entity:
         return {}
     
-    # Transform task_assignees list of dictionary entries
-    # to just a list of the login names as used in AYON DB
-    # so it's easier later to set
-    task_assignees = sg_entity.get("task_assignees")
-    if task_assignees:
-        task_assignees_list = []
-        for assignee in task_assignees:
-            # Skip task assignments that aren't from a human user (i.e. groups)
-            # TODO: add support for group assignments
-            if assignee["type"] != "HumanUser":
-                continue
-            sg_user = get_sg_user_by_id(
-                sg_session, assignee["id"], extra_fields=["login"]
-            )
-            task_assignees_list.append(sg_user["login"])
-        
-        sg_entity["task_assignees"] = task_assignees_list
+    _add_task_assignees(sg_entity)
 
     sg_ay_dict = _sg_to_ay_dict(
         sg_entity, project_code_field, custom_attribs_map
@@ -1476,3 +1444,50 @@ def create_new_ayon_entity(
         log.error("AYON Entity could not be created", exc_info=True)
 
     return ay_entity
+
+
+def get_user_by_sg_id(sg_user_id):
+    """Returns ayon user for particular `sg_user_id`
+
+    Calls SG addon endpoint to query 'users' table
+
+    Args:
+        sg_user_id (str)
+    Returns:
+        (Optional[dict[str, Any]])
+    """
+    addon_name = ayon_api.get_service_addon_name()
+    addon_version = ayon_api.get_service_addon_version()
+    variant = ayon_api.get_default_settings_variant()
+    endpoint_url = (
+        f"addons/{addon_name}/{addon_version}/"
+        f"get_user_by_sg_id/{sg_user_id}"
+        f"?variant={variant}"
+    )
+
+    response = ayon_api.get(endpoint_url)
+    if response.status_code != 200:
+        print(response.content)
+        raise RuntimeError(response.text)
+
+    return response.data
+
+
+def _add_task_assignees(sg_entity):
+    # Transform task_assignees list of dictionary entries
+    # to just a list of the login names as used in AYON DB
+    # so it's easier later to set
+    task_assignees = sg_entity.get("task_assignees")
+    if not task_assignees:
+        return
+
+    task_assignees_list = []
+    for assignee in task_assignees:
+        # Skip task assignments that aren't from a human user (i.e. groups)
+        # TODO: add support for group assignments
+        if assignee["type"] != "HumanUser":
+            continue
+        ayon_user = get_user_by_sg_id(assignee["id"])
+        task_assignees_list.append(ayon_user["name"])
+
+    sg_entity["task_assignees"] = task_assignees_list
