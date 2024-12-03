@@ -97,6 +97,7 @@ def _sg_to_ay_dict(
     sg_entity: dict,
     project_code_field: str,
     custom_attribs_map: dict,
+    default_task_type: str,
 ) -> dict:
     """Morph a ShotGrid entity dict into an ayon-api Entity Hub compatible one.
 
