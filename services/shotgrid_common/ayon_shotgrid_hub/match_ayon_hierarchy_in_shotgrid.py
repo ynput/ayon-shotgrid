@@ -1,6 +1,6 @@
 import collections
 import shotgun_api3
-from typing import Dict, List, Union
+from typing import Dict, List, Union, Any
 
 import ayon_api
 from ayon_api.entity_hub import (
@@ -36,6 +36,7 @@ def match_ayon_hierarchy_in_shotgrid(
     sg_enabled_entities: List[str],
     project_code_field: str,
     custom_attribs_map: Dict[str, str],
+    addon_settings: Dict[str, Any],
 ):
     """Replicate an AYON project into Shotgrid.
 
@@ -52,6 +53,7 @@ def match_ayon_hierarchy_in_shotgrid(
         sg_enabled_entities (list): List of Shotgrid entities to be enabled.
         custom_attribs_map (dict): Dictionary of extra attributes to
             store in the SG entity.
+        addon_settings (dict): The addon settings.
     """
     log.info("Getting AYON entities.")
     entity_hub.query_entities_from_server()
@@ -63,6 +65,7 @@ def match_ayon_hierarchy_in_shotgrid(
         sg_enabled_entities,
         project_code_field,
         custom_attribs_map,
+        addon_settings=addon_settings,
     )
 
     ay_entity_deck = collections.deque()

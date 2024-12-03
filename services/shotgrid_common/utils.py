@@ -111,6 +111,7 @@ def _sg_to_ay_dict(
         project_code_field (str): The ShotGrid project code field.
         custom_attribs_map (dict): Dictionary that maps names of attributes in
             AYON to ShotGrid equivalents.
+        default_task_type (str): The default task type to use if none is found.
     """
     ay_entity_type = "folder"
     task_type = None
@@ -120,9 +121,10 @@ def _sg_to_ay_dict(
         ay_entity_type = "task"
         if not sg_entity["step"]:
             log.warning(
-                f"Task {sg_entity} has no Pipeline Step assigned."
+                f"Task {sg_entity} has no Pipeline Step assigned. "
+                "Task type set from settings."
             )
-            task_type = None
+            task_type = default_task_type
         else:
             task_type = sg_entity["step"]["name"]
 
@@ -133,9 +135,8 @@ def _sg_to_ay_dict(
 
         if label:
             name = slugify_string(label)
-        elif task_type:
+        else:
             name = slugify_string(task_type)
-
 
     elif sg_entity["type"] == "Project":
         name = slugify_string(sg_entity[project_code_field])
@@ -747,6 +748,7 @@ def get_sg_entities(
     sg_enabled_entities: list,
     project_code_field: str,
     custom_attribs_map: dict,
+    addon_settings: dict,
     extra_fields: Optional[list] = None,
 ) -> tuple[dict, dict]:
     """Get all available entities within a ShotGrid Project.
@@ -768,6 +770,7 @@ def get_sg_entities(
         project_code_field (str): The ShotGrid project code field.
         custom_attribs_map (dict): Dictionary that maps names of attributes in
             AYON to ShotGrid equivalents.
+        addon_settings (dict): Settings
         extra_fields (list): List of extra fields to pass to the query.
 
     Returns:
@@ -779,6 +782,9 @@ def get_sg_entities(
         )
 
     """
+    default_task_type = addon_settings[
+        "compatibility_settings"]["default_task_type"]
+
     query_fields = list(SG_COMMON_ENTITY_FIELDS)
 
     if extra_fields and isinstance(extra_fields, list):
@@ -804,6 +810,7 @@ def get_sg_entities(
             sg_project,
             project_code_field,
             custom_attribs_map,
+            default_task_type
         ),
     }
 
@@ -868,6 +875,7 @@ def get_sg_entities(
                 sg_entity,
                 project_code_field,
                 custom_attribs_map,
+                default_task_type
             )
 
             sg_id = sg_ay_dict["attribs"][SHOTGRID_ID_ATTRIB]
@@ -882,6 +890,7 @@ def get_sg_entity_as_ay_dict(
     sg_type: str,
     sg_id: int,
     project_code_field: str,
+    default_task_type: str,
     custom_attribs_map: Optional[Dict[str, str]] = None,
     extra_fields: Optional[list] = None,
     retired_only: Optional[bool] = False,
@@ -893,6 +902,7 @@ def get_sg_entity_as_ay_dict(
         sg_type (str): The ShotGrid entity type.
         sg_id (int): ShotGrid ID of the entity to query.
         project_code_field (str): The ShotGrid project code field.
+        default_task_type (str): The default task type to use.
         custom_attribs_map (Optional[dict]): Dictionary that maps names of
             attributes in AYON to ShotGrid equivalents.
         extra_fields (Optional[list]): List of optional fields to query.
@@ -928,7 +938,7 @@ def get_sg_entity_as_ay_dict(
         return {}
 
     sg_ay_dict = _sg_to_ay_dict(
-        sg_entity, project_code_field, custom_attribs_map
+        sg_entity, project_code_field, custom_attribs_map, default_task_type
     )
 
     for field in extra_fields:
