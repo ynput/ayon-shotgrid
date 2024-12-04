@@ -27,7 +27,7 @@ import collections
 
 import shotgun_api3
 import ayon_api
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 
 from utils import (
     create_new_ayon_entity,
@@ -79,6 +79,8 @@ def create_ay_entity_from_sg_event(
         ay_entity (ayon_api.entity_hub.EntityHub.Entity): The newly
             created entity.
     """
+    default_task_type = addon_settings[
+        "compatibility_settings"]["default_task_type"]
     sg_parent_field = get_sg_entity_parent_field(
         sg_session,
         sg_project,
@@ -96,6 +98,7 @@ def create_ay_entity_from_sg_event(
         sg_event["entity_type"],
         sg_event["entity_id"],
         project_code_field,
+        default_task_type,
         custom_attribs_map=custom_attribs_map,
         extra_fields=extra_fields,
     )
@@ -147,6 +150,7 @@ def create_ay_entity_from_sg_event(
                 sg_ay_dict["data"][sg_parent_field]["type"],
                 sg_ay_dict["data"][sg_parent_field]["id"],
                 project_code_field,
+                default_task_type,
             )
 
             if sg_ay_parent_dict["attribs"].get("shotgridType") == "Asset":
@@ -160,6 +164,7 @@ def create_ay_entity_from_sg_event(
                     sg_ay_dict["data"][sg_parent_field]["type"],
                     sg_ay_dict["data"][sg_parent_field]["id"],
                     project_code_field,
+                    default_task_type,
                     custom_attribs_map=custom_attribs_map,
                     extra_fields=extra_fields,
                 )
@@ -221,6 +226,8 @@ def _get_ayon_parent_entity(
         ay_entity (ayon_api.entity_hub.EntityHub.Entity):
             FolderEntity|ProjectEntity
     """
+    default_task_type = addon_settings[
+        "compatibility_settings"]["default_task_type"]
     shotgrid_type = sg_ay_dict["attribs"][SHOTGRID_TYPE_ATTRIB]
     sg_parent = sg_ay_dict["data"].get(sg_parent_field)
     ay_parent_entity = None
@@ -267,6 +274,7 @@ def _get_ayon_parent_entity(
                 sg_parent["type"],
                 sg_parent["id"],
                 project_code_field,
+                default_task_type,
             )
 
             log.debug(f"ShotGrid Parent entity: {sg_parent_entity_dict}")
@@ -312,7 +320,8 @@ def update_ayon_entity_from_sg_event(
     ayon_entity_hub: ayon_api.entity_hub.EntityHub,
     sg_enabled_entities: List[str],
     project_code_field: str,
-    custom_attribs_map: Optional[Dict[str, str]] = None
+    addon_settings: Dict[str, Any],
+    custom_attribs_map: Optional[Dict[str, str]] = None,
 ):
     """Try to update an entity in AYON.
 
@@ -323,6 +332,7 @@ def update_ayon_entity_from_sg_event(
         ayon_entity_hub (ayon_api.entity_hub.EntityHub): The AYON EntityHub.
         sg_enabled_entities (list[str]): List of entity strings enabled.
         project_code_field (str): The ShotGrid project code field.
+        addon_settings (dict): A dictionary of Settings.
         custom_attribs_map (dict): A dictionary that maps ShotGrid
             attributes to AYON attributes.
 
@@ -330,11 +340,15 @@ def update_ayon_entity_from_sg_event(
         ay_entity (ayon_api.entity_hub.EntityHub.Entity): The modified entity.
 
     """
+    default_task_type = addon_settings[
+        "compatibility_settings"]["default_task_type"]
+
     sg_ay_dict = get_sg_entity_as_ay_dict(
         sg_session,
         sg_event["entity_type"],
         sg_event["entity_id"],
         project_code_field,
+        default_task_type,
         custom_attribs_map=custom_attribs_map
     )
 
@@ -416,6 +430,7 @@ def remove_ayon_entity_from_sg_event(
     sg_session: shotgun_api3.Shotgun,
     ayon_entity_hub: ayon_api.entity_hub.EntityHub,
     project_code_field: str,
+    addon_settings: Dict[str, Any],
 ):
     """Try to remove an entity in AYON.
 
@@ -424,12 +439,17 @@ def remove_ayon_entity_from_sg_event(
         sg_session (shotgun_api3.Shotgun): The ShotGrid API session.
         ayon_entity_hub (ayon_api.entity_hub.EntityHub): The AYON EntityHub.
         project_code_field (str): The ShotGrid field that contains the AYON ID.
+        addon_settings (dict): A dictionary of Settings.
     """
+    default_task_type = addon_settings[
+        "compatibility_settings"]["default_task_type"]
+
     sg_ay_dict = get_sg_entity_as_ay_dict(
         sg_session,
         sg_event["entity_type"],
         sg_event["entity_id"],
         project_code_field,
+        default_task_type,
         retired_only=True
     )
 
@@ -439,6 +459,7 @@ def remove_ayon_entity_from_sg_event(
             sg_event["entity_type"],
             sg_event["entity_id"],
             project_code_field,
+            default_task_type,
             retired_only=False,
         )
         if sg_ay_dict:
