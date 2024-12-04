@@ -433,7 +433,13 @@ class AyonShotgridHub:
                     self._ay_project,
                     self.custom_attribs_map,
                 )
-            case "entity.task.status_changed" | "entity.folder.status_changed" | "entity.task.tags_changed" | "entity.folder.tags_changed":
+            case (
+                "entity.task.status_changed" |
+                "entity.folder.status_changed" |
+                "entity.task.tags_changed" |
+                "entity.folder.tags_changed" |
+                "entity.task.assignees_changed"
+            ):
                 # TODO: for some reason the payload here is not a dict but we know
                 # we always want to update the entity
                 update_sg_entity_from_ayon_event(

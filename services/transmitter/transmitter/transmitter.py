@@ -139,6 +139,7 @@ class ShotgridTransmitter:
             "entity.task.deleted",
             "entity.task.renamed",
             "entity.task.create",
+            "entity.task.assignees_changed",
             "entity.task.attrib_changed",
             "entity.task.status_changed",
             "entity.task.tags_changed",

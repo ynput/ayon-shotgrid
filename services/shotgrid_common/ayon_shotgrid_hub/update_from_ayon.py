@@ -213,7 +213,18 @@ def update_sg_entity_from_ayon_event(
                 new_attribs["tags"].append(
                     {"name": tag_name, "id": tag_id, "type": "Tag"}
                 )
-
+        elif ayon_event["topic"].endswith("assignees_changed"):
+            sg_assignees = []
+            for user_name in new_attribs:
+                ayon_user = ayon_api.get_user(user_name)
+                if not ayon_user or not ayon_user["data"].get("sg_user_id"):
+                    log.warning(f"User {user_name} is not synched to SG yet.")
+                    continue
+                sg_assignees.append(
+                    {"type": "HumanUser",
+                     "id": ayon_user["data"]["sg_user_id"]}
+                )
+            new_attribs = {"assignees": sg_assignees}
         else:
             log.warning(
                 "Unknown event type, skipping update of custom attribs.")
