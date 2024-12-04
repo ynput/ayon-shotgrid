@@ -2,8 +2,9 @@ from ayon_server.entities.core.attrib import attribute_library
 from ayon_server.settings import BaseSettingsModel, SettingsField
 from ayon_server.settings.enum import (
     secrets_enum,
+    task_types_enum,
     anatomy_presets_enum,
-    folder_types_enum
+    folder_types_enum,
 )
 
 
@@ -214,8 +215,14 @@ class FolderReparentingModel(BaseSettingsModel):
     )
 
 class ShotgridCompatibilitySettings(BaseSettingsModel):
-    """ Settings to define relationships between ShotGrid and AYON.
-    """
+    """Settings to define relationships between ShotGrid and AYON."""
+
+    default_task_type: str = SettingsField(
+        default="Generic",
+        title="Default Task Type",
+        enum_resolver=task_types_enum,
+        description=("Default Task Type for SG tasks with missing pipeline step"),
+    )
     shotgrid_enabled_entities: list[str] = SettingsField(
         title="ShotGrid Enabled Entities",
         default_factory=default_shotgrid_enabled_entities,

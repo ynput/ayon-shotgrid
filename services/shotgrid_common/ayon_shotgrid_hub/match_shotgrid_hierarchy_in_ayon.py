@@ -58,6 +58,7 @@ def match_shotgrid_hierarchy_in_ayon(
         sg_enabled_entities,
         project_code_field,
         custom_attribs_map,
+        addon_settings=addon_settings,
     )
 
     sg_ay_dicts_deck = collections.deque()
