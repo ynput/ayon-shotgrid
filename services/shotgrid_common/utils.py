@@ -121,7 +121,7 @@ def _sg_to_ay_dict(
     if sg_entity["type"] == "Task":
         ay_entity_type = "task"
         if not sg_entity["step"]:
-            log.warning(
+            log.debug(
                 f"Task {sg_entity} has no Pipeline Step assigned. "
                 "Task type set from settings."
             )
