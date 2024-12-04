@@ -185,7 +185,7 @@ def _sg_to_ay_dict(
             # If no value in SG entity skip
             if sg_value is None:
                 continue
-            
+
             if ay_attrib in exception_attribs:
                 sg_ay_dict[ay_attrib] = sg_value
             else:
@@ -947,7 +947,7 @@ def get_sg_entity_as_ay_dict(
 
     if not sg_entity:
         return {}
-    
+
     _add_task_assignees(sg_entity)
 
     sg_ay_dict = _sg_to_ay_dict(

@@ -428,7 +428,7 @@ def update_ayon_entity_from_sg_event(
                 CUST_FIELD_CODE_ID: ay_entity.id
             }
         )
-    
+
     ay_entity.attribs.set(
         SHOTGRID_ID_ATTRIB,
         sg_ay_dict["attribs"].get(SHOTGRID_ID_ATTRIB, "")
