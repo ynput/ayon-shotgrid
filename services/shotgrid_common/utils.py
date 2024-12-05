@@ -1494,6 +1494,7 @@ def _add_task_assignees(sg_entity):
     # to just a list of the login names as used in AYON DB
     # so it's easier later to set
     task_assignees = sg_entity.get("task_assignees")
+    log.debug(f"Received '{task_assignees}' from SG.")
     if not task_assignees:
         return
 
@@ -1504,6 +1505,8 @@ def _add_task_assignees(sg_entity):
         if assignee["type"] != "HumanUser":
             continue
         ayon_user = get_user_by_sg_id(assignee["id"])
+        if not ayon_user:
+            log.warning(f"Didn't find user for '{assignee['id']}'")
         task_assignees_list.append(ayon_user["name"])
-
+    log.debug(f"Adding '{task_assignees_list}' from SG.")
     sg_entity["task_assignees"] = task_assignees_list
