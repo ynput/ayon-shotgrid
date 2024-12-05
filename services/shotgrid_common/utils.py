@@ -117,7 +117,7 @@ def _sg_to_ay_dict(
     ay_entity_type = "folder"
     task_type = None
     folder_type = None
-    exception_attribs = {"status", "assignees", "tags"}
+    root_level_attributes = {"status", "assignees", "tags"}
 
     if sg_entity["type"] == "Task":
         ay_entity_type = "task"
@@ -186,7 +186,7 @@ def _sg_to_ay_dict(
             if sg_value is None:
                 continue
 
-            if ay_attrib in exception_attribs:
+            if ay_attrib in root_level_attributes:
                 sg_ay_dict[ay_attrib] = sg_value
             else:
                 sg_ay_dict["attribs"][ay_attrib] = sg_value
