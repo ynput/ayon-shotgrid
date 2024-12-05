@@ -2,7 +2,6 @@ from typing import Any, Type, Optional
 from nxtools import logging
 from fastapi import Path
 
-from ayon_server.entities import UserEntity
 from ayon_server.addons import BaseServerAddon
 from ayon_server.lib.postgres import Postgres
 
