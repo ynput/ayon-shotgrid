@@ -1,4 +1,4 @@
-from typing import Any, Type
+from typing import Any, Type, Optional
 from nxtools import logging
 from fastapi import Path
 
@@ -22,8 +22,8 @@ class ShotgridAddon(BaseServerAddon):
 
         # returning user for SG id value
         self.add_endpoint(
-            "/get_user_by_sg_id/{sg_user_id}",
-            self.get_user_by_sg_id,
+            "/get_ayon_name_by_sg_id/{sg_user_id}",
+            self.get_ayon_name_by_sg_id,
             method="GET",
         )
 
@@ -122,14 +122,14 @@ class ShotgridAddon(BaseServerAddon):
             logging.debug("Shotgrid Attributes already exist.")
             return False
 
-    async def get_user_by_sg_id(
+    async def get_ayon_name_by_sg_id(
         self,
         sg_user_id: str = Path(
             ...,
             description="Id of Shotgrid user ",
             example="123",
         )
-    ) -> UserEntity.model.main_model | None:
+    ) -> Optional[str]:
         """Queries user for specific 'sg_user_id' field in 'data'.
 
         Field added during user synchronization to be explicit, not depending that
@@ -143,7 +143,5 @@ class ShotgridAddon(BaseServerAddon):
         """
 
         res = await Postgres.fetch(query)
-        if not res:
-            return None
-        user = await UserEntity.load(res[0]["name"])
-        return user.payload
+        if res:
+            return res[0]["name"]

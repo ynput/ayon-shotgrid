@@ -1458,22 +1458,23 @@ def create_new_ayon_entity(
     return ay_entity
 
 
-def get_user_by_sg_id(sg_user_id):
-    """Returns ayon user for particular `sg_user_id`
+def get_ayon_name_by_sg_id(sg_user_id):
+    """Returns AYON user name for particular `sg_user_id`
 
-    Calls SG addon endpoint to query 'users' table
+    Calls SG addon endpoint to query 'users' table limit need to loop through
+    all users.
 
     Args:
         sg_user_id (str)
     Returns:
-        (Optional[dict[str, Any]])
+        (Optional[str])
     """
     addon_name = ayon_api.get_service_addon_name()
     addon_version = ayon_api.get_service_addon_version()
     variant = ayon_api.get_default_settings_variant()
     endpoint_url = (
         f"addons/{addon_name}/{addon_version}/"
-        f"get_user_by_sg_id/{sg_user_id}"
+        f"get_ayon_name_by_sg_id/{sg_user_id}"
         f"?variant={variant}"
     )
 
@@ -1500,9 +1501,9 @@ def _add_task_assignees(sg_entity):
         # TODO: add support for group assignments
         if assignee["type"] != "HumanUser":
             continue
-        ayon_user = get_user_by_sg_id(assignee["id"])
-        if not ayon_user:
+        ayon_user_name = get_ayon_name_by_sg_id(assignee["id"])
+        if not ayon_user_name:
             log.warning(f"Didn't find user for '{assignee['id']}'")
-        task_assignees_list.append(ayon_user["name"])
+        task_assignees_list.append(ayon_user_name)
     log.debug(f"Adding '{task_assignees_list}' from SG.")
     sg_entity["task_assignees"] = task_assignees_list
