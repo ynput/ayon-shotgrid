@@ -1417,8 +1417,8 @@ def create_new_ayon_entity(
         # not the `short_name` (which is what we get from SG) so we convert
         # the short name back to the long name before setting it
         status_mapping = {
-            status.short_name: status.name for status in
-            entity_hub.project_entity.statuses
+            status.short_name: status.name
+            for status in entity_hub.project_entity.statuses
         }
         new_status_name = status_mapping.get(status)
         if not new_status_name:
