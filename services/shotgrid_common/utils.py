@@ -1436,11 +1436,7 @@ def create_new_ayon_entity(
 
     assignees = sg_ay_dict.get("assignees")
     if assignees:
-        try:
-            # INFO: it was causing error so trying to set status directly
-            ay_entity.assignees = assignees
-        except ValueError as e:
-            log.warning(f"Assignees sync not implemented: {e}")
+        ay_entity.assignees = assignees
 
     tags = sg_ay_dict.get("tags")
     if tags:
