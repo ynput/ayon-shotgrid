@@ -1346,13 +1346,9 @@ def update_ay_entity_custom_attributes(
                 ay_entity.status = new_status.name
             else:
                 logging.warning(
-                    f"Status '{attrb_value}' not available"
-                    f" for {entity.entity_type}."
+                    f"Status '{attrib_value}' not available"
+                    f" for {ay_entity.entity_type}."
                 )
-            try:
-                ay_entity.status = new_status_name
-            except ValueError as e:
-                logging.warning(f"Status sync not implemented: {e}")
         elif ay_attrib == "assignees":
             if hasattr(ay_entity, "assignees"):
                 ay_entity.assignees = attrib_value
