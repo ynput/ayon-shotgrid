@@ -1354,10 +1354,13 @@ def update_ay_entity_custom_attributes(
             except ValueError as e:
                 logging.warning(f"Status sync not implemented: {e}")
         elif ay_attrib == "assignees":
-            try:
+            if hasattr(ay_entity, "assignees"):
                 ay_entity.assignees = attrib_value
-            except ValueError as e:
-                logging.warning(f"Assignees sync not implemented: {e}")
+            else:
+                logging.warning(
+                    "Assignees sync not available with current"
+                    " ayon-python-api version."
+                )
         else:
             ay_entity.attribs.set(ay_attrib, attrib_value)
 
