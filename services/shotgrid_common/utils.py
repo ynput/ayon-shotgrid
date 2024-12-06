@@ -1397,6 +1397,9 @@ def create_new_ayon_entity(
             attribs=sg_ay_dict["attribs"],
             data=sg_ay_dict["data"]
         )
+    elif sg_ay_dict["type"].lower() == "version":
+        log.warning("Cannot create new versions yet.")
+        return
     else:
         ay_entity = entity_hub.add_new_folder(
             folder_type=sg_ay_dict["folder_type"],
