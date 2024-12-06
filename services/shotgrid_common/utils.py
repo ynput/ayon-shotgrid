@@ -1515,6 +1515,7 @@ def _add_task_assignees(sg_entity):
         ayon_user_name = get_ayon_name_by_sg_id(assignee["id"])
         if not ayon_user_name:
             log.warning(f"Didn't find user for '{assignee['id']}'")
+            continue
         task_assignees_list.append(ayon_user_name)
     log.debug(f"Adding '{task_assignees_list}' from SG.")
     sg_entity["task_assignees"] = task_assignees_list
