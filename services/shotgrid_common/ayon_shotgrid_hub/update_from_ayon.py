@@ -213,7 +213,18 @@ def update_sg_entity_from_ayon_event(
                 new_attribs["tags"].append(
                     {"name": tag_name, "id": tag_id, "type": "Tag"}
                 )
-
+        elif ayon_event["topic"].endswith("assignees_changed"):
+            sg_assignees = []
+            for user_name in new_attribs:
+                ayon_user = ayon_api.get_user(user_name)
+                if not ayon_user or not ayon_user["data"].get("sg_user_id"):
+                    log.warning(f"User {user_name} is not synched to SG yet.")
+                    continue
+                sg_assignees.append(
+                    {"type": "HumanUser",
+                     "id": ayon_user["data"]["sg_user_id"]}
+                )
+            new_attribs = {"assignees": sg_assignees}
         else:
             log.warning(
                 "Unknown event type, skipping update of custom attribs.")
@@ -407,7 +418,7 @@ def _create_sg_entity(
             sg_field_name: ay_entity.name,
             CUST_FIELD_CODE_ID: ay_entity.id,
         }
-    else:
+    elif ay_entity.entity_type == "folder":
         data = {
             "project": sg_project,
             sg_field_name: ay_entity.name,
@@ -421,6 +432,9 @@ def _create_sg_entity(
         except TypeError:
             log.warning(f"Cannot convert '{sg_parent_id} to parent "
                         "it correctly.")
+
+    if not data:
+        return
 
     # Fill up data with any extra attributes from AYON we want to sync to SG
     data.update(get_sg_custom_attributes_data(

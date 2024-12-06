@@ -70,7 +70,8 @@ class AyonShotgridHub:
     log = get_logger(__file__)
     custom_attribs_map = {
         "status": "status_list",
-        "tags": "tags"
+        "tags": "tags",
+        "assignees": "task_assignees"
     }
 
     def __init__(self,
@@ -419,6 +420,7 @@ class AyonShotgridHub:
                     ayon_event,
                     self._sg,
                     self._ay_project,
+                    self.custom_attribs_map,
                 )
             case "entity.task.attrib_changed" | "entity.folder.attrib_changed":
                 attrib_key = next(iter(ayon_event["payload"]["newValue"]))
@@ -434,7 +436,13 @@ class AyonShotgridHub:
                     self._ay_project,
                     self.custom_attribs_map,
                 )
-            case "entity.task.status_changed" | "entity.folder.status_changed" | "entity.task.tags_changed" | "entity.folder.tags_changed":
+            case (
+                "entity.task.status_changed"
+                | "entity.folder.status_changed"
+                | "entity.task.tags_changed"
+                | "entity.folder.tags_changed"
+                | "entity.task.assignees_changed"
+            ):
                 # TODO: for some reason the payload here is not a dict but we know
                 # we always want to update the entity
                 update_sg_entity_from_ayon_event(

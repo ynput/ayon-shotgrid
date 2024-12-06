@@ -394,13 +394,17 @@ def update_ayon_entity_from_sg_event(
 
     # Ensure AYON Entity has the correct ShotGrid ID
     ayon_entity_sg_id = str(
-        ay_entity.attribs.get_attribute(SHOTGRID_ID_ATTRIB).value)
+        ay_entity.attribs.get(SHOTGRID_ID_ATTRIB, "")
+    )
     sg_entity_sg_id = str(
         sg_ay_dict["attribs"].get(SHOTGRID_ID_ATTRIB, "")
     )
     log.debug(f"Updating AYON Entity: {ay_entity.name}")
 
-    if ayon_entity_sg_id != sg_entity_sg_id:
+    # We need to check for existence in `ayon_entity_sg_id` as it could be
+    # that it's a new entity and it doesn't have a ShotGrid ID yet.
+    if ayon_entity_sg_id and ayon_entity_sg_id != sg_entity_sg_id:
+        log.error("Mismatching ShotGrid IDs, aborting...")
         raise ValueError("Mismatching ShotGrid IDs, aborting...")
 
     ay_entity.name = sg_ay_dict["name"]
@@ -408,7 +412,10 @@ def update_ayon_entity_from_sg_event(
 
     # TODO: Only update the updated fields in the event
     update_ay_entity_custom_attributes(
-        ay_entity, sg_ay_dict, custom_attribs_map
+        ay_entity,
+        sg_ay_dict,
+        custom_attribs_map,
+        ay_project=ayon_entity_hub.project_entity
     )
 
     ayon_entity_hub.commit_changes()
@@ -421,6 +428,15 @@ def update_ayon_entity_from_sg_event(
                 CUST_FIELD_CODE_ID: ay_entity.id
             }
         )
+
+    ay_entity.attribs.set(
+        SHOTGRID_ID_ATTRIB,
+        sg_ay_dict["attribs"].get(SHOTGRID_ID_ATTRIB, "")
+    )
+    ay_entity.attribs.set(
+        SHOTGRID_TYPE_ATTRIB,
+        sg_ay_dict["attribs"].get(SHOTGRID_TYPE_ATTRIB, "")
+    )
 
     return ay_entity
 

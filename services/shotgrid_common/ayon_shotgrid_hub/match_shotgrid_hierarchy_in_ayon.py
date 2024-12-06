@@ -159,7 +159,10 @@ def match_shotgrid_hierarchy_in_ayon(
                 sg_project_sync_status = "Failed"
             else:
                 update_ay_entity_custom_attributes(
-                    ay_entity, sg_ay_dict, custom_attribs_map
+                    ay_entity,
+                    sg_ay_dict,
+                    custom_attribs_map,
+                    ay_project=entity_hub.project_entity
                 )
 
         # skip if no ay_entity is found

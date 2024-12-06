@@ -1,10 +1,11 @@
-from typing import Any, Type
+from typing import Any, Type, Optional
+from nxtools import logging
+from fastapi import Path
 
 from ayon_server.addons import BaseServerAddon
 from ayon_server.lib.postgres import Postgres
-from .settings import ShotgridSettings
-from nxtools import logging
 
+from .settings import ShotgridSettings
 
 SG_ID_ATTRIB = "shotgridId"
 SG_TYPE_ATTRIB = "shotgridType"
@@ -15,6 +16,15 @@ class ShotgridAddon(BaseServerAddon):
     settings_model: Type[ShotgridSettings] = ShotgridSettings
 
     frontend_scopes: dict[str, Any] = {"settings": {}}
+
+    def initialize(self) -> None:
+
+        # returning user for SG id value
+        self.add_endpoint(
+            "/get_ayon_name_by_sg_id/{sg_user_id}",
+            self.get_ayon_name_by_sg_id,
+            method="GET",
+        )
 
     async def setup(self):
         need_restart = await self.create_shotgrid_attributes()
@@ -110,3 +120,27 @@ class ShotgridAddon(BaseServerAddon):
         else:
             logging.debug("Shotgrid Attributes already exist.")
             return False
+
+    async def get_ayon_name_by_sg_id(
+        self,
+        sg_user_id: str = Path(
+            ...,
+            description="Id of Shotgrid user ",
+            example="123",
+        )
+    ) -> Optional[str]:
+        """Queries user for specific 'sg_user_id' field in 'data'.
+
+        Field added during user synchronization to be explicit, not depending that
+        SG login will be same as AYON (which is not as @ is not allowed in AYON)
+        """
+        query = f"""
+            SELECT
+                *
+            FROM public.users
+            WHERE data ? 'sg_user_id' AND data->>'sg_user_id' = '{sg_user_id}';
+        """
+
+        res = await Postgres.fetch(query)
+        if res:
+            return res[0]["name"]

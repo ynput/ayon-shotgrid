@@ -129,6 +129,7 @@ SG_COMMON_ENTITY_FIELDS = [
     "content",
     "entity",
     "step",
+    "task_assignees",
     CUST_FIELD_CODE_ID,
     CUST_FIELD_CODE_SYNC,
 ]
@@ -161,4 +162,3 @@ SG_EVENT_QUERY_FIELDS = [
 class FOLDER_REPARENTING_TYPE:
     ROOT_RELOCATE = "root_relocate"
     TYPE_GROUPING = "type_grouping"
-

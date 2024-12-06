@@ -117,6 +117,7 @@ def _sg_to_ay_dict(
     ay_entity_type = "folder"
     task_type = None
     folder_type = None
+    root_level_attributes = {"status", "assignees", "tags"}
 
     if sg_entity["type"] == "Task":
         ay_entity_type = "task"
@@ -140,10 +141,14 @@ def _sg_to_ay_dict(
             name = slugify_string(task_type)
 
     elif sg_entity["type"] == "Project":
-        name = slugify_string(sg_entity[project_code_field])
+        name = slugify_string(sg_entity[project_code_field], min_length=0)
         label = sg_entity[project_code_field]
+    elif sg_entity["type"] == "Version":
+        ay_entity_type = "version"
+        name = slugify_string(sg_entity["code"], min_length=0)
+        label = sg_entity["code"]
     else:
-        name = slugify_string(sg_entity["code"])
+        name = slugify_string(sg_entity["code"], min_length=0)
         label = sg_entity["code"]
         folder_type = sg_entity["type"]
 
@@ -174,13 +179,17 @@ def _sg_to_ay_dict(
 
     if custom_attribs_map:
         for ay_attrib, sg_attrib in custom_attribs_map.items():
-            sg_value = sg_entity.get(sg_attrib) or sg_entity.get(f"sg_{sg_attrib}")
+            sg_value = (sg_entity.get(f"sg_{sg_attrib}")
+                        or sg_entity.get(sg_attrib))
 
             # If no value in SG entity skip
             if sg_value is None:
                 continue
 
-            sg_ay_dict["attribs"][ay_attrib] = sg_value
+            if ay_attrib in root_level_attributes:
+                sg_ay_dict[ay_attrib] = sg_value
+            else:
+                sg_ay_dict["attribs"][ay_attrib] = sg_value
 
     if task_type:
         sg_ay_dict["task_type"] = task_type
@@ -803,8 +812,7 @@ def get_sg_entities(
     if not project_code_field:
         project_code_field = "code"
 
-    # TODO: Add support to sync versions too
-    entities_to_ignore = ["Version"]
+    entities_to_ignore = []
 
     sg_ay_dicts = {
         sg_project["id"]: _sg_to_ay_dict(
@@ -872,6 +880,8 @@ def get_sg_entities(
 
                 parent_id = cat_ent_name
 
+            _add_task_assignees(sg_entity)
+
             sg_ay_dict = _sg_to_ay_dict(
                 sg_entity,
                 project_code_field,
@@ -937,6 +947,8 @@ def get_sg_entity_as_ay_dict(
 
     if not sg_entity:
         return {}
+
+    _add_task_assignees(sg_entity)
 
     sg_ay_dict = _sg_to_ay_dict(
         sg_entity, project_code_field, custom_attribs_map, default_task_type
@@ -1007,6 +1019,37 @@ def get_sg_missing_ay_attributes(sg_session: shotgun_api3.Shotgun):
             missing_attrs.append(ayon_attr)
 
     return missing_attrs
+
+
+def get_sg_user_by_id(
+    sg_session: shotgun_api3.Shotgun,
+    user_id: int,
+    extra_fields: Optional[list] = None
+) -> dict:
+    """ Find a user in ShotGrid by its id.
+
+    Args:
+        sg_session (shotgun_api3.Shotgun): Shotgun Session object.
+        user_id (int): The user ID to look for.
+        extra_fields (Optional[list]): List of optional fields to query.
+    Returns:
+        sg_project (dict): ShotGrid Project dict.
+     """
+    common_fields = list(SG_COMMON_ENTITY_FIELDS)
+
+    if extra_fields:
+        common_fields.extend(extra_fields)
+
+    sg_user = sg_session.find_one(
+        "HumanUser",
+        [["id", "is", user_id]],
+        fields=common_fields,
+    )
+
+    if not sg_user:
+        raise ValueError(f"Unable to find HumanUser {user_id} in ShotGrid.")
+
+    return sg_user
 
 
 def get_sg_project_by_id(
@@ -1277,27 +1320,43 @@ def update_ay_entity_custom_attributes(
     sg_ay_dict: dict,
     custom_attribs_map: dict,
     values_to_update: Optional[list] = None,
+    ay_project: ProjectEntity = None,
 ):
     """Update AYON entity custom attributes from ShotGrid dictionary"""
     for ay_attrib, _ in custom_attribs_map.items():
         if values_to_update and ay_attrib not in values_to_update:
             continue
 
-        attrib_value = sg_ay_dict["attribs"].get(ay_attrib)
+        attrib_value = sg_ay_dict["attribs"].get(ay_attrib) or sg_ay_dict.get(ay_attrib)
         if attrib_value is None:
             continue
 
         if ay_attrib == "tags":
-            log.warning("Tags update is not supported yet.")
             ay_entity.tags = [tag["name"] for tag in attrib_value]
         elif ay_attrib == "status":
-            # TODO: Implement status update
-            try:
-                # INFO: it was causing error so trying to set status directly
-                ay_entity.status = attrib_value
-            except ValueError as e:
-                # `ValueError: Status ip is not available on project.`
-                log.warning(f"Status sync not implemented: {e}")
+            # Entity hub expects the statuses to be provided with the `name` and
+            # not the `short_name` (which is what we get from SG) so we convert
+            # the short name back to the long name before setting it
+            status_mapping = {
+                status.short_name: status
+                for status in ay_project.statuses
+            }
+            new_status = status_mapping.get(attrib_value)
+            if ay_entity.entity_type in new_status.scope:
+                ay_entity.status = new_status.name
+            else:
+                logging.warning(
+                    f"Status '{attrib_value}' not available"
+                    f" for {ay_entity.entity_type}."
+                )
+        elif ay_attrib == "assignees":
+            if hasattr(ay_entity, "assignees"):
+                ay_entity.assignees = attrib_value
+            else:
+                logging.warning(
+                    "Assignees sync not available with current"
+                    " ayon-python-api version."
+                )
         else:
             ay_entity.attribs.set(ay_attrib, attrib_value)
 
@@ -1338,6 +1397,9 @@ def create_new_ayon_entity(
             attribs=sg_ay_dict["attribs"],
             data=sg_ay_dict["data"]
         )
+    elif sg_ay_dict["type"].lower() == "version":
+        log.warning("Cannot create new versions yet.")
+        return
     else:
         ay_entity = entity_hub.add_new_folder(
             folder_type=sg_ay_dict["folder_type"],
@@ -1359,6 +1421,37 @@ def create_new_ayon_entity(
         sg_ay_dict["attribs"].get(SHOTGRID_TYPE_ATTRIB, "")
     )
 
+    status = sg_ay_dict.get("status")
+    if status:
+        # Entity hub expects the statuses to be provided with the `name` and
+        # not the `short_name` (which is what we get from SG) so we convert
+        # the short name back to the long name before setting it
+        status_mapping = {
+            status.short_name: status.name
+            for status in entity_hub.project_entity.statuses
+        }
+        new_status_name = status_mapping.get(status)
+        if not new_status_name:
+            log.warning(
+                "Status with short name '%s' doesn't exist in project", status
+            )
+        else:
+            try:
+                # INFO: it was causing error so trying to set status directly
+                ay_entity.status = new_status_name
+            except ValueError as e:
+                # `ValueError: Status ip is not available on project.`
+                # NOTE: this doesn't really raise exception?
+                log.warning(f"Status sync not implemented: {e}")
+
+    assignees = sg_ay_dict.get("assignees")
+    if assignees:
+        ay_entity.assignees = assignees
+
+    tags = sg_ay_dict.get("tags")
+    if tags:
+        ay_entity.tags = [tag["name"] for tag in tags]
+
     try:
         entity_hub.commit_changes()
 
@@ -1373,3 +1466,55 @@ def create_new_ayon_entity(
         log.error("AYON Entity could not be created", exc_info=True)
 
     return ay_entity
+
+
+def get_ayon_name_by_sg_id(sg_user_id):
+    """Returns AYON user name for particular `sg_user_id`
+
+    Calls SG addon endpoint to query 'users' table limit need to loop through
+    all users.
+
+    Args:
+        sg_user_id (str)
+    Returns:
+        (Optional[str])
+    """
+    addon_name = ayon_api.get_service_addon_name()
+    addon_version = ayon_api.get_service_addon_version()
+    variant = ayon_api.get_default_settings_variant()
+    endpoint_url = (
+        f"addons/{addon_name}/{addon_version}/"
+        f"get_ayon_name_by_sg_id/{sg_user_id}"
+        f"?variant={variant}"
+    )
+
+    response = ayon_api.get(endpoint_url)
+    if response.status_code != 200:
+        print(response.content)
+        raise RuntimeError(response.text)
+
+    return response.data
+
+
+def _add_task_assignees(sg_entity):
+    # Transform task_assignees list of dictionary entries
+    # to just a list of the login names as used in AYON DB
+    # so it's easier later to set
+    task_assignees = sg_entity.get("task_assignees")
+    log.debug(f"Received '{task_assignees}' from SG.")
+    if not task_assignees:
+        return
+
+    task_assignees_list = []
+    for assignee in task_assignees:
+        # Skip task assignments that aren't from a human user (i.e. groups)
+        # TODO: add support for group assignments
+        if assignee["type"] != "HumanUser":
+            continue
+        ayon_user_name = get_ayon_name_by_sg_id(assignee["id"])
+        if not ayon_user_name:
+            log.warning(f"Didn't find user for '{assignee['id']}'")
+            continue
+        task_assignees_list.append(ayon_user_name)
+    log.debug(f"Adding '{task_assignees_list}' from SG.")
+    sg_entity["task_assignees"] = task_assignees_list
