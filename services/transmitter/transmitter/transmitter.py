@@ -19,7 +19,7 @@ from ayon_shotgrid_hub import AyonShotgridHub
 from utils import get_logger
 
 
-COMMENTS_SYNC_INTERVAL = 15
+COMMENTS_SYNC_SECS_INTERVAL = 15
 COMMENTS_SYNC_TIMEOUT = 60 * 2
 
 
@@ -172,7 +172,7 @@ class ShotgridTransmitter:
                 # Run comments sync
                 now_time = datetime.now()
                 sec_diff = (now_time - last_comments_sync).total_seconds()
-                if sec_diff > COMMENTS_SYNC_INTERVAL:
+                if sec_diff > COMMENTS_SYNC_SECS_INTERVAL:
                     project_names = self._get_sync_project_names()
                     for project_name in project_names:
                         hub = self._get_hub(project_name)
