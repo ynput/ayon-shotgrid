@@ -2,6 +2,7 @@
 that provided a valid Project name and code, will perform all the necessary
 checks and provide methods to keep an AYON and Shotgrid project in sync.
 """
+import collections
 import re
 
 from constants import (
@@ -455,3 +456,148 @@ class AyonShotgridHub:
                 raise ValueError(
                     f"Unable to process event {ayon_event['topic']}."
                 )
+
+    def sync_comments(self, activities_after_date):
+        project_activities = list(ayon_api.get_activities(
+            self.project_name,
+            activity_types={"comment"},
+            changed_after=activities_after_date.isoformat(),
+        ))
+        if not project_activities:
+            return 0
+
+        entity_ids_by_entity_type = collections.defaultdict(set)
+        for activity in project_activities:
+            entity_id = activity["entityId"]
+            entity_type = activity["entityType"]
+            entity_ids_by_entity_type[entity_type].add(entity_id)
+
+        entities_by_id = {}
+        for entity_type, entity_ids in entity_ids_by_entity_type.items():
+            entities = []
+            if entity_type == "folder":
+                entities = ayon_api.get_folders(
+                    self.project_name, folder_ids=entity_ids
+                )
+            elif entity_type == "task":
+                entities = ayon_api.get_tasks(
+                    self.project_name, task_ids=entity_ids
+                )
+            elif entity_type == "version":
+                entities = ayon_api.get_versions(
+                    self.project_name, version_ids=entity_ids
+                )
+            entities_by_id.update({
+                entity["id"]: entity
+                for entity in entities
+            })
+
+        # NOTE Because we have to wait 1 second between creating notes
+        #   we might want to optimize this in the future to process
+        #   activities per entity, and if comment cannot be created because
+        #   we should wait, then go to other entities until the time comes.
+        # With 5 entities each having 2 new comments during one batch process
+        #   we have to wait total 5 seconds, at least. More entities and
+        #   comments, the bigger wait time is.
+        # With optimization per entity, the wait time would be the biggest
+        #   amount of new comments per entity (entity count is not important).
+        #   That would be 1 second in case above.
+        last_created_by_entity_id = {}
+        sg_user_id_by_user_name = {None: 286}
+        for activity in project_activities:
+            activity_data = activity["activityData"]
+            orig_sg_id = activity_data.get("sg_id")
+            sg_note = None
+            if orig_sg_id:
+                sg_note = self._sg.find_one(
+                    "Note",
+                    [["id", "is", int(orig_sg_id)]],
+                    ["id", "content", "sg_ayon_id"]
+                )
+
+            if sg_note is None:
+                entity_id = activity["entityId"]
+                entity = entities_by_id.get(entity_id)
+                entity_type = activity["entityType"]
+                ayon_username = activity["author"]["name"]
+                sg_user_id = sg_user_id_by_user_name.get(ayon_username)
+                if sg_user_id is None:
+                    ayon_user = ayon_api.get_user(ayon_username)
+                    if (not ayon_user or not ayon_user["data"].get(
+                            "sg_user_id")):
+                        sg_user_id = sg_user_id_by_user_name[None]
+                    else:
+                        sg_user_id = ayon_user["data"]["sg_user_id"]
+
+                # # Make sure there is at least 1 second difference between
+                # #   note creation to keep order of notes in ftrack
+                # last_created = last_created_by_entity_id.get(entity_id)
+                # diff = time.time() - (last_created or 0)
+                # if diff < 1.0:
+                #     time.sleep(1.0 - diff)
+                self._create_sg_note(
+                    self.project_name, entity, entity_type, activity, sg_user_id
+                )
+                # last_created_by_entity_id[entity_id] = time.time()
+
+            else:
+                sg_update_data = {}
+                if sg_note["content"] != activity["body"]:
+                    sg_update_data["content"] = activity["body"]
+
+                activity_id = activity["activityId"]
+                sg_ayon_id = sg_note.get("sg_ayon_id")
+                if sg_ayon_id != activity_id:
+                    sg_update_data["sg_ayon_id"] = activity_id
+
+                if orig_sg_id != sg_note["id"]:
+                    activity_data["sg_id"] = sg_note["id"]
+                    ayon_api.update_activity(
+                        self.project_name,
+                        activity["activityId"],
+                        data=activity_data,
+                    )
+                if sg_update_data:
+                    self._sg.update("Note", sg_note["id"], sg_update_data)
+
+
+    def _create_sg_note(self, project_name, entity, entity_type, activity, author_sg_id):
+        if not self._sg_project:
+            self.log.warning(f"Project {self.project_name} doesn't exist in "
+                             "Shotgrid")
+            return
+
+        note_links = []
+        supported_sg_types = {"sg_sequence": "Sequence", "sg_shot": "Shot"}
+        for supp_type in supported_sg_types.keys():
+            sg_item = entity.data.get(supp_type)
+            if not sg_item:
+                continue
+            note_links.append(
+                {"type": supported_sg_types[supp_type], "id": sg_item["id"]}
+            )
+
+        data = {
+            "project": {"type": "Project", "id": self._sg_project["id"]},
+            "note_links": note_links,
+            # # Replace with your sequence ID
+            "subject": activity["body"][:50],
+            "content": activity["body"],
+            "user": {"type": "HumanUser", "id": author_sg_id},
+            # Replace with your user ID
+            # "addressings_to": [{"type": "HumanUser", "id": 92}]
+            # # Users to notify
+        }
+
+        # Create the note
+        result = self._sg.create("Note", data)
+
+        note_id = result["id"]
+        self.log.info(f"result::{result}")
+        activity_data = activity["activityData"]
+        activity_data["sg_id"] = note_id
+        ayon_api.update_activity(
+            project_name,
+            activity["activityId"],
+            data=activity_data,
+        )

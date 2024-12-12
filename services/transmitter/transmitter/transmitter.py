@@ -7,6 +7,7 @@ two are `created`, `renamed` or `deleted`.
 """
 import sys
 import time
+from datetime import datetime
 import socket
 import traceback
 
@@ -16,6 +17,10 @@ import shotgun_api3
 from ayon_shotgrid_hub import AyonShotgridHub
 
 from utils import get_logger
+
+
+COMMENTS_SYNC_INTERVAL = 15
+COMMENTS_SYNC_TIMEOUT = 60 * 2
 
 
 class ShotgridTransmitter:
@@ -34,6 +39,7 @@ class ShotgridTransmitter:
         """
         self.log.info("Initializing the Shotgrid Transmitter.")
 
+        self._cached_hubs = {}
         try:
             ayon_api.init_service()
             self.settings = ayon_api.get_service_addon_settings()
@@ -152,6 +158,7 @@ class ShotgridTransmitter:
             "entity.version.status_changed",
         ]
 
+        last_comments_sync = datetime.min
         while True:
             try:
                 # get all service users
@@ -161,6 +168,17 @@ class ShotgridTransmitter:
                         fields={"accessGroups", "isService", "name"})
                     if user["isService"]
                 ]
+
+                # Run comments sync
+                now_time = datetime.now()
+                sec_diff = (now_time - last_comments_sync).total_seconds()
+                if sec_diff > COMMENTS_SYNC_INTERVAL:
+                    project_names = self._get_sync_project_names()
+                    for project_name in project_names:
+                        hub = self._get_hub(project_name)
+                        hub.sync_comments(last_comments_sync)
+                    last_comments_sync = now_time
+
                 # enrolling only events which were not created by any
                 # of service users so loopback is avoided
                 event = ayon_api.enroll_event_job(
@@ -196,12 +214,8 @@ class ShotgridTransmitter:
                 source_event = ayon_api.get_event(event["dependsOn"])
 
                 project_name = source_event["project"]
-                ay_project = ayon_api.get_project(project_name)
 
-                if (
-                    not ay_project
-                    or not ay_project["attrib"].get("shotgridPush", False)
-                ):
+                if project_name in self._get_sync_project_names():
                     # This should never happen since we only fetch events of
                     # projects we have shotgridPush enabled; but just in case
                     # The event happens when after we deleted a project in
@@ -218,18 +232,7 @@ class ShotgridTransmitter:
                     )
                     continue
 
-                project_code = ay_project.get("code")
-
-                hub = AyonShotgridHub(
-                    self.get_sg_connection(),
-                    project_name,
-                    project_code,
-                    sg_project_code_field=self.sg_project_code_field,
-                    custom_attribs_map=self.custom_attribs_map,
-                    custom_attribs_types=self.custom_attribs_types,
-                    sg_enabled_entities=self.sg_enabled_entities,
-                )
-
+                hub = self._get_hub(project_name)
                 hub.react_to_ayon_event(source_event)
 
                 self.log.info("Event has been processed... setting to finished!")
@@ -250,6 +253,36 @@ class ShotgridTransmitter:
                         "message": traceback.format_exc(),
                     },
                 )
+
+    def _get_sync_project_names(self):
+        """Get project names that are enabled for SG sync."""
+        ayon_projects = ayon_api.get_projects(fields=["name", "attrib"])
+
+        project_names = []
+        for project in ayon_projects:
+            if project["attrib"].get("shotgridPush"):
+                project_names.append(project["name"])
+
+        return project_names
+
+    def _get_hub(self, project_name):
+        hub = self._cached_hubs.get(project_name)
+
+        if not hub:
+            ay_project = ayon_api.get_project(project_name)
+            project_code = ay_project["code"]
+            hub = AyonShotgridHub(
+                self.get_sg_connection(),
+                project_name,
+                project_code,
+                sg_project_code_field=self.sg_project_code_field,
+                custom_attribs_map=self.custom_attribs_map,
+                custom_attribs_types=self.custom_attribs_types,
+                sg_enabled_entities=self.sg_enabled_entities,
+            )
+            self._cached_hubs[project_name] = hub
+
+        return hub
 
 
 def service_main():
