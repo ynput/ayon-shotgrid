@@ -67,6 +67,8 @@ def match_ayon_hierarchy_in_shotgrid(
         custom_attribs_map,
         addon_settings=addon_settings,
     )
+    default_task_type = addon_settings[
+        "compatibility_settings"]["default_task_type"]
 
     ay_entity_deck = collections.deque()
 
@@ -75,7 +77,11 @@ def match_ayon_hierarchy_in_shotgrid(
             entity_hub.project_name]:
         ay_entity_deck.append((
             get_sg_entity_as_ay_dict(
-                sg_session, "Project", sg_project["id"], project_code_field,
+                sg_session,
+                "Project",
+                sg_project["id"],
+                project_code_field,
+                default_task_type,
                 custom_attribs_map=custom_attribs_map
             ),
             ay_entity_child
@@ -213,6 +219,7 @@ def match_ayon_hierarchy_in_shotgrid(
                 sg_enabled_entities,
                 project_code_field,
                 custom_attribs_map,
+                addon_settings
             )
             sg_entity_id = sg_ay_dict["attribs"][SHOTGRID_ID_ATTRIB]
             sg_ay_dicts[sg_entity_id] = sg_ay_dict
@@ -303,6 +310,7 @@ def _create_new_entity(
     sg_enabled_entities: List[str],
     project_code_field: str,
     custom_attribs_map: Dict[str, str],
+    addon_settings: Dict[str, Any],
 ):
     """Helper method to create entities in Shotgrid.
 
@@ -408,10 +416,14 @@ def _create_new_entity(
             f"Unable to create SG entity {sg_type} with data: {data}")
         raise e
 
+    default_task_type = addon_settings[
+        "compatibility_settings"]["default_task_type"]
+
     return get_sg_entity_as_ay_dict(
         sg_session,
         sg_entity["type"],
         sg_entity["id"],
         project_code_field,
+        default_task_type,
         custom_attribs_map=custom_attribs_map
     )
