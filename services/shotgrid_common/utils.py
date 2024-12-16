@@ -1,3 +1,4 @@
+import copy
 import os
 import json
 import hashlib
@@ -1405,36 +1406,8 @@ def create_new_ayon_entity(
         log.warning("Cannot create new versions yet.")
         return
     elif sg_ay_dict["type"].lower() == "comment":
-        sg_note, sg_note_id = _get_sg_note(sg_ay_dict, sg_session)
-
-        if not sg_note:
-            log.warning(f"Couldn't find note '{sg_note_id}'")
-            return
-
-        sg_user = sg_note["user"]
-        if sg_user["type"] != "HumanUser":
-            log.warning(f"Cannot create notes from non humans "
-                        f"- {sg_user['type']}")
-            return
-
-        ayon_user_name = get_ayon_name_by_sg_id(sg_user["id"])
-        if not ayon_user_name:
-            log.warning(f"{sg_user['name']} not yet synched.")
-            return
-
-        ay_entity, ay_entity_type, sg_id = _get_entity_info_from_links(
-            entity_hub, sg_note, sg_session)
-
-        content = _get_content_with_notifications(sg_note)
-
-        ay_entity = _add_comment(
-            sg_ay_dict["data"]["project"]["name"],
-            ay_entity["id"],
-            ay_entity_type,
-            ayon_user_name,
-            content,
-            sg_id
-        )
+        handle_comment(sg_ay_dict, sg_session, entity_hub)
+        return
     else:
         ay_entity = entity_hub.add_new_folder(
             folder_type=sg_ay_dict["folder_type"],
@@ -1501,76 +1474,6 @@ def create_new_ayon_entity(
         log.error("AYON Entity could not be created", exc_info=True)
 
     return ay_entity
-
-def _get_sg_note(sg_ay_dict, sg_session):
-    sg_note_id = sg_ay_dict["attribs"][SHOTGRID_ID_ATTRIB]
-    sg_note = sg_session.find_one(
-        "Note",
-        [["id", "is", int(sg_note_id)]],
-        fields=[
-            "id",
-            "content",
-            "sg_ayon_id",
-            "user",
-            "note_links",
-            "addressings_to"
-        ]
-    )
-    return sg_note, sg_note_id
-
-
-def _get_entity_info_from_links(entity_hub, sg_note, sg_session):
-    for link in sg_note["note_links"]:
-        sg_id = link["id"]
-        sg_entity = sg_session.find_one(
-            link["type"],
-            [["id", "is", int(sg_id)]],
-            fields=["id", CUST_FIELD_CODE_ID]
-        )
-        if not sg_entity:
-            log.warning(f"Couldn't find entity in SG with '{sg_id}")
-            continue
-
-        if not sg_entity.get(CUST_FIELD_CODE_ID):
-            log.warning(f"Entity in SG with '{sg_id}' "
-                        "not synced to AYON yet.")
-            continue
-
-        ay_entity_type = AYON_SHOTGRID_ENTITY_TYPE_MAP.get(
-            sg_entity["type"]
-        )
-        if not ay_entity_type:
-            log.warning(f"Couldn't find matching entity type in AYON "
-                        f"for '{sg_entity['type']}")
-            continue
-
-        a_entity_id = sg_entity[CUST_FIELD_CODE_ID]
-        ay_entity = entity_hub.get_or_fetch_entity_by_id(
-            a_entity_id,
-            [ay_entity_type]
-        )
-        if not ay_entity:
-            log.warning(f"Couldn't find {a_entity_id} of {ay_entity_type}")
-            continue
-        break  # AYON comment couldn't be pointed to multiple entities
-    return ay_entity, ay_entity_type, sg_id
-
-def _get_content_with_notifications(sg_note):
-    content = sg_note["content"]
-    for sg_user in sg_note["addressings_to"]:
-        if sg_user["type"] != "HumanUser":
-            log.warning(f"Cannot create notes for non humans "
-                        f"- {sg_user['type']}")
-            continue
-        ayon_user_name = get_ayon_name_by_sg_id(sg_user["id"])
-        sg_name = sg_user["name"]
-        if not ayon_user_name:
-            log.warning(f"{sg_name} not yet synched.")
-            continue
-
-        user_notification_str = f"[{sg_name}](user:{ayon_user_name})"
-        content = f"{user_notification_str} {content}"
-    return content
 
 
 def get_ayon_name_by_sg_id(sg_user_id):
@@ -1645,6 +1548,168 @@ def get_sg_user_id(ayon_username):
         sg_user_id = ayon_user["data"]["sg_user_id"]
     return sg_user_id
 
+
+def handle_comment(sg_ay_dict, sg_session, entity_hub):
+    """Transforms content and links from SG to matching AYON structures."""
+    sg_note_id = sg_ay_dict["attribs"][SHOTGRID_ID_ATTRIB]
+    sg_note, sg_note_id = _get_sg_note(sg_note_id, sg_session)
+
+    if not sg_note:
+        log.warning(f"Couldn't find note '{sg_note_id}'")
+        return
+
+    sg_user = sg_note["user"]
+    if sg_user["type"] != "HumanUser":
+        log.warning(f"Cannot create notes from non humans "
+                    f"- {sg_user['type']}")
+        return
+
+    ayon_user_name = get_ayon_name_by_sg_id(sg_user["id"])
+    if not ayon_user_name:
+        log.warning(f"{sg_user['name']} not yet synched.")
+        return
+
+    ay_parent_entity, ay_parent_entity_type, sg_id = (
+        _get_entity_info_from_links(entity_hub, sg_note, sg_session))
+
+    content = _get_content_with_notifications(sg_note)
+
+    project_name = entity_hub.project_name
+
+    sg_ayon_id = sg_ay_dict["data"].get(CUST_FIELD_CODE_ID)
+    ayon_comment = None
+    if sg_ayon_id:
+        ayon_comment = ayon_api.get_activity_by_id(project_name, sg_ayon_id)
+
+    if not ayon_comment:
+        ay_activity_id = _add_comment(
+            project_name,
+            ay_parent_entity["id"],
+            ay_parent_entity_type,
+            ayon_user_name,
+            content,
+            sg_id
+        )
+    else:
+        ay_activity_id = _update_comment(
+            project_name,
+            ay_parent_entity,
+            ay_parent_entity_type,
+            ayon_comment,
+            content,
+        )
+    #updates SG with AYON comment id
+    sg_session.update(
+        sg_ay_dict["attribs"].get(SHOTGRID_TYPE_ATTRIB, ""),
+        sg_ay_dict["attribs"].get(SHOTGRID_ID_ATTRIB, ""),
+        {
+            CUST_FIELD_CODE_ID: ay_activity_id
+        }
+    )
+
+
+def _update_comment(
+    project_name,
+    ay_parent_entity,
+    ay_parent_entity_type,
+    ayon_comment,
+    content
+):
+    ay_activity_id = ayon_comment["activityId"]
+
+    updated_origin = copy.deepcopy(ayon_comment["activityData"]["origin"])
+    updated_origin["id"] = ay_parent_entity["id"]
+    updated_origin["name"] = ay_parent_entity["name"]
+    updated_origin["type"] = ay_parent_entity_type
+    updated_origin["subtype"] = ay_parent_entity["folder_type"]
+
+    if (content != ayon_comment["body"]
+            or updated_origin != ayon_comment["activityData"]["origin"]):
+        # TODO this doesn't seem to work, it seems not to be implemented in API
+        ayon_comment["activityData"]["origin"] = updated_origin
+        ayon_api.update_activity(
+            project_name,
+            ay_activity_id,
+            body=content,
+            data=ayon_comment["activityData"]
+        )
+    return ay_activity_id
+
+
+def _get_sg_note(sg_note_id, sg_session):
+    """Gets detail information about SG note wih SG id."""
+    sg_note = sg_session.find_one(
+        "Note",
+        [["id", "is", int(sg_note_id)]],
+        fields=[
+            "id",
+            "content",
+            "sg_ayon_id",
+            "user",
+            "note_links",
+            "addressings_to"
+        ]
+    )
+    return sg_note, sg_note_id
+
+
+def _get_entity_info_from_links(entity_hub, sg_note, sg_session):
+    """Transforms SG links to AYON hierarchy."""
+    for link in sg_note["note_links"]:
+        sg_id = link["id"]
+        sg_entity = sg_session.find_one(
+            link["type"],
+            [["id", "is", int(sg_id)]],
+            fields=["id", CUST_FIELD_CODE_ID]
+        )
+        if not sg_entity:
+            log.warning(f"Couldn't find entity in SG with '{sg_id}")
+            continue
+
+        if not sg_entity.get(CUST_FIELD_CODE_ID):
+            log.warning(f"Entity in SG with '{sg_id}' "
+                        "not synced to AYON yet.")
+            continue
+
+        ay_entity_type = AYON_SHOTGRID_ENTITY_TYPE_MAP.get(
+            sg_entity["type"]
+        )
+        if not ay_entity_type:
+            log.warning(f"Couldn't find matching entity type in AYON "
+                        f"for '{sg_entity['type']}")
+            continue
+
+        a_entity_id = sg_entity[CUST_FIELD_CODE_ID]
+        ay_entity = entity_hub.get_or_fetch_entity_by_id(
+            a_entity_id,
+            [ay_entity_type]
+        )
+        if not ay_entity:
+            log.warning(f"Couldn't find {a_entity_id} of {ay_entity_type}")
+            continue
+        break  # AYON comment couldn't be pointed to multiple entities
+    return ay_entity, ay_entity_type, sg_id
+
+
+def _get_content_with_notifications(sg_note):
+    """Translates SG 'addressings_to' to AYON @ mentions."""
+    content = sg_note["content"]
+    for sg_user in sg_note["addressings_to"]:
+        if sg_user["type"] != "HumanUser":
+            log.warning(f"Cannot create notes for non humans "
+                        f"- {sg_user['type']}")
+            continue
+        ayon_user_name = get_ayon_name_by_sg_id(sg_user["id"])
+        sg_name = sg_user["name"]
+        if not ayon_user_name:
+            log.warning(f"{sg_name} not yet synched.")
+            continue
+
+        user_notification_str = f"[{sg_name}](user:{ayon_user_name})"
+        content = f"{user_notification_str} {content}"
+    return content
+
+
 def _add_comment(
     project_name,
     ayon_entity_id,
@@ -1664,3 +1729,5 @@ def _add_comment(
             data={"sg_id": sg_id}
         )
         log.info(f"Created note {activity_id}")
+
+    return activity_id
