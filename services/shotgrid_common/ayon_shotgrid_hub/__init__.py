@@ -524,6 +524,8 @@ class AyonShotgridHub:
                 if sg_update_data:
                     self._sg.update("Note", sg_note["id"], sg_update_data)
 
+        return len(project_activities)
+
     def _get_entity_dicts_for_activities(self, project_activities):
         """Build a dictionary mapping entity IDs to corresponding entity data.
 

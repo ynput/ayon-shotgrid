@@ -7,20 +7,23 @@ two are `created`, `renamed` or `deleted`.
 """
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import socket
 import traceback
+
+import arrow
 
 import ayon_api
 import shotgun_api3
 
 from ayon_shotgrid_hub import AyonShotgridHub
+from constants import (
+    COMMENTS_SYNC_TIMEOUT,
+    SHOTGRID_COMMENTS_TOPIC,
+    COMMENTS_SYNC_INTERVAL
+)
 
 from utils import get_logger
-
-
-COMMENTS_SYNC_SECS_INTERVAL = 15
-COMMENTS_SYNC_TIMEOUT = 60 * 2
 
 
 class ShotgridTransmitter:
@@ -161,23 +164,11 @@ class ShotgridTransmitter:
         last_comments_sync = datetime.min.replace(tzinfo=timezone.utc)
         while True:
             try:
-                # get all service users
-                service_users = [
-                    user["name"]
-                    for user in ayon_api.get_users(
-                        fields={"accessGroups", "isService", "name"})
-                    if user["isService"]
-                ]
-
                 # Run comments sync
-                now_time = datetime.now(tz=timezone.utc)
+                now_time = arrow.utcnow()
                 sec_diff = (now_time - last_comments_sync).total_seconds()
-                if sec_diff > COMMENTS_SYNC_SECS_INTERVAL:
-                    project_names = self._get_sync_project_names()
-                    for project_name in project_names:
-                        hub = self._get_hub(project_name)
-                        hub.sync_comments(last_comments_sync)
-                    last_comments_sync = now_time
+                if sec_diff > COMMENTS_SYNC_INTERVAL:
+                    self._sync_comments()
 
                 # enrolling only events which were not created by any
                 # of service users so loopback is avoided
@@ -269,6 +260,99 @@ class ShotgridTransmitter:
             self._cached_hubs[project_name] = hub
 
         return hub
+
+    def _sync_comments(self):
+        """Checks if no other syncing is runnin or when last successful ran."""
+        any_in_progress = self._cleanup_in_progress_comment_events()
+        if any_in_progress:
+            return
+
+        now = arrow.utcnow()
+        activities_after_date = None
+
+        last_finished_event = self._get_last_finished_event()
+        if last_finished_event is not None:
+            created_at = arrow.get(
+                last_finished_event["createdAt"]
+            ).to("local")
+            delta = now - created_at
+            if delta.seconds < COMMENTS_SYNC_INTERVAL:
+                return
+            activities_after_date = created_at
+
+        if activities_after_date is None:
+            activities_after_date = now - timedelta(days=5)
+
+        response = ayon_api.dispatch_event(
+            SHOTGRID_COMMENTS_TOPIC,
+            description=(
+                "Synchronizing comments from ftrack to AYON."
+            ),
+            summary=None,
+            payload={},
+            finished=True,
+            store=True,
+        )
+        if isinstance(response, str):
+            event_id = response
+        else:
+            event_id = response["id"]
+
+        try:
+            synced_comments = 0
+            project_names = self._get_sync_project_names()
+            for project_name in project_names:
+                hub = self._get_hub(project_name)
+                synced_comments += hub.sync_comments(activities_after_date)
+            success = True
+        except Exception:
+            success = False
+            self._log.warning("Failed to sync comments.", exc_info=True)
+
+        finally:
+            ayon_api.update_event(
+                event_id,
+                description=(
+                    f"Synchronized comments"
+                    " from AYON to SG."
+                ),
+                status="finished" if success else "failed",
+                payload={"synced_comments": synced_comments},
+            )
+
+    def _cleanup_in_progress_comment_events(self) -> bool:
+        """Clean stuck or hard failed synchronizations"""
+        in_progress_events = list(ayon_api.get_events(
+            topics={SHOTGRID_COMMENTS_TOPIC},
+            statuses={"in_progress"},
+            fields={"id", "createdAt"}
+        ))
+
+        any_in_progress = False
+        now = arrow.utcnow()
+        for event in in_progress_events:
+            created_at = arrow.get(event["createdAt"]).to("local")
+            delta = now - created_at
+            if delta.seconds < COMMENTS_SYNC_TIMEOUT:
+                any_in_progress = True
+            else:
+                ayon_api.update_event(
+                    event["id"],
+                    status="failed",
+                )
+        return any_in_progress
+
+    def _get_last_finished_event(self):
+        """Finds last successful run of comments synching to SG."""
+        finished_events = list(ayon_api.get_events(
+            topics={SHOTGRID_COMMENTS_TOPIC},
+            statuses={"finished"},
+            limit=1,
+            order=ayon_api.SortOrder.descending,
+        ))
+        for event in finished_events:
+            return event
+        return None
 
 
 def service_main():

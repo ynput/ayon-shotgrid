@@ -163,3 +163,8 @@ SG_EVENT_QUERY_FIELDS = [
 class FOLDER_REPARENTING_TYPE:
     ROOT_RELOCATE = "root_relocate"
     TYPE_GROUPING = "type_grouping"
+
+
+SHOTGRID_COMMENTS_TOPIC = "shotgrid.sync.comments"
+COMMENTS_SYNC_INTERVAL = 15  # secs
+COMMENTS_SYNC_TIMEOUT = 60 * 2  # secs

@@ -1,5 +1,6 @@
 annotated-types==0.6.0
 appdirs==1.4.4
+arrow==0.17.0
 ayon-python-api>=1.0.11
 certifi==2024.2.2
 charset-normalizer==3.3.2
