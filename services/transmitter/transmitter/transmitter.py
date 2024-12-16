@@ -7,7 +7,7 @@ two are `created`, `renamed` or `deleted`.
 """
 import sys
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 import socket
 import traceback
 
@@ -158,7 +158,7 @@ class ShotgridTransmitter:
             "entity.version.status_changed",
         ]
 
-        last_comments_sync = datetime.min
+        last_comments_sync = datetime.min.replace(tzinfo=timezone.utc)
         while True:
             try:
                 # get all service users
@@ -170,7 +170,7 @@ class ShotgridTransmitter:
                 ]
 
                 # Run comments sync
-                now_time = datetime.now()
+                now_time = datetime.now(tz=timezone.utc)
                 sec_diff = (now_time - last_comments_sync).total_seconds()
                 if sec_diff > COMMENTS_SYNC_SECS_INTERVAL:
                     project_names = self._get_sync_project_names()
