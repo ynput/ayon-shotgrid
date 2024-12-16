@@ -182,28 +182,14 @@ class ShotgridTransmitter:
                 # enrolling only events which were not created by any
                 # of service users so loopback is avoided
                 event = ayon_api.enroll_event_job(
-                    "entity.*",
+                    events_we_care,
                     "shotgrid.push",
                     socket.gethostname(),
+                    ignore_sender_types=["shotgrid"],
                     description=(
                         "Handle AYON entity changes and "
                         "sync them to Shotgrid."
                     ),
-                    events_filter={
-                        "conditions": [
-                            {
-                                "key": "topic",
-                                "value": events_we_care,
-                                "operator": "in",
-                            },
-                            {
-                                "key": "user",
-                                "value": service_users,
-                                "operator": "notin",
-                            }
-                        ],
-                        "operator": "and",
-                    },
                     max_retries=2
                 )
 
