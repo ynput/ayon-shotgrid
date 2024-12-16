@@ -201,7 +201,7 @@ class ShotgridTransmitter:
 
                 project_name = source_event["project"]
 
-                if project_name in self._get_sync_project_names():
+                if project_name not in self._get_sync_project_names():
                     # This should never happen since we only fetch events of
                     # projects we have shotgridPush enabled; but just in case
                     # The event happens when after we deleted a project in
