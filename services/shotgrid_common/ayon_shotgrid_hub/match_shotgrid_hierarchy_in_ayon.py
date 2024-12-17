@@ -147,15 +147,16 @@ def match_shotgrid_hierarchy_in_ayon(
                 sg_ay_dict
             )
         else:
-            sg_entity_sync_status, sg_project_sync_status = _update_ay_entity(
+            if not _update_ay_entity(
                 ay_entity,
                 custom_attribs_map,
                 entity_hub,
                 sg_ay_dict,
                 sg_entity_id,
-                sg_entity_sync_status,
-                sg_project_sync_status
-            )
+            ):
+                sg_entity_sync_status = "Failed"
+                sg_project_sync_status = "Failed"
+
 
         # skip if no ay_entity is found
         # perhaps due Task with project entity as parent
@@ -207,9 +208,21 @@ def _update_ay_entity(
     entity_hub,
     sg_ay_dict,
     sg_entity_id,
-    sg_entity_sync_status,
-    sg_project_sync_status
 ):
+    """
+    Updates a given AYON entity with custom attributes.
+
+    Args:
+        ay_entity (ayon_api.entity_hub.EntityHub.Entity): The AYON entity
+        custom_attribs_map: A mapping that defines how custom attributes
+            should be updated.
+        entity_hub (ayon_api.entity_hub.EntityHub):
+        sg_ay_dict(dict): info about SG entity convert to AYON dict
+        sg_entity_id: The ID of the corresponding ShotGrid entity
+
+    Returns:
+        (booL): True if updated, False if discrepancy before
+    """
     ay_sg_id_attrib = ay_entity.attribs.get(
         SHOTGRID_ID_ATTRIB
     )
@@ -220,8 +233,7 @@ def _update_ay_entity(
             f"ShotgridId {ay_sg_id_attrib}, while the ShotGrid ID "  # noqa
             f"should be {sg_entity_id}"
         )
-        sg_entity_sync_status = "Failed"
-        sg_project_sync_status = "Failed"
+        return False
     else:
         update_ay_entity_custom_attributes(
             ay_entity,
@@ -229,7 +241,7 @@ def _update_ay_entity(
             custom_attribs_map,
             ay_project=entity_hub.project_entity
         )
-    return sg_entity_sync_status, sg_project_sync_status
+        return True
 
 
 def _update_sg_entity(
