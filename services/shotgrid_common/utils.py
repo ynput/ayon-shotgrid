@@ -1575,7 +1575,10 @@ def handle_comment(sg_ay_dict, sg_session, entity_hub):
         return
 
     ay_parent_entity, ay_parent_entity_type, sg_id = (
-        _get_entity_info_from_links(entity_hub, sg_note, sg_session))
+        _get_parent_entity(entity_hub, sg_note, sg_session))
+    if not ay_parent_entity:
+        log.warning(f"Cannot find parent for comment '{sg_note_id}'")
+        return
 
     content = _get_content_with_notifications(sg_note)
 
@@ -1658,8 +1661,12 @@ def _get_sg_note(sg_note_id, sg_session):
     return sg_note, sg_note_id
 
 
-def _get_entity_info_from_links(entity_hub, sg_note, sg_session):
+def _get_parent_entity(entity_hub, sg_note, sg_session):
     """Transforms SG links to AYON hierarchy."""
+    ay_entity = None
+    ay_entity_type = None
+    sg_id = None
+
     for link in sg_note["note_links"]:
         sg_id = link["id"]
         sg_entity = sg_session.find_one(
