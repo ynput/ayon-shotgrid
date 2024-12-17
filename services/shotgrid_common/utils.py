@@ -632,6 +632,9 @@ def _create_special_category(
 
 
 def _get_parents_and_types(addon_settings, transfer_type, sg_entity_type):
+    if not transfer_type:
+        return []
+
     parents_presets = (addon_settings["compatibility_settings"]
                                      ["folder_parenting"]
                                      [transfer_type])
