@@ -147,26 +147,15 @@ def match_shotgrid_hierarchy_in_ayon(
                 sg_ay_dict
             )
         else:
-            ay_sg_id_attrib = ay_entity.attribs.get(
-                SHOTGRID_ID_ATTRIB
+            sg_entity_sync_status, sg_project_sync_status = _update_ay_entity(
+                ay_entity,
+                custom_attribs_map,
+                entity_hub,
+                sg_ay_dict,
+                sg_entity_id,
+                sg_entity_sync_status,
+                sg_project_sync_status
             )
-
-            # If the ShotGrid ID in AYON doesn't match the one in ShotGrid
-            if str(ay_sg_id_attrib) != str(sg_entity_id):  # noqa
-                log.error(
-                    f"The AYON entity {ay_entity.name} <{ay_entity.id}> has the "  # noqa
-                    f"ShotgridId {ay_sg_id_attrib}, while the ShotGrid ID "  # noqa
-                    f"should be {sg_entity_id}"
-                )
-                sg_entity_sync_status = "Failed"
-                sg_project_sync_status = "Failed"
-            else:
-                update_ay_entity_custom_attributes(
-                    ay_entity,
-                    sg_ay_dict,
-                    custom_attribs_map,
-                    ay_project=entity_hub.project_entity
-                )
 
         # skip if no ay_entity is found
         # perhaps due Task with project entity as parent
@@ -210,6 +199,37 @@ def match_shotgrid_hierarchy_in_ayon(
             CUST_FIELD_CODE_SYNC: sg_project_sync_status
         }
     )
+
+
+def _update_ay_entity(
+    ay_entity,
+    custom_attribs_map,
+    entity_hub,
+    sg_ay_dict,
+    sg_entity_id,
+    sg_entity_sync_status,
+    sg_project_sync_status
+):
+    ay_sg_id_attrib = ay_entity.attribs.get(
+        SHOTGRID_ID_ATTRIB
+    )
+    # If the ShotGrid ID in AYON doesn't match the one in ShotGrid
+    if str(ay_sg_id_attrib) != str(sg_entity_id):  # noqa
+        log.error(
+            f"The AYON entity {ay_entity.name} <{ay_entity.id}> has the "  # noqa
+            f"ShotgridId {ay_sg_id_attrib}, while the ShotGrid ID "  # noqa
+            f"should be {sg_entity_id}"
+        )
+        sg_entity_sync_status = "Failed"
+        sg_project_sync_status = "Failed"
+    else:
+        update_ay_entity_custom_attributes(
+            ay_entity,
+            sg_ay_dict,
+            custom_attribs_map,
+            ay_project=entity_hub.project_entity
+        )
+    return sg_entity_sync_status, sg_project_sync_status
 
 
 def _update_sg_entity(
