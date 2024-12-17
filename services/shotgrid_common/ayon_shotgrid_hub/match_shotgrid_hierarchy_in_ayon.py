@@ -20,7 +20,7 @@ from utils import (
     get_asset_category,
     get_sequence_category,
     get_shot_category,
-    update_ay_entity_custom_attributes,
+    update_ay_entity_custom_attributes, handle_comment,
 )
 
 from utils import get_logger
@@ -91,6 +91,10 @@ def match_shotgrid_hierarchy_in_ayon(
 
         ay_entity = None
         sg_entity_sync_status = "Synced"
+
+        if sg_ay_dict["type"].lower() == "comment":
+            handle_comment(sg_ay_dict, sg_session, entity_hub)
+            continue
 
         ay_id = sg_ay_dict["data"].get(CUST_FIELD_CODE_ID)
         if ay_id:
