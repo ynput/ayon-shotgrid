@@ -473,7 +473,7 @@ class AyonShotgridHub:
         sg_user_id_by_user_name = {}
         for activity in project_activities:
             activity_data = activity["activityData"]
-            orig_sg_id = activity_data.get("sg_id")
+            orig_sg_id = activity_data.get("sg_note_id")
             sg_note = None
             if orig_sg_id:
                 sg_note = self._sg.find_one(
@@ -515,7 +515,7 @@ class AyonShotgridHub:
                     sg_update_data["sg_ayon_id"] = activity_id
 
                 if orig_sg_id != sg_note["id"]:
-                    activity_data["sg_id"] = sg_note["id"]
+                    activity_data["sg_note_id"] = sg_note["id"]
                     ayon_api.update_activity(
                         self.project_name,
                         activity["activityId"],
@@ -611,10 +611,9 @@ class AyonShotgridHub:
         result = self._sg.create("Note", data)
 
         note_id = result["id"]
-        self.log.debug(f"result::{result}")
 
         activity_data = activity["activityData"]
-        activity_data["sg_id"] = note_id
+        activity_data["sg_note_id"] = note_id
         ayon_api.update_activity(
             project_name,
             activity["activityId"],

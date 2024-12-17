@@ -1595,7 +1595,7 @@ def handle_comment(sg_ay_dict, sg_session, entity_hub):
             ay_parent_entity["entity_type"],
             ayon_user_name,
             content,
-            sg_id
+            sg_note_id
         )
     else:
         ay_activity_id = _update_comment(
@@ -1725,7 +1725,7 @@ def _add_comment(
     ayon_entity_type,
     ayon_username,
     text,
-    sg_id
+    sg_note_id
 ):
     con = ayon_api.get_server_api_connection()
     with con.as_username(ayon_username):
@@ -1735,7 +1735,7 @@ def _add_comment(
             ayon_entity_type,
             "comment",
             body=text,
-            data={"sg_id": sg_id}
+            data={"sg_note_id": sg_note_id}
         )
         log.info(f"Created note {activity_id}")
 
