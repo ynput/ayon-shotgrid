@@ -140,13 +140,12 @@ def match_shotgrid_hierarchy_in_ayon(
 
         # If we couldn't find it we create it.
         if ay_entity is None:
-            if not ay_entity:
-                ay_entity = create_new_ayon_entity(
-                    sg_session,
-                    entity_hub,
-                    ay_parent_entity,
-                    sg_ay_dict
-                )
+            ay_entity = create_new_ayon_entity(
+                sg_session,
+                entity_hub,
+                ay_parent_entity,
+                sg_ay_dict
+            )
         else:
             ay_sg_id_attrib = ay_entity.attribs.get(
                 SHOTGRID_ID_ATTRIB
