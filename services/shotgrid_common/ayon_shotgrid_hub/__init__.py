@@ -530,11 +530,11 @@ class AyonShotgridHub:
         """Build a dictionary mapping entity IDs to corresponding entity data.
 
         Args:
-            project_activities (list): A list of project activities containing 
+            project_activities (list): A list of project activities containing
                 information about entity IDs and types.
 
         Returns:
-            dict: A dictionary where the keys are entity IDs and the values are 
+            dict: A dictionary where the keys are entity IDs and the values are
             the corresponding entity data (e.g., folder, task, version).
         """
         entity_ids_by_entity_type = collections.defaultdict(set)
@@ -623,7 +623,7 @@ class AyonShotgridHub:
     def _get_addressings_to(self, content, sg_user_id_by_user_name):
         """ Extract and generate the list of ShotGrid (SG) `addressings_to`
 
-        This method finds usernames tagged in the format `user:<username>` 
+        This method finds usernames tagged in the format `user:<username>`
         in the given content and retrieves their corresponding SG user IDs.
 
         Args:
@@ -632,7 +632,7 @@ class AyonShotgridHub:
                 their corresponding SG user IDs.
 
         Returns:
-            list: A list of dictionaries containing SG user IDs in the format 
+            list: A list of dictionaries containing SG user IDs in the format
                 [{"type": "HumanUser", "id": sg_user_id}, ...].
         """
         addressings_to = []
@@ -654,10 +654,10 @@ class AyonShotgridHub:
 
     def _get_cached_sg_user_id(self, sg_user_id_by_user_name, user_name):
         """Retrieve the cached ShotGrid (SG) user ID for the given username.
-        
+
         Args:
             sg_user_id_by_user_name (dict): A dict {ayon_user_name: sg_user_id}
-            user_name (str): The username for which the SG user ID is 
+            user_name (str): The username for which the SG user ID is
                 being retrieved.
 
         Returns:

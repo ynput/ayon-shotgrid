@@ -1531,13 +1531,13 @@ def _add_task_assignees(sg_entity):
         task_assignees_list.append(ayon_user_name)
     log.debug(f"Adding '{task_assignees_list}' from SG.")
     sg_entity["task_assignees"] = task_assignees_list
-    
+
 
 def get_sg_user_id(ayon_username):
     """Returns the ShotGrid user ID for a given AYON username.
 
     Queries AYON's user database to retrieve the associated ShotGrid user ID
-    for a specified AYON username. If no association is found, the method 
+    for a specified AYON username. If no association is found, the method
     returns `-1`.
 
     Args:

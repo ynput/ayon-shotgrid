@@ -312,10 +312,7 @@ class ShotgridTransmitter:
         finally:
             ayon_api.update_event(
                 event_id,
-                description=(
-                    f"Synchronized comments"
-                    " from AYON to SG."
-                ),
+                description="Synchronized comments from AYON to SG.",
                 status="finished" if success else "failed",
                 payload={"synced_comments": synced_comments},
             )
