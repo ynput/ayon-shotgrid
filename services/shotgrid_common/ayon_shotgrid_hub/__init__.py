@@ -595,14 +595,14 @@ class AyonShotgridHub:
 
         note_links = self._get_note_links(entity_dict)
 
-        addressings_to =self._get_addressings_to(
+        addressings_to, content =self._get_addressings_to(
             activity["body"], sg_user_id_by_user_name)
 
         data = {
             "project": {"type": "Project", "id": self._sg_project["id"]},
             "note_links": note_links,
-            "subject": activity["body"][:50],
-            "content": activity["body"],
+            "subject": content[:50],
+            "content": content,
             "user": {"type": "HumanUser", "id": author_sg_id},
             "addressings_to": addressings_to
         }
@@ -632,14 +632,16 @@ class AyonShotgridHub:
                 their corresponding SG user IDs.
 
         Returns:
-            list: A list of dictionaries containing SG user IDs in the format
-                [{"type": "HumanUser", "id": sg_user_id}, ...].
+            (tuple(list, str)): A list of dictionaries containing SG user IDs
+            in the format [{"type": "HumanUser", "id": sg_user_id}, ...]. AND
+            cleaned up content (removed (user:XXX) which caused broken link)
         """
         addressings_to = []
         user_names = re.findall(r'user:([\w\.\-]+)', content)
         for user_name in user_names:
-            # activity["body"] = (
-            #     activity["body"].replace(f"(user:{user_name})", ""))
+            # remove confusing link through on SG side
+            content = (content.replace(f"(user:{user_name})", "").
+                       replace("[", "").replace("]", ""))
 
             sg_user_id = self._get_cached_sg_user_id(
                 sg_user_id_by_user_name, user_name)
@@ -650,7 +652,7 @@ class AyonShotgridHub:
             addressings_to.append(
                 {"type": "HumanUser", "id": sg_user_id}
             )
-        return addressings_to
+        return addressings_to, content
 
     def _get_cached_sg_user_id(self, sg_user_id_by_user_name, user_name):
         """Retrieve the cached ShotGrid (SG) user ID for the given username.
