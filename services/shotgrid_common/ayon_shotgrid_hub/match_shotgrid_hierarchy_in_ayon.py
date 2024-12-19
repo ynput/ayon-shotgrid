@@ -20,7 +20,7 @@ from utils import (
     get_asset_category,
     get_sequence_category,
     get_shot_category,
-    update_ay_entity_custom_attributes,
+    update_ay_entity_custom_attributes, handle_comment,
 )
 
 from utils import get_logger
@@ -89,6 +89,10 @@ def match_shotgrid_hierarchy_in_ayon(
 
         log.debug(f"Deck size: {len(sg_ay_dicts_deck)}")
 
+        if sg_ay_dict["type"].lower() == "comment":
+            handle_comment(sg_ay_dict, sg_session, entity_hub)
+            continue
+
         ay_entity = None
         sg_entity_sync_status = "Synced"
 
@@ -136,34 +140,23 @@ def match_shotgrid_hierarchy_in_ayon(
 
         # If we couldn't find it we create it.
         if ay_entity is None:
-            if not ay_entity:
-                ay_entity = create_new_ayon_entity(
-                    sg_session,
-                    entity_hub,
-                    ay_parent_entity,
-                    sg_ay_dict
-                )
-        else:
-            ay_sg_id_attrib = ay_entity.attribs.get(
-                SHOTGRID_ID_ATTRIB
+            ay_entity = create_new_ayon_entity(
+                sg_session,
+                entity_hub,
+                ay_parent_entity,
+                sg_ay_dict
             )
-
-            # If the ShotGrid ID in AYON doesn't match the one in ShotGrid
-            if str(ay_sg_id_attrib) != str(sg_entity_id):  # noqa
-                log.error(
-                    f"The AYON entity {ay_entity.name} <{ay_entity.id}> has the "  # noqa
-                    f"ShotgridId {ay_sg_id_attrib}, while the ShotGrid ID "  # noqa
-                    f"should be {sg_entity_id}"
-                )
+        else:
+            if not _update_ay_entity(
+                ay_entity,
+                custom_attribs_map,
+                entity_hub,
+                sg_ay_dict,
+                sg_entity_id,
+            ):
                 sg_entity_sync_status = "Failed"
                 sg_project_sync_status = "Failed"
-            else:
-                update_ay_entity_custom_attributes(
-                    ay_entity,
-                    sg_ay_dict,
-                    custom_attribs_map,
-                    ay_project=entity_hub.project_entity
-                )
+
 
         # skip if no ay_entity is found
         # perhaps due Task with project entity as parent
@@ -207,6 +200,48 @@ def match_shotgrid_hierarchy_in_ayon(
             CUST_FIELD_CODE_SYNC: sg_project_sync_status
         }
     )
+
+
+def _update_ay_entity(
+    ay_entity,
+    custom_attribs_map,
+    entity_hub,
+    sg_ay_dict,
+    sg_entity_id,
+):
+    """
+    Updates a given AYON entity with custom attributes.
+
+    Args:
+        ay_entity (ayon_api.entity_hub.EntityHub.Entity): The AYON entity
+        custom_attribs_map: A mapping that defines how custom attributes
+            should be updated.
+        entity_hub (ayon_api.entity_hub.EntityHub):
+        sg_ay_dict(dict): info about SG entity convert to AYON dict
+        sg_entity_id: The ID of the corresponding ShotGrid entity
+
+    Returns:
+        (booL): True if updated, False if discrepancy before
+    """
+    ay_sg_id_attrib = ay_entity.attribs.get(
+        SHOTGRID_ID_ATTRIB
+    )
+    # If the ShotGrid ID in AYON doesn't match the one in ShotGrid
+    if str(ay_sg_id_attrib) != str(sg_entity_id):  # noqa
+        log.error(
+            f"The AYON entity {ay_entity.name} <{ay_entity.id}> has the "  # noqa
+            f"ShotgridId {ay_sg_id_attrib}, while the ShotGrid ID "  # noqa
+            f"should be {sg_entity_id}"
+        )
+        return False
+    else:
+        update_ay_entity_custom_attributes(
+            ay_entity,
+            sg_ay_dict,
+            custom_attribs_map,
+            ay_project=entity_hub.project_entity
+        )
+        return True
 
 
 def _update_sg_entity(

@@ -286,6 +286,7 @@ class ShotgridProcessor:
 
 def service_main():
     ayon_api.init_service()
+    ayon_api.set_sender_type("shotgrid")
 
     shotgrid_processor = ShotgridProcessor()
     sys.exit(shotgrid_processor.start_processing())

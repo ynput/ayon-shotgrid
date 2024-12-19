@@ -37,6 +37,7 @@ from utils import (
     get_sg_entity_as_ay_dict,
     get_sg_entity_parent_field,
     update_ay_entity_custom_attributes,
+    handle_comment,
 )
 from constants import (
     CUST_FIELD_CODE_ID,  # ShotGrid Field for the AYON ID.
@@ -357,6 +358,10 @@ def update_ayon_entity_from_sg_event(
             f"Entity {sg_event['entity_type']} <{sg_event['entity_id']}> "
             "no longer exists in ShotGrid, aborting..."
         )
+        return
+
+    if sg_ay_dict["type"].lower() == "comment":
+        handle_comment(sg_ay_dict, sg_session, ayon_entity_hub)
         return
 
     # if the entity does not have an AYON ID, try to create it
