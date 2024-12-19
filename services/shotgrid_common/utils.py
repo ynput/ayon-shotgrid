@@ -632,15 +632,35 @@ def _create_special_category(
 
 
 def _get_parents_and_types(addon_settings, transfer_type, sg_entity_type):
+    """
+    Retrieves parent folders and their types based on addon settings,
+    transfer type, and ShotGrid entity type. This function returns a deque
+    containing tuples of parent description consisted of folder name and type
+     for specific ShotGrid entity type.
+
+    Args:
+        addon_settings (dict): Dictionary containing addon configurations,
+            specifically compatibility settings related to folder parenting.
+        transfer_type (FOLDER_REPARENTING_TYPE): 'root_relocate' or
+            'type_grouping'
+        sg_entity_type (str): ShotGrid entity type used to filter and locate
+            appropriate preset in the compatibility settings.
+
+    Returns:
+        collections.deque: A deque containing tuples of folder name and folder
+            type, derived from the matched presets. If no valid preset is found,
+            an empty deque is returned.
+    """
+    folders_and_types = collections.deque()
     if not transfer_type:
-        return []
+        return folders_and_types
 
     parents_presets = (addon_settings["compatibility_settings"]
                                      ["folder_parenting"]
                                      [transfer_type])
 
     if not parents_presets["enabled"]:
-        return []
+        return folders_and_types
 
     found_preset = None
     for preset in parents_presets["presets"]:
@@ -650,9 +670,8 @@ def _get_parents_and_types(addon_settings, transfer_type, sg_entity_type):
         break
 
     if not found_preset:
-        return []
+        return folders_and_types
 
-    folders_and_types = collections.deque()
     for parent in found_preset["parents"]:
         folders_and_types.append(
             (parent["folder_name"], parent["folder_type"])
