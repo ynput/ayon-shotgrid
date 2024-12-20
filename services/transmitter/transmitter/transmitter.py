@@ -7,13 +7,21 @@ two are `created`, `renamed` or `deleted`.
 """
 import sys
 import time
+from datetime import datetime, timezone, timedelta
 import socket
 import traceback
+
+import arrow
 
 import ayon_api
 import shotgun_api3
 
 from ayon_shotgrid_hub import AyonShotgridHub
+from constants import (
+    COMMENTS_SYNC_TIMEOUT,
+    SHOTGRID_COMMENTS_TOPIC,
+    COMMENTS_SYNC_INTERVAL
+)
 
 from utils import get_logger
 
@@ -34,6 +42,7 @@ class ShotgridTransmitter:
         """
         self.log.info("Initializing the Shotgrid Transmitter.")
 
+        self._cached_hubs = {}
         try:
             ayon_api.init_service()
             self.settings = ayon_api.get_service_addon_settings()
@@ -152,40 +161,26 @@ class ShotgridTransmitter:
             "entity.version.status_changed",
         ]
 
+        last_comments_sync = datetime.min.replace(tzinfo=timezone.utc)
         while True:
             try:
-                # get all service users
-                service_users = [
-                    user["name"]
-                    for user in ayon_api.get_users(
-                        fields={"accessGroups", "isService", "name"})
-                    if user["isService"]
-                ]
+                # Run comments sync
+                now_time = arrow.utcnow()
+                sec_diff = (now_time - last_comments_sync).total_seconds()
+                if sec_diff > COMMENTS_SYNC_INTERVAL:
+                    self._sync_comments()
+
                 # enrolling only events which were not created by any
                 # of service users so loopback is avoided
                 event = ayon_api.enroll_event_job(
-                    "entity.*",
+                    events_we_care,
                     "shotgrid.push",
                     socket.gethostname(),
+                    ignore_sender_types=["shotgrid"],
                     description=(
                         "Handle AYON entity changes and "
                         "sync them to Shotgrid."
                     ),
-                    events_filter={
-                        "conditions": [
-                            {
-                                "key": "topic",
-                                "value": events_we_care,
-                                "operator": "in",
-                            },
-                            {
-                                "key": "user",
-                                "value": service_users,
-                                "operator": "notin",
-                            }
-                        ],
-                        "operator": "and",
-                    },
                     max_retries=2
                 )
 
@@ -196,12 +191,8 @@ class ShotgridTransmitter:
                 source_event = ayon_api.get_event(event["dependsOn"])
 
                 project_name = source_event["project"]
-                ay_project = ayon_api.get_project(project_name)
 
-                if (
-                    not ay_project
-                    or not ay_project["attrib"].get("shotgridPush", False)
-                ):
+                if project_name not in self._get_sync_project_names():
                     # This should never happen since we only fetch events of
                     # projects we have shotgridPush enabled; but just in case
                     # The event happens when after we deleted a project in
@@ -218,18 +209,7 @@ class ShotgridTransmitter:
                     )
                     continue
 
-                project_code = ay_project.get("code")
-
-                hub = AyonShotgridHub(
-                    self.get_sg_connection(),
-                    project_name,
-                    project_code,
-                    sg_project_code_field=self.sg_project_code_field,
-                    custom_attribs_map=self.custom_attribs_map,
-                    custom_attribs_types=self.custom_attribs_types,
-                    sg_enabled_entities=self.sg_enabled_entities,
-                )
-
+                hub = self._get_hub(project_name)
                 hub.react_to_ayon_event(source_event)
 
                 self.log.info("Event has been processed... setting to finished!")
@@ -250,6 +230,126 @@ class ShotgridTransmitter:
                         "message": traceback.format_exc(),
                     },
                 )
+
+    def _get_sync_project_names(self):
+        """Get project names that are enabled for SG sync."""
+        ayon_projects = ayon_api.get_projects(fields=["name", "attrib"])
+
+        project_names = []
+        for project in ayon_projects:
+            if project["attrib"].get("shotgridPush"):
+                project_names.append(project["name"])
+
+        return project_names
+
+    def _get_hub(self, project_name):
+        hub = self._cached_hubs.get(project_name)
+
+        if not hub:
+            ay_project = ayon_api.get_project(project_name)
+            project_code = ay_project["code"]
+            hub = AyonShotgridHub(
+                self.get_sg_connection(),
+                project_name,
+                project_code,
+                sg_project_code_field=self.sg_project_code_field,
+                custom_attribs_map=self.custom_attribs_map,
+                custom_attribs_types=self.custom_attribs_types,
+                sg_enabled_entities=self.sg_enabled_entities,
+            )
+            self._cached_hubs[project_name] = hub
+
+        return hub
+
+    def _sync_comments(self):
+        """Checks if no other syncing is runnin or when last successful ran."""
+        any_in_progress = self._cleanup_in_progress_comment_events()
+        if any_in_progress:
+            return
+
+        now = arrow.utcnow()
+        activities_after_date = None
+
+        last_finished_event = self._get_last_finished_event()
+        if last_finished_event is not None:
+            created_at = arrow.get(
+                last_finished_event["createdAt"]
+            ).to("local")
+            delta = now - created_at
+            if delta.seconds < COMMENTS_SYNC_INTERVAL:
+                return
+            activities_after_date = created_at
+
+        if activities_after_date is None:
+            activities_after_date = now - timedelta(days=5)
+
+        response = ayon_api.dispatch_event(
+            SHOTGRID_COMMENTS_TOPIC,
+            description=(
+                "Synchronizing comments from ftrack to AYON."
+            ),
+            summary=None,
+            payload={},
+            finished=True,
+            store=True,
+        )
+        if isinstance(response, str):
+            event_id = response
+        else:
+            event_id = response["id"]
+
+        try:
+            synced_comments = 0
+            project_names = self._get_sync_project_names()
+            for project_name in project_names:
+                hub = self._get_hub(project_name)
+                synced_comments += hub.sync_comments(activities_after_date)
+            success = True
+        except Exception:
+            success = False
+            self._log.warning("Failed to sync comments.", exc_info=True)
+
+        finally:
+            ayon_api.update_event(
+                event_id,
+                description="Synchronized comments from AYON to SG.",
+                status="finished" if success else "failed",
+                payload={"synced_comments": synced_comments},
+            )
+
+    def _cleanup_in_progress_comment_events(self) -> bool:
+        """Clean stuck or hard failed synchronizations"""
+        in_progress_events = list(ayon_api.get_events(
+            topics={SHOTGRID_COMMENTS_TOPIC},
+            statuses={"in_progress"},
+            fields={"id", "createdAt"}
+        ))
+
+        any_in_progress = False
+        now = arrow.utcnow()
+        for event in in_progress_events:
+            created_at = arrow.get(event["createdAt"]).to("local")
+            delta = now - created_at
+            if delta.seconds < COMMENTS_SYNC_TIMEOUT:
+                any_in_progress = True
+            else:
+                ayon_api.update_event(
+                    event["id"],
+                    status="failed",
+                )
+        return any_in_progress
+
+    def _get_last_finished_event(self):
+        """Finds last successful run of comments synching to SG."""
+        finished_events = list(ayon_api.get_events(
+            topics={SHOTGRID_COMMENTS_TOPIC},
+            statuses={"finished"},
+            limit=1,
+            order=ayon_api.SortOrder.descending,
+        ))
+        for event in finished_events:
+            return event
+        return None
 
 
 def service_main():

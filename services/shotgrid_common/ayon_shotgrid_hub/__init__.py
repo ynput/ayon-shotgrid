@@ -2,6 +2,7 @@
 that provided a valid Project name and code, will perform all the necessary
 checks and provide methods to keep an AYON and Shotgrid project in sync.
 """
+import collections
 import re
 
 from constants import (
@@ -34,6 +35,7 @@ from utils import (
     create_sg_entities_in_ay,
     get_sg_project_enabled_entities,
     get_sg_project_by_name,
+    get_sg_user_id,
 )
 
 import ayon_api
@@ -455,3 +457,240 @@ class AyonShotgridHub:
                 raise ValueError(
                     f"Unable to process event {ayon_event['topic']}."
                 )
+
+    def sync_comments(self, activities_after_date):
+        project_activities = list(ayon_api.get_activities(
+            self.project_name,
+            activity_types={"comment"},
+            changed_after=activities_after_date.isoformat(),
+        ))
+        if not project_activities:
+            return 0
+
+        entity_dicts_by_id = self._get_entity_dicts_for_activities(
+            project_activities)
+
+        sg_user_id_by_user_name = {}
+        for activity in project_activities:
+            activity_data = activity["activityData"]
+            orig_sg_id = activity_data.get("sg_note_id")
+            sg_note = None
+            if orig_sg_id:
+                sg_note = self._sg.find_one(
+                    "Note",
+                    [["id", "is", int(orig_sg_id)]],
+                    ["id", "content", "sg_ayon_id"]
+                )
+
+            if sg_note is None:
+                entity_id = activity["entityId"]
+                entity_dict = entity_dicts_by_id.get(entity_id)
+                ayon_username = activity["author"]["name"]
+
+                sg_user_id = self._get_cached_sg_user_id(
+                    sg_user_id_by_user_name, ayon_username)
+
+                if sg_user_id < 0:
+                    self.log.warning(
+                        f"Author {ayon_username} is not "
+                        "synchronized to SG, skipping comment"
+                    )
+                    continue
+
+                self._create_sg_note(
+                    self.project_name,
+                    entity_dict,
+                    activity,
+                    sg_user_id,
+                    sg_user_id_by_user_name
+                )
+            else:
+                sg_update_data = {}
+                if sg_note["content"] != activity["body"]:
+                    sg_update_data["content"] = activity["body"]
+
+                activity_id = activity["activityId"]
+                sg_ayon_id = sg_note.get("sg_ayon_id")
+                if sg_ayon_id != activity_id:
+                    sg_update_data["sg_ayon_id"] = activity_id
+
+                if orig_sg_id != sg_note["id"]:
+                    activity_data["sg_note_id"] = sg_note["id"]
+                    ayon_api.update_activity(
+                        self.project_name,
+                        activity["activityId"],
+                        data=activity_data,
+                    )
+                if sg_update_data:
+                    self._sg.update("Note", sg_note["id"], sg_update_data)
+
+        return len(project_activities)
+
+    def _get_entity_dicts_for_activities(self, project_activities):
+        """Build a dictionary mapping entity IDs to corresponding entity data.
+
+        Args:
+            project_activities (list): A list of project activities containing
+                information about entity IDs and types.
+
+        Returns:
+            dict: A dictionary where the keys are entity IDs and the values are
+            the corresponding entity data (e.g., folder, task, version).
+        """
+        entity_ids_by_entity_type = collections.defaultdict(set)
+        for activity in project_activities:
+            entity_id = activity["entityId"]
+            entity_type = activity["entityType"]
+            entity_ids_by_entity_type[entity_type].add(entity_id)
+
+        entity_dicts_by_id = {}
+        for entity_type, entity_ids in entity_ids_by_entity_type.items():
+            entities = []
+            if entity_type == "folder":
+                entities = ayon_api.get_folders(
+                    self.project_name, folder_ids=entity_ids
+                )
+            elif entity_type == "task":
+                entities = ayon_api.get_tasks(
+                    self.project_name, task_ids=entity_ids
+                )
+            elif entity_type == "version":
+                entities = ayon_api.get_versions(
+                    self.project_name, version_ids=entity_ids
+                )
+            entity_dicts_by_id.update({
+                entity["id"]: entity
+                for entity in entities
+            })
+        return entity_dicts_by_id
+
+    def _create_sg_note(
+        self,
+        project_name,
+        entity_dict,
+        activity,
+        author_sg_id,
+        sg_user_id_by_user_name
+    ):
+        """Create a new note in ShotGrid (SG) and update the activity data.
+
+        This method creates a new note in SG, setting its content, linked
+        entities, and author information. After the note is created, it updates
+        the corresponding activity data in AYON with the newly created note ID.
+
+        Args:
+            project_name (str): The name of the project in SG.
+            entity_dict (dict): A dictionary containing information about the
+                entity (folder, task, version) to which the note is linked.
+            activity (dict): Activity data containing details about the comment,
+                including the author, content, and activity ID.
+            author_sg_id (int): The SG user ID of the author of the comment.
+            sg_user_id_by_user_name (dict): A mapping of AYON usernames to
+                their corresponding SG user IDs.
+        """
+        if not self._sg_project:
+            self.log.warning(
+                f"Project {self.project_name} doesn't exist in ""Shotgrid")
+            return
+
+        note_links = self._get_note_links(entity_dict)
+
+        addressings_to, content =self._get_addressings_to(
+            activity["body"], sg_user_id_by_user_name)
+
+        data = {
+            "project": {"type": "Project", "id": self._sg_project["id"]},
+            "note_links": note_links,
+            "subject": content[:50],
+            "content": content,
+            "user": {"type": "HumanUser", "id": author_sg_id},
+            "addressings_to": addressings_to
+        }
+
+        # Create the note
+        result = self._sg.create("Note", data)
+
+        note_id = result["id"]
+
+        activity_data = activity["activityData"]
+        activity_data["sg_note_id"] = note_id
+        ayon_api.update_activity(
+            project_name,
+            activity["activityId"],
+            data=activity_data,
+        )
+
+    def _get_addressings_to(self, content, sg_user_id_by_user_name):
+        """ Extract and generate the list of ShotGrid (SG) `addressings_to`
+
+        This method finds usernames tagged in the format `user:<username>`
+        in the given content and retrieves their corresponding SG user IDs.
+
+        Args:
+            content (str): The note content to search for tagged usernames.
+            sg_user_id_by_user_name (dict): A mapping of AYON usernames to
+                their corresponding SG user IDs.
+
+        Returns:
+            (tuple(list, str)): A list of dictionaries containing SG user IDs
+            in the format [{"type": "HumanUser", "id": sg_user_id}, ...]. AND
+            cleaned up content (removed (user:XXX) which caused broken link)
+        """
+        addressings_to = []
+        user_names = re.findall(r'user:([\w\.\-]+)', content)
+        for user_name in user_names:
+            # remove confusing link through on SG side
+            content = (content.replace(f"(user:{user_name})", "").
+                       replace("[", "").replace("]", ""))
+
+            sg_user_id = self._get_cached_sg_user_id(
+                sg_user_id_by_user_name, user_name)
+
+            if not sg_user_id:
+                continue
+
+            addressings_to.append(
+                {"type": "HumanUser", "id": sg_user_id}
+            )
+        return addressings_to, content
+
+    def _get_cached_sg_user_id(self, sg_user_id_by_user_name, user_name):
+        """Retrieve the cached ShotGrid (SG) user ID for the given username.
+
+        Args:
+            sg_user_id_by_user_name (dict): A dict {ayon_user_name: sg_user_id}
+            user_name (str): The username for which the SG user ID is
+                being retrieved.
+
+        Returns:
+            int: real sg_user_id or -1 if `user_name` is not synchronized
+        """
+        sg_user_id = sg_user_id_by_user_name.get(user_name)
+        if sg_user_id is None:
+            sg_user_id = get_sg_user_id(user_name)
+        sg_user_id_by_user_name[user_name] = sg_user_id
+        return sg_user_id
+
+    def _get_note_links(self, entity_dict):
+        """Generate the note links for a given entity dictionary.
+
+        Note links are associated with the corresponding ShotGrid (SG) entities
+        (Shot, Sequence, Asset) if available.
+
+        Args:
+            entity_dict (dict): A dictionary representing the AYON entity
+
+        Returns:
+            list: A list of note link dictionaries with SG type and its id
+        """
+        note_links = []
+        sg_id = entity_dict["attrib"].get("shotgridId")
+        sg_type = entity_dict["attrib"].get("shotgridType")
+
+        sg_entity = None
+        if sg_id and sg_type:
+            sg_entity = self._sg.find_one(
+                sg_type, [["id", "is", int(sg_id)]])
+        if sg_entity:
+            note_links = [{"type": sg_type, "id": sg_entity["id"]}]
+        return note_links

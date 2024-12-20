@@ -19,6 +19,7 @@ def default_shotgrid_entities():
         "Asset",
         "Task",
         "Version",
+        "Note"
     ]
 
 
@@ -32,6 +33,7 @@ def default_shotgrid_enabled_entities():
         "Asset",
         "Task",
         "Version",
+        "Note"
     ]
 
 
