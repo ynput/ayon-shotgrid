@@ -8,6 +8,7 @@ authors = ["Oscar Domingo <oscar.domingo@ynput.com>"]
 appdirs = "^1.4"
 python = ">=3.10,<4.0"
 pydantic = "^1.10.2"
+arrow = "*"
 ayon-python-api = "^1.0.0"
 shotgun-api3 = { git = "https://github.com/shotgunsoftware/python-api.git", tag = "v3.4.0" }
 
