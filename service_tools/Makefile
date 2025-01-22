@@ -34,7 +34,7 @@ help:
 
 createenv:
 		$(shell [[ -d $(CURDIR)/venv ]] || python -m venv $(CURDIR)/venv) && \
-		. $(CURDIR)/venv/bin/activate && python -m pip install -r "$(CURDIR)/requirements.txt"
+		. $(CURDIR)/venv/bin/activate && python -m pip install -e "$(CURDIR)"
 
 leecher:
 		export AYON_ADDON_NAME="shotgrid" && \
