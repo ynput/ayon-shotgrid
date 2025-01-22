@@ -6,9 +6,6 @@ certifi==2024.2.2
 charset-normalizer==3.3.2
 colorama==0.4.6
 idna==3.7
-nxtools==1.6
-pydantic==2.7.1
-pydantic-core==2.18.2
 requests==2.31.0
 shotgun-api3==3.5.1
 six==1.16.0
