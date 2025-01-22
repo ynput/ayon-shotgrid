@@ -1,0 +1,10 @@
+[project]
+version = "1.0.0"
+name = "shotgrid-service-tools"
+requires-python = ">=3.7"
+
+dependencies = [
+    "arrow",
+    "ayon-python-api>=1.0.0",
+    "shotgun-api3==3.5.1",
+]

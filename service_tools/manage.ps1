@@ -35,7 +35,7 @@ function Default-Func {
 
 function Install-Requirements {
   # TODO Install/verify venv is created
-  & python -m pip install -r "$($script_dir)\requirements.txt"
+  & python -m pip install -e "$($script_dir)"
 }
 
 function Start-Leecher {
