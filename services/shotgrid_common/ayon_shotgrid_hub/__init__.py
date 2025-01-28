@@ -26,7 +26,8 @@ from .update_from_shotgrid import (
 from .update_from_ayon import (
     create_sg_entity_from_ayon_event,
     update_sg_entity_from_ayon_event,
-    remove_sg_entity_from_ayon_event
+    remove_sg_entity_from_ayon_event,
+    upload_ay_reviewable_to_sg
 )
 
 from utils import (
@@ -401,7 +402,11 @@ class AyonShotgridHub:
             return
 
         match ayon_event["topic"]:
-            case "entity.task.created" | "entity.folder.created":
+            case (
+                "entity.task.created" |
+                "entity.folder.created" |
+                "entity.version.created"
+            ):
                 create_sg_entity_from_ayon_event(
                     ayon_event,
                     self._sg,
@@ -448,6 +453,13 @@ class AyonShotgridHub:
                 # TODO: for some reason the payload here is not a dict but we know
                 # we always want to update the entity
                 update_sg_entity_from_ayon_event(
+                    ayon_event,
+                    self._sg,
+                    self._ay_project,
+                    self.custom_attribs_map,
+                )
+            case ("reviewable.created"):
+                upload_ay_reviewable_to_sg(
                     ayon_event,
                     self._sg,
                     self._ay_project,
