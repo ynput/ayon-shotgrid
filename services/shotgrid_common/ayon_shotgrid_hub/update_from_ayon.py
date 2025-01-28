@@ -17,7 +17,8 @@ from utils import (
     get_sg_entity_parent_field,
     get_sg_statuses,
     get_sg_tags,
-    get_sg_custom_attributes_data
+    get_sg_custom_attributes_data,
+    get_sg_user_id
 )
 from constants import (
     CUST_FIELD_CODE_ID,  # Shotgrid Field for the AYON ID.
@@ -56,7 +57,7 @@ def create_sg_entity_from_ayon_event(
     """
     ay_id = ayon_event["summary"]["entityId"]
     ay_entity = ayon_entity_hub.get_or_query_entity_by_id(
-        ay_id, ["folder", "task"])
+        ay_id, ["folder", "task", "version"])
 
     if not ay_entity:
         raise ValueError(
@@ -70,6 +71,8 @@ def create_sg_entity_from_ayon_event(
     if not sg_type:
         if ay_entity.entity_type == "task":
             sg_type = "Task"
+        elif ay_entity.entity_type == "version":
+            sg_type = "Version"
         else:
             sg_type = ay_entity.folder_type
 
@@ -82,6 +85,7 @@ def create_sg_entity_from_ayon_event(
         log.warning(f"Entity {sg_entity} already exists in Shotgrid!")
         return
 
+    ay_project_name = ayon_event["project"]
     try:
         sg_entity = _create_sg_entity(
             sg_session,
@@ -90,10 +94,11 @@ def create_sg_entity_from_ayon_event(
             sg_type,
             sg_enabled_entities,
             custom_attribs_map,
+            ay_project_name
         )
 
         if (
-            not isinstance(ay_entity, TaskEntity)
+            ay_entity.entity_type == "folder"
             and ay_entity.folder_type == "AssetCategory"
         ):
             # AssetCategory is special, we don't want to create it in Shotgrid
@@ -363,6 +368,7 @@ def _create_sg_entity(
     sg_type: str,
     sg_enabled_entities: List[str],
     custom_attribs_map: Dict[str, str],
+    ay_project_name: str
 ):
     """ Create a new Shotgrid entity.
 
@@ -373,23 +379,38 @@ def _create_sg_entity(
         sg_type (str): The Shotgrid type of the new entity.
         sg_enabled_entities (list): List of Shotgrid entities to be enabled.
         custom_attribs_map (dict): Dictionary of extra attributes to store in the SG entity.
+        ay_project_name (str): AYON project name, could be different from SG
+            project name
     """
     sg_field_name = "code"
-    sg_step = None
 
     special_folder_types = ["AssetCategory"]
+    is_entity_special_folder_type = (
+        hasattr(ay_entity, "folder_type") and
+        ay_entity.parent.folder_type in special_folder_types
+    )
     # parent special folder like AssetCategory should not be created in
     # Shotgrid it is only used for grouping Asset types
     is_parent_project_entity = isinstance(ay_entity.parent, ProjectEntity)
-    if (
-        is_parent_project_entity
-        and ay_entity.folder_type in special_folder_types
-    ):
-        return
-    elif (not is_parent_project_entity and
-          ay_entity.parent.folder_type in special_folder_types):
-        sg_parent_id = None
-        sg_parent_type = ay_entity.parent.folder_type
+
+    if is_entity_special_folder_type:
+        if is_parent_project_entity:
+            return
+        else:
+            sg_parent_id = None
+            sg_parent_type = ay_entity.parent.folder_type
+    elif sg_type == "Version":
+        # this query shouldnt be necessary as we are reaching for attribs of
+        # grandparent, but it seems that field is not returned correctly TODO
+        folder_id = ay_entity.parent.parent.id
+        ayon_asset = ayon_api.get_folder_by_id(
+            ay_project_name, folder_id)
+
+        if not ayon_asset:
+            raise ValueError(f"Not fount '{folder_id}'")
+
+        sg_parent_id = ayon_asset["attrib"].get(SHOTGRID_ID_ATTRIB)
+        sg_parent_type = ayon_asset["attrib"].get(SHOTGRID_TYPE_ATTRIB)
     else:
         sg_parent_id = ay_entity.parent.attribs.get(SHOTGRID_ID_ATTRIB)
         sg_parent_type = ay_entity.parent.attribs.get(SHOTGRID_TYPE_ATTRIB)
@@ -400,27 +421,6 @@ def _create_sg_entity(
                     f"{sg_parent_type} <{sg_parent_id}>"
                 )
 
-    if ay_entity.entity_type == "task" and sg_parent_type != "AssetCategory":
-        sg_field_name = "content"
-
-        step_query_filters = [["code", "is", ay_entity.task_type]]
-
-        if sg_parent_type in ["Asset", "Shot"]:
-            step_query_filters.append(
-                ["entity_type", "is", sg_parent_type]
-            )
-
-        sg_step = sg_session.find_one(
-            "Step",
-            filters=step_query_filters,
-        )
-
-        if not sg_step:
-            raise ValueError(
-                f"Unable to create Task {ay_entity.task_type} {ay_entity}\n"
-                f"-> Shotgrid is missing Pipeline Step {ay_entity.task_type}"
-            )
-
     parent_field = get_sg_entity_parent_field(
         sg_session,
         sg_project,
@@ -428,40 +428,14 @@ def _create_sg_entity(
         sg_enabled_entities
     )
 
+    sg_parent = None
+    if sg_parent_id:
+        sg_parent = {"type": sg_parent_type, "id": int(sg_parent_id)}
+
+    data = None
     if parent_field.lower() == "project":
         data = {
             "project": sg_project,
-            sg_field_name: ay_entity.name,
-            CUST_FIELD_CODE_ID: ay_entity.id,
-        }
-
-    elif (
-            ay_entity.entity_type == "task"
-            and sg_parent_type == "AssetCategory"
-            or ay_entity.entity_type != "task"
-            and ay_entity.folder_type == "AssetCategory"
-    ):
-        # AssetCategory should not be created in Shotgrid
-        # task should not be child of AssetCategory
-        return
-    elif ay_entity.entity_type == "task":
-        data = {
-            "project": sg_project,
-            "entity": {"type": sg_parent_type, "id": int(sg_parent_id)},
-            sg_field_name: ay_entity.label,
-            CUST_FIELD_CODE_ID: ay_entity.id,
-            "step": sg_step
-        }
-    elif ay_entity.folder_type == "Asset":
-        parent_entity = ay_entity.parent
-        asset_type = None
-        if parent_entity.folder_type == "AssetCategory":
-            parent_entity_name = parent_entity.name
-            asset_type = parent_entity_name.capitalize()
-
-        data = {
-            "project": sg_project,
-            "sg_asset_type": asset_type,
             sg_field_name: ay_entity.name,
             CUST_FIELD_CODE_ID: ay_entity.id,
         }
@@ -470,15 +444,41 @@ def _create_sg_entity(
             "project": sg_project,
             sg_field_name: ay_entity.name,
             CUST_FIELD_CODE_ID: ay_entity.id,
+            parent_field: sg_parent
         }
-        try:
-            data[parent_field] = {
-                "type": sg_parent_type,
-                "id": int(sg_parent_id)
-            }
-        except TypeError:
-            log.warning(f"Cannot convert '{sg_parent_id} to parent "
-                        "it correctly.")
+
+        parent_entity = ay_entity.parent
+        if parent_entity.folder_type == "AssetCategory":
+            parent_entity_name = parent_entity.name
+            asset_type = parent_entity_name.capitalize()
+            data["sg_asset_type"] = asset_type
+    elif ay_entity.entity_type == "task":
+        # AssetCategory should not be created in Shotgrid
+        if ay_entity.folder_type == "AssetCategory":
+            return
+
+        sg_field_name = "content"
+        sg_step = _get_step(sg_session, ay_entity, sg_parent_type)
+        data = {
+            "project": sg_project,
+            parent_field: sg_parent,
+            sg_field_name: ay_entity.label,
+            CUST_FIELD_CODE_ID: ay_entity.id,
+            "step": sg_step
+        }
+    elif ay_entity.entity_type == "version":
+        sg_user_id = get_sg_user_id(
+            "petr.kalis_ynput.io")  # ayon_event["user"]
+
+        product_name = ay_entity.parent.name
+        version_str = str(ay_entity.version).zfill(3)
+        version_name = f"{product_name}_v{version_str}"
+        data = {
+            "project": sg_project,
+            parent_field: sg_parent,
+            sg_field_name: version_name,
+            "user": {'type': 'HumanUser', 'id': sg_user_id},
+        }
 
     if not data:
         return
@@ -497,3 +497,25 @@ def _create_sg_entity(
         log.error(
             f"Unable to create SG entity {sg_type} with data: {data}")
         raise e
+
+
+def _get_step(sg_session, ay_entity, sg_parent_type):
+    sg_step = None
+    step_query_filters = [["code", "is", ay_entity.task_type]]
+
+    if sg_parent_type in ["Asset", "Shot"]:
+        step_query_filters.append(
+            ["entity_type", "is", sg_parent_type]
+        )
+
+    sg_step = sg_session.find_one(
+        "Step",
+        filters=step_query_filters,
+    )
+
+    if not sg_step:
+        raise ValueError(
+            f"Unable to create Task {ay_entity.task_type} {ay_entity}\n"
+            f"-> Shotgrid is missing Pipeline Step {ay_entity.task_type}"
+        )
+    return sg_step
