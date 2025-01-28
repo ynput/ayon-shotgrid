@@ -334,6 +334,7 @@ def upload_ay_reviewable_to_sg(
         )
 
     sg_version_id = ay_version_entity.attribs.get("shotgridId")
+    sg_version_type = ay_version_entity.attribs.get("shotgridType")
 
     if not sg_version_id:
         raise ValueError(f"Version '{ay_version_id} not yet synched to SG.")
@@ -360,6 +361,22 @@ def upload_ay_reviewable_to_sg(
             field_name="sg_uploaded_movie",
         )
 
+        endpoint = (f"projects/{ay_project_name}/versions/"
+                    f"{ay_version_id}/thumbnail")
+
+        response = ayon_api.get(endpoint)
+        if not response:
+            log.warning(f"No thumbnail for '{ay_version_id}'.")
+            return
+
+        log.debug(f"Creating thumbnail file at: {temp_file_path}")
+        temp_file_path = os.path.join(temp_dir, "thumbnail.jpg")
+        with open(temp_file_path, 'w+b') as temp_file:
+            temp_file.write(response.content)
+
+        sg_session.upload_thumbnail(
+            sg_version_type, sg_version_id, temp_file_path
+        )
 
 def _create_sg_entity(
     sg_session: shotgun_api3.Shotgun,
