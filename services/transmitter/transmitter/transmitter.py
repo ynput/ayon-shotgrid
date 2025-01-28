@@ -158,7 +158,9 @@ class ShotgridTransmitter:
             "entity.folder.attrib_changed",
             "entity.folder.status_changed",
             "entity.folder.tags_changed",
+            "entity.version.created",
             "entity.version.status_changed",
+            "reviewable.created"
         ]
 
         last_comments_sync = datetime.min.replace(tzinfo=timezone.utc)
