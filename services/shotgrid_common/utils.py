@@ -1178,7 +1178,9 @@ def get_sg_project_enabled_entities(
     )
 
     project_navigation = sg_project["tracking_settings"]["navchains"]
+    # explicit parent fields - not part of hierarchy
     project_navigation["Task"] = "entity"
+    project_navigation["Version"] = "entity"
 
     project_entities = []
 
