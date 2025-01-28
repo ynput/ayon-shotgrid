@@ -1,6 +1,7 @@
 """Module that handles creation, update or removal of SG entities based on AYON events.
 """
 import os
+import re
 
 import shotgun_api3
 import ayon_api
@@ -497,6 +498,8 @@ def _create_sg_entity(
             "user": {'type': 'HumanUser', 'id': sg_user_id},
         }
 
+        _add_paths(ay_project_name, ay_entity, data)
+
     if not data:
         return
 
@@ -515,6 +518,57 @@ def _create_sg_entity(
             f"Unable to create SG entity {sg_type} with data: {data}")
         raise e
 
+
+def _add_paths(ay_project_name: str, ay_entity: Dict, data_to_update: Dict):
+    """Adds local path to review file to `sg_path_to_*` as metadata.
+
+     We are storing local paths for external processing, some studios might
+     have tools to handle review files in another processes.
+     """
+    thumbnail_path = None
+    found_reviewable = False
+
+    representations = ayon_api.get_representations(
+        ay_project_name, version_ids=[ay_entity.id])
+
+    ay_version = ayon_api.get_version_by_id(ay_project_name, ay_entity.id)
+
+    for representation in representations:
+
+        local_path = representation["attrib"]["path"]
+        representation_name = representation["name"]
+
+        if representation_name == "thumbnail":
+            thumbnail_path = local_path
+            continue
+
+        if not representation_name.startswith("review"):
+            continue
+
+        found_reviewable = True
+        has_slate = "slate" in ay_version["attrib"]["families"]
+        # clunky guess, not having access to ayon_core.VIDEO_EXTENSIONS
+        if len(representation["files"]) == 1:
+            data_to_update["sg_path_to_movie"] = local_path
+            if has_slate:
+                data_to_update["sg_movie_has_slate"] = True
+        else:
+            # Replace the frame number with '%04d'
+            path_to_frame = re.sub(r"\.\d+\.", ".%04d.", local_path)
+
+            data_to_update.update({
+                "sg_path_to_movie": path_to_frame,
+                "sg_path_to_frames": path_to_frame,
+            })
+
+            if has_slate:
+                data_to_update["sg_frames_have_slate"] = True
+
+    if not found_reviewable and thumbnail_path:
+        data_to_update.update({
+            "sg_path_to_movie": thumbnail_path,
+            "sg_path_to_frames": thumbnail_path,
+        })
 
 def _get_step(sg_session, ay_entity, sg_parent_type):
     sg_step = None
