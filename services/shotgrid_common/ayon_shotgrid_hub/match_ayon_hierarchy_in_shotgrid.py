@@ -56,7 +56,7 @@ def match_ayon_hierarchy_in_shotgrid(
         addon_settings (dict): The addon settings.
     """
     log.info("Getting AYON entities.")
-    entity_hub.query_entities_from_server()
+    entity_hub.fetch_hierarchy_entities()
 
     log.info("Getting Shotgrid entities.")
     sg_ay_dicts, sg_ay_dicts_parents = get_sg_entities(
@@ -200,9 +200,7 @@ def match_ayon_hierarchy_in_shotgrid(
                 )
 
         # entity was not synced before and need to be created
-        # We only create new entities for Folders/Tasks entities
-        # For Version entities we only try update the status if it already exists
-        if sg_entity_type != "Version" and (not sg_entity_id or not sg_ay_dict):
+        if not sg_entity_id or not sg_ay_dict:
             sg_parent_entity = sg_session.find_one(
                 sg_ay_parent_entity["attribs"][SHOTGRID_TYPE_ATTRIB],
                 filters=[[
