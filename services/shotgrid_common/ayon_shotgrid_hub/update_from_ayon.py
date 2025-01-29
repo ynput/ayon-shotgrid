@@ -1,17 +1,14 @@
 """Module that handles creation, update or removal of SG entities based on AYON events.
 """
 import os
-import re
 
 import shotgun_api3
 import ayon_api
-from typing import Dict, List, Union
+from typing import Dict, List, Any
 import tempfile
 
 from ayon_api.entity_hub import (
     ProjectEntity,
-    TaskEntity,
-    FolderEntity,
 )
 
 from utils import (
@@ -19,7 +16,8 @@ from utils import (
     get_sg_statuses,
     get_sg_tags,
     get_sg_custom_attributes_data,
-    get_sg_user_id
+    get_sg_user_id,
+    create_new_sg_entity
 )
 from constants import (
     CUST_FIELD_CODE_ID,  # Shotgrid Field for the AYON ID.
@@ -39,7 +37,9 @@ def create_sg_entity_from_ayon_event(
     ayon_entity_hub: ayon_api.entity_hub.EntityHub,
     sg_project: Dict,
     sg_enabled_entities: List[str],
+    sg_project_code_field: [str],
     custom_attribs_map: Dict[str, str],
+    addon_settings: Dict[str, Any],
 ):
     """Create a Shotgrid entity from an AYON event.
 
@@ -49,6 +49,7 @@ def create_sg_entity_from_ayon_event(
         ayon_entity_hub (ayon_api.entity_hub.EntityHub): The AYON EntityHub.
         sg_project (dict): The Shotgrid project.
         sg_enabled_entities (list): List of Shotgrid entities to be enabled.
+        sg_project_code_field (str): 'code' most likely
         custom_attribs_map (dict): Dictionary that maps a list of attribute names from
             AYON to Shotgrid.
 
@@ -87,14 +88,19 @@ def create_sg_entity_from_ayon_event(
         return
 
     try:
-        sg_entity = _create_sg_entity(
-            sg_session,
+        sg_parent_entity = _get_sg_parent_entity(
+            sg_session, ay_entity, ayon_event)
+
+        sg_entity = create_new_sg_entity(
             ay_entity,
+            sg_session,
             sg_project,
-            sg_type,
+            sg_parent_entity,
             sg_enabled_entities,
+            sg_project_code_field,
             custom_attribs_map,
-            ayon_event
+            addon_settings,
+            ayon_event["project"]
         )
 
         if (
@@ -125,11 +131,11 @@ def create_sg_entity_from_ayon_event(
 
         ay_entity.attribs.set(
             SHOTGRID_ID_ATTRIB,
-            sg_entity["id"]
+            sg_entity["attribs"]["shotgridId"]
         )
         ay_entity.attribs.set(
             SHOTGRID_TYPE_ATTRIB,
-            sg_entity["type"]
+            sg_entity["attribs"]["shotgridType"]
         )
         ayon_entity_hub.commit_changes()
     except Exception:
@@ -139,11 +145,42 @@ def create_sg_entity_from_ayon_event(
         )
 
 
+def _get_sg_parent_entity(sg_session, ay_entity, ayon_event):
+    """Returns SG parent for currently created ay_entity
+
+    Returns:
+        Dict[str, str]  {"id": XXXX, "type": "Asset|.."}
+    """
+    if ay_entity.entity_type == "version":
+        folder_id = ay_entity.parent.parent.id
+        ayon_asset = ayon_api.get_folder_by_id(
+            ayon_event["project"], folder_id)
+
+        if not ayon_asset:
+            raise ValueError(f"Not fount '{folder_id}'")
+
+        sg_parent_id = ayon_asset["attrib"].get(SHOTGRID_ID_ATTRIB)
+        sg_parent_type = ayon_asset["attrib"].get(SHOTGRID_TYPE_ATTRIB)
+    else:
+        sg_parent_id = ay_entity.parent.attribs.get(SHOTGRID_ID_ATTRIB)
+        sg_parent_type = ay_entity.parent.attribs.get(SHOTGRID_TYPE_ATTRIB)
+    sg_parent_entity = sg_session.find_one(
+        sg_parent_type,
+        filters=[[
+            "id",
+            "is",
+            int(sg_parent_id)
+        ]]
+    )
+    return sg_parent_entity
+
+
 def update_sg_entity_from_ayon_event(
     ayon_event: Dict,
     sg_session: shotgun_api3.Shotgun,
     ayon_entity_hub: ayon_api.entity_hub.EntityHub,
     custom_attribs_map: Dict[str, str],
+    addon_settings: Dict[str, Any],
 ):
     """Try to update a Shotgrid entity from an AYON event.
 
@@ -377,214 +414,3 @@ def upload_ay_reviewable_to_sg(
         sg_session.upload_thumbnail(
             sg_version_type, sg_version_id, temp_file_path
         )
-
-def _create_sg_entity(
-    sg_session: shotgun_api3.Shotgun,
-    ay_entity: Union[TaskEntity, FolderEntity],
-    sg_project: Dict,
-    sg_type: str,
-    sg_enabled_entities: List[str],
-    custom_attribs_map: Dict[str, str],
-    ayon_event: Dict[str, str]
-):
-    """ Create a new Shotgrid entity.
-
-    Args:
-        sg_session (shotgun_api3.Shotgun): The Shotgrid API session.
-        ay_entity (dict): The AYON entity.
-        sg_project (dict): The Shotgrid Project.
-        sg_type (str): The Shotgrid type of the new entity.
-        sg_enabled_entities (list): List of Shotgrid entities to be enabled.
-        custom_attribs_map (dict): Dictionary of extra attributes to store in the SG entity.
-        ayon_event (str): event that triggered creation
-    """
-    sg_field_name = "code"
-    ay_project_name = ayon_event["project"]
-
-    special_folder_types = ["AssetCategory"]
-    is_entity_special_folder_type = (
-        hasattr(ay_entity, "folder_type") and
-        ay_entity.parent.folder_type in special_folder_types
-    )
-    # parent special folder like AssetCategory should not be created in
-    # Shotgrid it is only used for grouping Asset types
-    is_parent_project_entity = isinstance(ay_entity.parent, ProjectEntity)
-
-    if is_entity_special_folder_type:
-        if is_parent_project_entity:
-            return
-        else:
-            sg_parent_id = None
-            sg_parent_type = ay_entity.parent.folder_type
-    elif sg_type == "Version":
-        # this query shouldnt be necessary as we are reaching for attribs of
-        # grandparent, but it seems that field is not returned correctly TODO
-        folder_id = ay_entity.parent.parent.id
-        ayon_asset = ayon_api.get_folder_by_id(
-            ay_project_name, folder_id)
-
-        if not ayon_asset:
-            raise ValueError(f"Not fount '{folder_id}'")
-
-        sg_parent_id = ayon_asset["attrib"].get(SHOTGRID_ID_ATTRIB)
-        sg_parent_type = ayon_asset["attrib"].get(SHOTGRID_TYPE_ATTRIB)
-    else:
-        sg_parent_id = ay_entity.parent.attribs.get(SHOTGRID_ID_ATTRIB)
-        sg_parent_type = ay_entity.parent.attribs.get(SHOTGRID_TYPE_ATTRIB)
-
-        if not sg_parent_id or not sg_parent_type:
-            raise ValueError(
-                    "Parent does not exist in Shotgrid!"
-                    f"{sg_parent_type} <{sg_parent_id}>"
-                )
-
-    parent_field = get_sg_entity_parent_field(
-        sg_session,
-        sg_project,
-        sg_type,
-        sg_enabled_entities
-    )
-
-    sg_parent = None
-    if sg_parent_id:
-        sg_parent = {"type": sg_parent_type, "id": int(sg_parent_id)}
-
-    data = None
-    if parent_field.lower() == "project":
-        data = {
-            "project": sg_project,
-            sg_field_name: ay_entity.name,
-            CUST_FIELD_CODE_ID: ay_entity.id,
-        }
-    elif ay_entity.entity_type == "folder":
-        data = {
-            "project": sg_project,
-            sg_field_name: ay_entity.name,
-            CUST_FIELD_CODE_ID: ay_entity.id,
-            parent_field: sg_parent
-        }
-
-        parent_entity = ay_entity.parent
-        if parent_entity.folder_type == "AssetCategory":
-            parent_entity_name = parent_entity.name
-            asset_type = parent_entity_name.capitalize()
-            data["sg_asset_type"] = asset_type
-    elif ay_entity.entity_type == "task":
-        # AssetCategory should not be created in Shotgrid
-        if ay_entity.folder_type == "AssetCategory":
-            return
-
-        sg_field_name = "content"
-        sg_step = _get_step(sg_session, ay_entity, sg_parent_type)
-        data = {
-            "project": sg_project,
-            parent_field: sg_parent,
-            sg_field_name: ay_entity.label,
-            CUST_FIELD_CODE_ID: ay_entity.id,
-            "step": sg_step
-        }
-    elif ay_entity.entity_type == "version":
-        sg_user_id = get_sg_user_id(ayon_event["user"])
-
-        product_name = ay_entity.parent.name
-        version_str = str(ay_entity.version).zfill(3)
-        version_name = f"{product_name}_v{version_str}"
-        data = {
-            "project": sg_project,
-            parent_field: sg_parent,
-            sg_field_name: version_name,
-            "user": {'type': 'HumanUser', 'id': sg_user_id},
-        }
-
-        _add_paths(ay_project_name, ay_entity, data)
-
-    if not data:
-        return
-
-    # Fill up data with any extra attributes from AYON we want to sync to SG
-    data.update(get_sg_custom_attributes_data(
-        sg_session,
-        ay_entity.attribs.to_dict(),
-        sg_type,
-        custom_attribs_map
-    ))
-
-    try:
-        return sg_session.create(sg_type, data)
-    except Exception as e:
-        log.error(
-            f"Unable to create SG entity {sg_type} with data: {data}")
-        raise e
-
-
-def _add_paths(ay_project_name: str, ay_entity: Dict, data_to_update: Dict):
-    """Adds local path to review file to `sg_path_to_*` as metadata.
-
-     We are storing local paths for external processing, some studios might
-     have tools to handle review files in another processes.
-     """
-    thumbnail_path = None
-    found_reviewable = False
-
-    representations = ayon_api.get_representations(
-        ay_project_name, version_ids=[ay_entity.id])
-
-    ay_version = ayon_api.get_version_by_id(ay_project_name, ay_entity.id)
-
-    for representation in representations:
-
-        local_path = representation["attrib"]["path"]
-        representation_name = representation["name"]
-
-        if representation_name == "thumbnail":
-            thumbnail_path = local_path
-            continue
-
-        if not representation_name.startswith("review"):
-            continue
-
-        found_reviewable = True
-        has_slate = "slate" in ay_version["attrib"]["families"]
-        # clunky guess, not having access to ayon_core.VIDEO_EXTENSIONS
-        if len(representation["files"]) == 1:
-            data_to_update["sg_path_to_movie"] = local_path
-            if has_slate:
-                data_to_update["sg_movie_has_slate"] = True
-        else:
-            # Replace the frame number with '%04d'
-            path_to_frame = re.sub(r"\.\d+\.", ".%04d.", local_path)
-
-            data_to_update.update({
-                "sg_path_to_movie": path_to_frame,
-                "sg_path_to_frames": path_to_frame,
-            })
-
-            if has_slate:
-                data_to_update["sg_frames_have_slate"] = True
-
-    if not found_reviewable and thumbnail_path:
-        data_to_update.update({
-            "sg_path_to_movie": thumbnail_path,
-            "sg_path_to_frames": thumbnail_path,
-        })
-
-def _get_step(sg_session, ay_entity, sg_parent_type):
-    sg_step = None
-    step_query_filters = [["code", "is", ay_entity.task_type]]
-
-    if sg_parent_type in ["Asset", "Shot"]:
-        step_query_filters.append(
-            ["entity_type", "is", sg_parent_type]
-        )
-
-    sg_step = sg_session.find_one(
-        "Step",
-        filters=step_query_filters,
-    )
-
-    if not sg_step:
-        raise ValueError(
-            f"Unable to create Task {ay_entity.task_type} {ay_entity}\n"
-            f"-> Shotgrid is missing Pipeline Step {ay_entity.task_type}"
-        )
-    return sg_step

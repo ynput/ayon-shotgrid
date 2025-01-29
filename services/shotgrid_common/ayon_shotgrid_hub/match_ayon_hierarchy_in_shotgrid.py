@@ -18,9 +18,9 @@ from constants import (
 
 from utils import (
     get_sg_entities,
-    get_sg_entity_parent_field,
     get_sg_entity_as_ay_dict,
-    get_sg_custom_attributes_data
+    get_sg_custom_attributes_data,
+    create_new_sg_entity
 )
 
 from utils import get_logger
@@ -209,15 +209,15 @@ def match_ayon_hierarchy_in_shotgrid(
                     sg_ay_parent_entity["attribs"][SHOTGRID_ID_ATTRIB]
                 ]]
             )
-            sg_ay_dict = _create_new_entity(
+            sg_ay_dict = create_new_sg_entity(
                 ay_entity,
                 sg_session,
                 sg_project,
                 sg_parent_entity,
                 sg_enabled_entities,
-                project_code_field,
                 custom_attribs_map,
-                addon_settings
+                addon_settings,
+                entity_hub.project_name
             )
             sg_entity_id = sg_ay_dict["attribs"][SHOTGRID_ID_ATTRIB]
             sg_ay_dicts[sg_entity_id] = sg_ay_dict
@@ -298,130 +298,3 @@ def _add_items_to_queue(
                 ay_entity.id, []
             ):
         ay_entity_deck.append((sg_ay_dict, ay_entity_child))
-
-
-def _create_new_entity(
-    ay_entity: Union[ProjectEntity, TaskEntity, FolderEntity],
-    sg_session: shotgun_api3.Shotgun,
-    sg_project: Dict,
-    sg_parent_entity: Dict,
-    sg_enabled_entities: List[str],
-    project_code_field: str,
-    custom_attribs_map: Dict[str, str],
-    addon_settings: Dict[str, Any],
-):
-    """Helper method to create entities in Shotgrid.
-
-    Args:
-        sg_session (shotgun_api3.Shotgun): The Shotgrid API session.
-        ay_entity (dict): The AYON entity.
-        sg_project (dict): The Shotgrid Project.
-        sg_type (str): The Shotgrid type of the new entity.
-        sg_enabled_entities (list): List of Shotgrid entities to be enabled.
-        project_code_field (str): The Shotgrid project code field.
-        custom_attribs_map (dict): Dictionary of extra attributes to store in the SG entity.
-    """
-    # Task creation
-    if ay_entity.entity_type == "task":
-        step_query_filters = [["code", "is", ay_entity.task_type]]
-
-        if sg_parent_entity["type"] in ["Asset", "Shot", "Episode", "Sequence"]:
-            step_query_filters.append(
-                ["entity_type", "is", sg_parent_entity["type"]]
-            )
-
-        task_step = sg_session.find_one(
-            "Step",
-            filters=step_query_filters,
-        )
-        if not task_step:
-            raise ValueError(
-                f"Unable to create Task {ay_entity.task_type} {ay_entity}\n"
-                f"-> Shotgrid is missing Pipeline Step {ay_entity.task_type}"
-            )
-
-        sg_type = "Task"
-        data = {
-            "project": sg_project,
-            "content": ay_entity.label,
-            CUST_FIELD_CODE_ID: ay_entity.id,
-            CUST_FIELD_CODE_SYNC: "Synced",
-            "entity": sg_parent_entity,
-            "step": task_step,
-        }
-
-    # Asset creation
-    elif (
-        ay_entity.entity_type == "folder"
-        and ay_entity.folder_type == "Asset"
-    ):
-        sg_type = "Asset"
-        # get name form sg_parent_entity
-        parent_entity_name = sg_parent_entity.get("name")
-
-        if not parent_entity_name:
-            # Try to get AssetCategory type name and use it as
-            # SG asset type. If not found, use None.
-            parent_entity = ay_entity.parent
-            parent_entity_name = parent_entity.name
-            asset_type = parent_entity_name.capitalize()
-        else:
-            asset_type = None
-
-        log.debug(f"Creating Asset '{ay_entity.name}' of type '{asset_type}'")
-        data = {
-            "sg_asset_type": asset_type,
-            "project": sg_project,
-            "code": ay_entity.name,
-            CUST_FIELD_CODE_ID: ay_entity.id,
-            CUST_FIELD_CODE_SYNC: "Synced",
-        }
-
-    # Folder creation
-    else:
-        sg_parent_field = get_sg_entity_parent_field(
-            sg_session, sg_project, ay_entity.folder_type, sg_enabled_entities)
-
-        sg_type = ay_entity.folder_type
-        data = {
-            "project": sg_project,
-            "code": ay_entity.name,
-            CUST_FIELD_CODE_ID: ay_entity.id,
-            CUST_FIELD_CODE_SYNC: "Synced",
-        }
-        # If parent field is different than project, add parent field to
-        # data dictionary. Each project might have different parent fields
-        # defined on each entity types. This way we secure that we are
-        # always creating the entity with the correct parent field.
-        if (
-            sg_parent_field != "project"
-            and sg_parent_entity["type"] != "Project"
-        ):
-            data[sg_parent_field] = sg_parent_entity
-
-    # Fill up data with any extra attributes from AYON we want to sync to SG
-    data |= get_sg_custom_attributes_data(
-        sg_session,
-        ay_entity.attribs.to_dict(),
-        sg_type,
-        custom_attribs_map
-    )
-
-    try:
-        sg_entity = sg_session.create(sg_type, data)
-    except Exception as e:
-        log.error(
-            f"Unable to create SG entity {sg_type} with data: {data}")
-        raise e
-
-    default_task_type = addon_settings[
-        "compatibility_settings"]["default_task_type"]
-
-    return get_sg_entity_as_ay_dict(
-        sg_session,
-        sg_entity["type"],
-        sg_entity["id"],
-        project_code_field,
-        default_task_type,
-        custom_attribs_map=custom_attribs_map
-    )

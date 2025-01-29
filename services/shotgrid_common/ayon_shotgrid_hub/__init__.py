@@ -413,7 +413,9 @@ class AyonShotgridHub:
                     self._ay_project,
                     self._sg_project,
                     self.sg_enabled_entities,
+                    self.sg_project_code_field,
                     self.custom_attribs_map,
+                    self.settings
                 )
 
             case "entity.task.deleted" | "entity.folder.deleted":
@@ -428,6 +430,7 @@ class AyonShotgridHub:
                     self._sg,
                     self._ay_project,
                     self.custom_attribs_map,
+                    self.settings
                 )
             case "entity.task.attrib_changed" | "entity.folder.attrib_changed":
                 attrib_key = next(iter(ayon_event["payload"]["newValue"]))

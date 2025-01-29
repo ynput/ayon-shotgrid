@@ -4,7 +4,8 @@ import json
 import hashlib
 import logging
 import collections
-from typing import Dict, Optional, Union
+import re
+from typing import Dict, Optional, Union, Any, List,
 
 import ayon_api
 
@@ -24,6 +25,7 @@ from ayon_api.entity_hub import (
     ProjectEntity,
     TaskEntity,
     FolderEntity,
+    VersionEntity,
 )
 from ayon_api.utils import slugify_string
 from ayon_api import get_attributes_for_type
@@ -1584,15 +1586,8 @@ def handle_comment(sg_ay_dict, sg_session, entity_hub):
         log.warning(f"Couldn't find note '{sg_note_id}'")
         return
 
-    sg_user = sg_note["user"]
-    if sg_user["type"] != "HumanUser":
-        log.warning(f"Cannot create notes from non humans "
-                    f"- {sg_user['type']}")
-        return
-
-    ayon_user_name = get_ayon_name_by_sg_id(sg_user["id"])
+    ayon_user_name = _get_ayon_user_name(sg_note["user"])
     if not ayon_user_name:
-        log.warning(f"{sg_user['name']} not yet synched.")
         return
 
     ay_parent_entity = _get_parent_entity(entity_hub, sg_note, sg_session)
@@ -1761,3 +1756,226 @@ def _add_comment(
         log.info(f"Created note {activity_id}")
 
     return activity_id
+
+def _get_ayon_user_name(sg_user):
+
+    if sg_user["type"] != "HumanUser":
+        log.warning(f"Cannot create notes from non humans "
+                    f"- {sg_user['type']}")
+        return
+
+    ayon_user_name = get_ayon_name_by_sg_id(sg_user["id"])
+    if not ayon_user_name:
+        log.warning(f"{sg_user['name']} not yet synched.")
+    return ayon_user_name
+
+
+def create_new_sg_entity(
+    ay_entity: Union[ProjectEntity, TaskEntity, FolderEntity, VersionEntity],
+    sg_session: shotgun_api3.Shotgun,
+    sg_project: Dict,
+    sg_parent_entity: Dict,
+    sg_enabled_entities: List[str],
+    sg_project_code_field: str,
+    custom_attribs_map: Dict[str, str],
+    addon_settings: Dict[str, Any],
+    ay_project_name: str
+):
+    """Helper method to create entities in Shotgrid.
+
+    Args:
+        ay_entity (Dict[str, Any]): The AYON entity.
+        sg_session (shotgun_api3.Shotgun): The Shotgrid API session.
+        sg_project (Dict[str, Any]): The Shotgrid Project.
+        sg_parent_entity (Dict[str, str]): {"id": XX, "type": "Asset|Task.."}
+        sg_enabled_entities (list): List of Shotgrid entities to be enabled.
+        custom_attribs_map (dict): Dictionary of extra attributes to store in the SG entity.
+        addon_settings: (Dict[str, Any]): settings from current version
+        ay_project_name: (str): AYON project name, could be different from
+            sg_project
+    """
+    if hasattr(ay_entity, "folder_type"):
+        sg_type = ay_entity.folder_type
+    else:
+        sg_type = ay_entity.entity_type
+
+    sg_parent_field = get_sg_entity_parent_field(
+        sg_session, sg_project, sg_type.capitalize(), sg_enabled_entities)
+
+    # Task creation
+    if ay_entity.entity_type == "task":
+        step_query_filters = [["code", "is", ay_entity.task_type]]
+
+        if sg_parent_entity["type"] in ["Asset", "Shot", "Episode", "Sequence"]:
+            step_query_filters.append(
+                ["entity_type", "is", sg_parent_entity["type"]]
+            )
+
+        task_step = sg_session.find_one(
+            "Step",
+            filters=step_query_filters,
+        )
+        if not task_step:
+            raise ValueError(
+                f"Unable to create Task {ay_entity.task_type} {ay_entity}\n"
+                f"-> Shotgrid is missing Pipeline Step {ay_entity.task_type}"
+            )
+
+        sg_type = "Task"
+        data = {
+            "project": sg_project,
+            "content": ay_entity.label,
+            CUST_FIELD_CODE_ID: ay_entity.id,
+            CUST_FIELD_CODE_SYNC: "Synced",
+            "entity": sg_parent_entity,
+            "step": task_step,
+        }
+
+    # Asset creation
+    elif (
+        ay_entity.entity_type == "folder"
+        and ay_entity.folder_type == "Asset"
+    ):
+        sg_type = "Asset"
+        # get name form sg_parent_entity
+        parent_entity_name = sg_parent_entity.get("name")
+
+        if not parent_entity_name:
+            # Try to get AssetCategory type name and use it as
+            # SG asset type. If not found, use None.
+            parent_entity = ay_entity.parent
+            parent_entity_name = parent_entity.name
+            asset_type = parent_entity_name.capitalize()
+        else:
+            asset_type = None
+
+        log.debug(f"Creating Asset '{ay_entity.name}' of type '{asset_type}'")
+        data = {
+            "sg_asset_type": asset_type,
+            "project": sg_project,
+            "code": ay_entity.name,
+            CUST_FIELD_CODE_ID: ay_entity.id,
+            CUST_FIELD_CODE_SYNC: "Synced",
+        }
+    elif ay_entity.entity_type == "version":
+        sg_type = "Version"
+
+        # this query shouldnt be necessary as we are reaching for attribs of
+        # grandparent, but it seems that field is not returned correctly TODO
+        folder_id = ay_entity.parent.parent.id
+        ayon_asset = ayon_api.get_folder_by_id(
+            ay_project_name, folder_id)
+
+        if not ayon_asset:
+            raise ValueError(f"Not found '{folder_id}'")
+
+        sg_user_id = get_sg_user_id(ay_entity.data["author"])
+
+        product_name = ay_entity.parent.name
+        version_str = str(ay_entity.version).zfill(3)
+        version_name = f"{product_name}_v{version_str}"
+        data = {
+            "project": sg_project,
+            sg_parent_field: sg_parent_entity,
+            "code": version_name,
+            "user": {'type': 'HumanUser', 'id': sg_user_id},
+        }
+
+        _add_paths(ay_project_name, ay_entity, data)
+
+    # Folder creation
+    else:
+        sg_type = ay_entity.folder_type
+        data = {
+            "project": sg_project,
+            "code": ay_entity.name,
+            CUST_FIELD_CODE_ID: ay_entity.id,
+            CUST_FIELD_CODE_SYNC: "Synced",
+        }
+        # If parent field is different than project, add parent field to
+        # data dictionary. Each project might have different parent fields
+        # defined on each entity types. This way we secure that we are
+        # always creating the entity with the correct parent field.
+        if (
+            sg_parent_field != "project"
+            and sg_parent_entity["type"] != "Project"
+        ):
+            data[sg_parent_field] = sg_parent_entity
+
+    # Fill up data with any extra attributes from AYON we want to sync to SG
+    data |= get_sg_custom_attributes_data(
+        sg_session,
+        ay_entity.attribs.to_dict(),
+        sg_type,
+        custom_attribs_map
+    )
+
+    try:
+        sg_entity = sg_session.create(sg_type, data)
+    except Exception as e:
+        log.error(
+            f"Unable to create SG entity {sg_type} with data: {data}")
+        raise e
+
+    default_task_type = addon_settings[
+        "compatibility_settings"]["default_task_type"]
+
+    return get_sg_entity_as_ay_dict(
+        sg_session,
+        sg_entity["type"],
+        sg_entity["id"],
+        sg_project_code_field,
+        default_task_type,
+        custom_attribs_map=custom_attribs_map
+    )
+
+def _add_paths(ay_project_name: str, ay_entity: Dict, data_to_update: Dict):
+    """Adds local path to review file to `sg_path_to_*` as metadata.
+
+     We are storing local paths for external processing, some studios might
+     have tools to handle review files in another processes.
+     """
+    thumbnail_path = None
+    found_reviewable = False
+
+    representations = ayon_api.get_representations(
+        ay_project_name, version_ids=[ay_entity.id])
+
+    ay_version = ayon_api.get_version_by_id(ay_project_name, ay_entity.id)
+
+    for representation in representations:
+
+        local_path = representation["attrib"]["path"]
+        representation_name = representation["name"]
+
+        if representation_name == "thumbnail":
+            thumbnail_path = local_path
+            continue
+
+        if not representation_name.startswith("review"):
+            continue
+
+        found_reviewable = True
+        has_slate = "slate" in ay_version["attrib"]["families"]
+        # clunky guess, not having access to ayon_core.VIDEO_EXTENSIONS
+        if len(representation["files"]) == 1:
+            data_to_update["sg_path_to_movie"] = local_path
+            if has_slate:
+                data_to_update["sg_movie_has_slate"] = True
+        else:
+            # Replace the frame number with '%04d'
+            path_to_frame = re.sub(r"\.\d+\.", ".%04d.", local_path)
+
+            data_to_update.update({
+                "sg_path_to_movie": path_to_frame,
+                "sg_path_to_frames": path_to_frame,
+            })
+
+            if has_slate:
+                data_to_update["sg_frames_have_slate"] = True
+
+    if not found_reviewable and thumbnail_path:
+        data_to_update.update({
+            "sg_path_to_movie": thumbnail_path,
+            "sg_path_to_frames": thumbnail_path,
+        })
