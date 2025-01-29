@@ -86,7 +86,6 @@ def create_sg_entity_from_ayon_event(
         log.warning(f"Entity {sg_entity} already exists in Shotgrid!")
         return
 
-    ay_project_name = ayon_event["project"]
     try:
         sg_entity = _create_sg_entity(
             sg_session,
@@ -95,7 +94,7 @@ def create_sg_entity_from_ayon_event(
             sg_type,
             sg_enabled_entities,
             custom_attribs_map,
-            ay_project_name
+            ayon_event
         )
 
         if (
@@ -386,7 +385,7 @@ def _create_sg_entity(
     sg_type: str,
     sg_enabled_entities: List[str],
     custom_attribs_map: Dict[str, str],
-    ay_project_name: str
+    ayon_event: Dict[str, str]
 ):
     """ Create a new Shotgrid entity.
 
@@ -397,10 +396,10 @@ def _create_sg_entity(
         sg_type (str): The Shotgrid type of the new entity.
         sg_enabled_entities (list): List of Shotgrid entities to be enabled.
         custom_attribs_map (dict): Dictionary of extra attributes to store in the SG entity.
-        ay_project_name (str): AYON project name, could be different from SG
-            project name
+        ayon_event (str): event that triggered creation
     """
     sg_field_name = "code"
+    ay_project_name = ayon_event["project"]
 
     special_folder_types = ["AssetCategory"]
     is_entity_special_folder_type = (
@@ -485,8 +484,7 @@ def _create_sg_entity(
             "step": sg_step
         }
     elif ay_entity.entity_type == "version":
-        sg_user_id = get_sg_user_id(
-            "petr.kalis_ynput.io")  # ayon_event["user"]
+        sg_user_id = get_sg_user_id(ayon_event["user"])
 
         product_name = ay_entity.parent.name
         version_str = str(ay_entity.version).zfill(3)
