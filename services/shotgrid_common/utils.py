@@ -5,7 +5,7 @@ import hashlib
 import logging
 import collections
 import re
-from typing import Dict, Optional, Union, Any, List,
+from typing import Dict, Optional, Union, Any, List
 
 import ayon_api
 
