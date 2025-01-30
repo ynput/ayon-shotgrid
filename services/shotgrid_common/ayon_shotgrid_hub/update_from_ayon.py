@@ -1,22 +1,18 @@
 """Module that handles creation, update or removal of SG entities based on AYON events.
 """
-import os
+from typing import Dict, List, Any
 
 import shotgun_api3
-import ayon_api
-from typing import Dict, List, Any
-import tempfile
 
+import ayon_api
 from ayon_api.entity_hub import (
     ProjectEntity,
 )
 
 from utils import (
-    get_sg_entity_parent_field,
     get_sg_statuses,
     get_sg_tags,
     get_sg_custom_attributes_data,
-    get_sg_user_id,
     create_new_sg_entity
 )
 from constants import (
