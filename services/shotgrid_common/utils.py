@@ -1556,7 +1556,7 @@ def _add_task_assignees(sg_entity):
     sg_entity["task_assignees"] = task_assignees_list
 
 
-def get_sg_user_id(ayon_username):
+def get_sg_user_id(ayon_username: str) -> [int]:
     """Returns the ShotGrid user ID for a given AYON username.
 
     Queries AYON's user database to retrieve the associated ShotGrid user ID
@@ -1568,6 +1568,9 @@ def get_sg_user_id(ayon_username):
 
     Returns:
         int: The corresponding ShotGrid user ID, or `-1` if not found.
+
+    -1 returned as caching is used to differentiate between missing user in
+    cache AND user without SG id
     """
     ayon_user = ayon_api.get_user(ayon_username)
     if not ayon_user or not ayon_user["data"].get("sg_user_id"):
