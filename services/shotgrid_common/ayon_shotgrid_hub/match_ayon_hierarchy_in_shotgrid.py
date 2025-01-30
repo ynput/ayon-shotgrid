@@ -219,13 +219,15 @@ def match_ayon_hierarchy_in_shotgrid(
                 addon_settings,
                 entity_hub.project_name
             )
+
+            if not sg_ay_dict:
+                log.warning(f"AYON entity {ay_entity} not found in SG, "
+                            "couldn't be created.")
+                continue
+
             sg_entity_id = sg_ay_dict["attribs"][SHOTGRID_ID_ATTRIB]
             sg_ay_dicts[sg_entity_id] = sg_ay_dict
             sg_ay_dicts_parents[sg_parent_entity["id"]].add(sg_entity_id)
-
-        if not sg_ay_dict:
-            log.warning(f"AYON entity {ay_entity} not found in SG, ignoring it")
-            continue
 
         # add Shotgrid ID and type to AYON entity
         ay_entity.attribs.set(

@@ -102,6 +102,8 @@ def create_sg_entity_from_ayon_event(
             addon_settings,
             ayon_event["project"]
         )
+        if not sg_entity:
+            log.warning(f"Couldn't create SG entity for '{ay_id}")
 
         if (
             ay_entity.entity_type == "folder"
