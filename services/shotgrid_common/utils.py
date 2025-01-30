@@ -1869,7 +1869,12 @@ def create_new_sg_entity(
         if not ayon_asset:
             raise ValueError(f"Not found '{folder_id}'")
 
-        sg_user_id = get_sg_user_id(ay_entity.data["author"])
+        ay_username = ay_entity.data["author"]
+        sg_user_id = get_sg_user_id(ay_username)
+        if sg_user_id < 0:
+            log.warning(
+                f"Couldn't create version for not synched {ay_username}")
+            return
 
         product_name = ay_entity.parent.name
         version_str = str(ay_entity.version).zfill(3)
