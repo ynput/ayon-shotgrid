@@ -215,6 +215,7 @@ def match_ayon_hierarchy_in_shotgrid(
                 sg_project,
                 sg_parent_entity,
                 sg_enabled_entities,
+                project_code_field,
                 custom_attribs_map,
                 addon_settings,
                 entity_hub.project_name
