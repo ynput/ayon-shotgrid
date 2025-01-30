@@ -7,6 +7,7 @@ from ayon_api.entity_hub import (
     ProjectEntity,
     TaskEntity,
     FolderEntity,
+    VersionEntity,
 )
 
 from constants import (
@@ -86,6 +87,13 @@ def match_ayon_hierarchy_in_shotgrid(
             ),
             ay_entity_child
         ))
+    versions = ayon_api.get_versions(entity_hub.project_name)
+    for version in versions:
+        product_entity = entity_hub.get_product_by_id(version["productId"])
+        ay_entity_deck.append(
+            (product_entity.parent,
+             VersionEntity.from_entity_data(version, entity_hub))
+        )
 
     ay_project_sync_status = "Synced"
     processed_ids = set()
@@ -96,9 +104,10 @@ def match_ayon_hierarchy_in_shotgrid(
         sg_ay_dict = None
 
         # Skip entities that are not tasks or folders
-        if ay_entity.entity_type not in ["task", "folder"]:
+        if ay_entity.entity_type not in ["task", "folder", "version"]:
             log.warning(
-                f"Entity '{ay_entity.name}' is not a task or folder, skipping..."
+                f"Entity '{ay_entity.name}' is not a task, folder or version, "
+                f"skipping..."
             )
             # even the folder is not synced, we need to process its children
             _add_items_to_queue(
