@@ -125,15 +125,17 @@ def create_sg_entity_from_ayon_event(
                 )
             return
 
-        log.info(f"Created Shotgrid entity: {sg_entity}")
+        sg_id = sg_entity["attribs"]["shotgridId"]
+        sg_type = sg_entity["attribs"]["shotgridType"]
+        log.info(f"Created Shotgrid entity: {sg_id} of {sg_type}")
 
         ay_entity.attribs.set(
             SHOTGRID_ID_ATTRIB,
-            sg_entity["attribs"]["shotgridId"]
+            sg_id
         )
         ay_entity.attribs.set(
             SHOTGRID_TYPE_ATTRIB,
-            sg_entity["attribs"]["shotgridType"]
+            sg_type
         )
         ayon_entity_hub.commit_changes()
     except Exception:
