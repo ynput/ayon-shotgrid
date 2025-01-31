@@ -27,7 +27,6 @@ from .update_from_ayon import (
     create_sg_entity_from_ayon_event,
     update_sg_entity_from_ayon_event,
     remove_sg_entity_from_ayon_event,
-    upload_ay_reviewable_to_sg
 )
 
 from utils import (
@@ -37,6 +36,7 @@ from utils import (
     get_sg_project_enabled_entities,
     get_sg_project_by_name,
     get_sg_user_id,
+    upload_ay_reviewable_to_sg
 )
 
 import ayon_api
@@ -462,11 +462,11 @@ class AyonShotgridHub:
                     self.custom_attribs_map,
                 )
             case ("reviewable.created"):
+                ay_version_id = ayon_event["summary"]["versionId"]
                 upload_ay_reviewable_to_sg(
-                    ayon_event,
                     self._sg,
-                    self._ay_project,
-                    self.custom_attribs_map,
+                    self._ay_project,  # EntityHub
+                    ay_version_id
                 )
             case _:
                 raise ValueError(

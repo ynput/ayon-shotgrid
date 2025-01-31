@@ -21,7 +21,8 @@ from utils import (
     get_sg_entities,
     get_sg_entity_as_ay_dict,
     get_sg_custom_attributes_data,
-    create_new_sg_entity
+    create_new_sg_entity,
+    upload_ay_reviewable_to_sg
 )
 
 from utils import get_logger
@@ -92,7 +93,7 @@ def match_ayon_hierarchy_in_shotgrid(
         product_entity = entity_hub.get_product_by_id(version["productId"])
         ay_entity_deck.append(
             (product_entity.parent,
-             VersionEntity.from_entity_data(version, entity_hub))
+             entity_hub.get_version_by_id(version["id"]))
         )
 
     ay_project_sync_status = "Synced"
@@ -249,6 +250,13 @@ def match_ayon_hierarchy_in_shotgrid(
             SHOTGRID_TYPE_ATTRIB,
             sg_ay_dict["attribs"][SHOTGRID_TYPE_ATTRIB]
         )
+
+        if ay_entity.entity_type == "version":
+            upload_ay_reviewable_to_sg(
+                sg_session,
+                entity_hub,
+                ay_entity.id,
+            )
 
         # add processed entity to the set for duplicity tracking
         processed_ids.add(sg_entity_id)

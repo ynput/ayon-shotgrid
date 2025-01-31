@@ -5,6 +5,7 @@ import hashlib
 import logging
 import collections
 import re
+import tempfile
 from typing import Dict, Optional, Union, Any, List
 
 import ayon_api
@@ -1982,3 +1983,67 @@ def _add_paths(ay_project_name: str, ay_entity: Dict, data_to_update: Dict):
             "sg_path_to_movie": thumbnail_path,
             "sg_path_to_frames": thumbnail_path,
         })
+
+def upload_ay_reviewable_to_sg(
+    sg_session: shotgun_api3.Shotgun,
+    ayon_entity_hub: ayon_api.entity_hub.EntityHub,
+    ay_version_id: int,
+):
+    log.info(f"Uploading rewieble for '{ay_version_id}'")
+    ay_project_name = ayon_entity_hub.project_name
+
+    ay_version_entity = ayon_entity_hub.get_version_by_id(ay_version_id)
+    if not ay_version_entity:
+        raise ValueError(
+            "Event has a non existent version entity "
+            f"'{ay_version_id}'"
+        )
+
+    sg_version_id = ay_version_entity.attribs.get(SHOTGRID_ID_ATTRIB)
+    sg_version_type = ay_version_entity.attribs.get(SHOTGRID_TYPE_ATTRIB)
+
+    if not sg_version_id:
+        raise ValueError(f"Version '{ay_version_id} not yet synched to SG.")
+
+    get_revieawables_url = (
+        f"projects/{ay_project_name}/versions/{ay_version_id}/reviewables"
+    )
+
+    response = ayon_api.get(get_revieawables_url)
+    first_reviewable = response.data["reviewables"][0]
+
+    get_file = f"projects/{ay_project_name}/files/{first_reviewable['fileId']}"
+
+    response = ayon_api.get(get_file)
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp_file_path = os.path.join(
+            temp_dir,
+            first_reviewable["filename"]
+        )
+        log.debug(f'Creating temp file at: {temp_file_path}')
+        with open(temp_file_path, 'w+b') as temp_file:
+            temp_file.write(response.content)
+
+        sg_session.upload(
+            "Version",
+            sg_version_id,
+            temp_file_path,
+            field_name="sg_uploaded_movie",
+        )
+
+        get_version_thumbnail_url = (f"projects/{ay_project_name}/versions/"
+                    f"{ay_version_id}/thumbnail")
+
+        response = ayon_api.get(get_version_thumbnail_url)
+        if not response:
+            log.warning(f"No thumbnail for '{ay_version_id}'.")
+            return
+
+        log.debug(f"Creating thumbnail file at: {temp_file_path}")
+        temp_file_path = os.path.join(temp_dir, "thumbnail.jpg")
+        with open(temp_file_path, 'w+b') as temp_file:
+            temp_file.write(response.content)
+
+        sg_session.upload_thumbnail(
+            sg_version_type, sg_version_id, temp_file_path
+        )
