@@ -52,13 +52,25 @@ class ShotgridAddon(BaseServerAddon):
         num_of_attributes = len(all_attributes)
 
         shotgrid_attributes = await Postgres.fetch(
-            "SELECT name from public.attributes "
+            "SELECT name, scope from public.attributes "
             f"WHERE (name = '{SG_ID_ATTRIB}'"
             f" OR name = '{SG_TYPE_ATTRIB}'"
             f" OR name = '{SG_PUSH_ATTRIB}') "
         )
 
-        if not shotgrid_attributes or len(shotgrid_attributes) < 3:
+        expected_scopes = {
+            SG_ID_ATTRIB: ["project", "folder", "task", "version"],
+            SG_TYPE_ATTRIB:  ["project", "folder", "task", "version"],
+            SG_PUSH_ATTRIB: ["project"]
+        }
+        not_matching_scopes = False
+        for attr in shotgrid_attributes:
+            if expected_scopes[attr["name"]] != attr["scope"]:
+                not_matching_scopes = True
+                break
+        if (not shotgrid_attributes or
+                len(shotgrid_attributes) < 3 or
+                not_matching_scopes):
             postgres_query = "\n".join((
                 "INSERT INTO public.attributes",
                 "    (name, position, scope, data)",
@@ -76,7 +88,7 @@ class ShotgridAddon(BaseServerAddon):
                 postgres_query,
                 SG_ID_ATTRIB,  # name
                 num_of_attributes + 1,  # Add Attributes at the end of the list
-                ["project", "folder", "task"],  # scope
+                expected_scopes[SG_ID_ATTRIB],  # scope
                 {
                     "type": "string",
                     "title": "Shotgrid ID",
@@ -89,7 +101,7 @@ class ShotgridAddon(BaseServerAddon):
                 postgres_query,
                 SG_TYPE_ATTRIB,  # name
                 num_of_attributes + 2,  # Add Attributes at the end of the list
-                ["project", "folder", "task"],  # scope
+                expected_scopes[SG_TYPE_ATTRIB],  # scope
                 {
                     "type": "string",
                     "title": "Shotgrid Type",
@@ -102,7 +114,7 @@ class ShotgridAddon(BaseServerAddon):
                 postgres_query,
                 SG_PUSH_ATTRIB,  # name
                 num_of_attributes + 3,  # Add Attributes at the end of the list
-                ["project"],  # scope
+                expected_scopes[SG_PUSH_ATTRIB],  # scope
                 {
                     "type": "boolean",
                     "title": "Shotgrid Push",
