@@ -1807,6 +1807,13 @@ def create_new_sg_entity(
     sg_parent_field = get_sg_entity_parent_field(
         sg_session, sg_project, sg_type.capitalize(), sg_enabled_entities)
 
+    # generic data
+    data = {
+        "project": sg_project,
+        CUST_FIELD_CODE_ID: ay_entity.id,
+        CUST_FIELD_CODE_SYNC: "Synced",
+    }
+
     # Task creation
     if ay_entity.entity_type == "task":
         step_query_filters = [["code", "is", ay_entity.task_type]]
@@ -1827,14 +1834,10 @@ def create_new_sg_entity(
             )
 
         sg_type = "Task"
-        data = {
-            "project": sg_project,
-            "content": ay_entity.label,
-            CUST_FIELD_CODE_ID: ay_entity.id,
-            CUST_FIELD_CODE_SYNC: "Synced",
-            "entity": sg_parent_entity,
-            "step": task_step,
-        }
+        data["code"] = ay_entity.name
+        data["content"] = ay_entity.label
+        data["entity"] = sg_parent_entity
+        data["step"] = task_step
 
     # Asset creation
     elif (
@@ -1855,13 +1858,9 @@ def create_new_sg_entity(
             asset_type = None
 
         log.debug(f"Creating Asset '{ay_entity.name}' of type '{asset_type}'")
-        data = {
-            "sg_asset_type": asset_type,
-            "project": sg_project,
-            "code": ay_entity.name,
-            CUST_FIELD_CODE_ID: ay_entity.id,
-            CUST_FIELD_CODE_SYNC: "Synced",
-        }
+
+        data["sg_asset_type"] = asset_type
+        data["code"] = ay_entity.name
     elif ay_entity.entity_type == "version":
         sg_type = "Version"
 
@@ -1884,24 +1883,17 @@ def create_new_sg_entity(
         product_name = ay_entity.parent.name
         version_str = str(ay_entity.version).zfill(3)
         version_name = f"{product_name}_v{version_str}"
-        data = {
-            "project": sg_project,
-            sg_parent_field: sg_parent_entity,
-            "code": version_name,
-            "user": {'type': 'HumanUser', 'id': sg_user_id},
-        }
+
+        data[sg_parent_field] = sg_parent_entity
+        data["code"] = version_name
+        data["user"] = {'type': 'HumanUser', 'id': sg_user_id}
 
         _add_paths(ay_project_name, ay_entity, data)
 
     # Folder creation
     else:
         sg_type = ay_entity.folder_type
-        data = {
-            "project": sg_project,
-            "code": ay_entity.name,
-            CUST_FIELD_CODE_ID: ay_entity.id,
-            CUST_FIELD_CODE_SYNC: "Synced",
-        }
+
         # If parent field is different than project, add parent field to
         # data dictionary. Each project might have different parent fields
         # defined on each entity types. This way we secure that we are
@@ -1911,6 +1903,7 @@ def create_new_sg_entity(
             and sg_parent_entity["type"] != "Project"
         ):
             data[sg_parent_field] = sg_parent_entity
+        data["code"] = ay_entity.name
 
     # Fill up data with any extra attributes from AYON we want to sync to SG
     data |= get_sg_custom_attributes_data(
