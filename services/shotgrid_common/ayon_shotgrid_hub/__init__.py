@@ -353,6 +353,12 @@ class AyonShotgridHub:
                     f"| {sg_event_meta['entity_type']} "
                     f"| {sg_event_meta['entity_id']}"
                 )
+                if sg_event_meta["entity_type"] == "Version":
+                    attr_name = sg_event_meta["attribute_name"]
+                    self.log.info(
+                        f"Skipping attribute change '{attr_name}' for Version"
+                    )
+                    return
                 update_ayon_entity_from_sg_event(
                     sg_event_meta,
                     self._sg_project,
