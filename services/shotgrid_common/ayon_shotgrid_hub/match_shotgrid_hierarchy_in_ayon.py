@@ -93,6 +93,14 @@ def match_shotgrid_hierarchy_in_ayon(
             handle_comment(sg_ay_dict, sg_session, entity_hub)
             continue
 
+        shotgrid_type = sg_ay_dict["attribs"].get(SHOTGRID_TYPE_ATTRIB)
+        if shotgrid_type == "Version":
+            log.info(
+                "Version creation/update not implemented because "
+                "product name and integer version doesn't exist in SG"
+            )
+            continue
+
         ay_entity = None
         sg_entity_sync_status = "Synced"
 
@@ -104,7 +112,6 @@ def match_shotgrid_hierarchy_in_ayon(
         # If we haven't found the ay_entity by its id, check by its name
         # to avoid creating duplicates and erroring out
         if ay_entity is None:
-            shotgrid_type = sg_ay_dict["attribs"].get(SHOTGRID_TYPE_ATTRIB)
             if shotgrid_type == "AssetCategory":
                 ay_parent_entity = get_asset_category(
                     entity_hub,
