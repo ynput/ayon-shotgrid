@@ -34,7 +34,7 @@ dist:
 	docker push $(IMAGE) --network=host
 
 dist-all:
-	$(foreach service,leecher processor transmitter, docker push ynput/ayon-shotgrid-$(service):$(ADDON_VERSION) --network=host&)
+	$(foreach service,leecher processor transmitter, docker push ynput/ayon-shotgrid-$(service):$(ADDON_VERSION) &)
 
 clean:
 	if docker images "$(IMAGE)"; then \
