@@ -214,16 +214,16 @@ def match_ayon_hierarchy_in_shotgrid(
             sg_ay_dicts[sg_entity_id] = sg_ay_dict
             sg_ay_dicts_parents[sg_parent_entity["id"]].add(sg_entity_id)
 
-        # add Shotgrid ID and type to AYON entity
-        ay_entity.attribs.set(
-            SHOTGRID_ID_ATTRIB,
-            sg_entity_id
-        )
+            # add newly created Shotgrid ID and type to existing AYON entity
+            ay_entity.attribs.set(
+                SHOTGRID_ID_ATTRIB,
+                sg_entity_id
+            )
 
-        ay_entity.attribs.set(
-            SHOTGRID_TYPE_ATTRIB,
-            sg_ay_dict["attribs"][SHOTGRID_TYPE_ATTRIB]
-        )
+            ay_entity.attribs.set(
+                SHOTGRID_TYPE_ATTRIB,
+                sg_ay_dict["attribs"][SHOTGRID_TYPE_ATTRIB]
+            )
 
         # add processed entity to the set for duplicity tracking
         processed_ids.add(sg_entity_id)
