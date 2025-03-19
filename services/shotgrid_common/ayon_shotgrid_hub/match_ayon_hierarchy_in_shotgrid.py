@@ -103,7 +103,6 @@ def match_ayon_hierarchy_in_shotgrid(
         log.debug(f"Processing entity: '{ay_entity}'")
 
         sg_ay_dict = None
-        new_entity = True
 
         # Skip entities that are not tasks or folders
         if ay_entity.entity_type not in ["task", "folder", "version"]:
@@ -167,7 +166,6 @@ def match_ayon_hierarchy_in_shotgrid(
 
         # entity was already synced before and we need to update it
         if sg_entity_id and sg_entity_id in sg_ay_dicts:
-            new_entity = False
             sg_ay_dict = sg_ay_dicts[sg_entity_id]
             log.info(
                 f"Entity already exists in Shotgrid {sg_ay_dict['name']}")
@@ -238,27 +236,30 @@ def match_ayon_hierarchy_in_shotgrid(
                             "couldn't be created.")
                 continue
 
+            if ay_entity.entity_type == "version":
+                upload_ay_reviewable_to_sg(
+                    sg_session,
+                    entity_hub,
+                    ay_entity.id,
+                )
+
             sg_entity_id = sg_ay_dict["attribs"][SHOTGRID_ID_ATTRIB]
             sg_ay_dicts[sg_entity_id] = sg_ay_dict
             sg_ay_dicts_parents[sg_parent_entity["id"]].add(sg_entity_id)
 
-        # add Shotgrid ID and type to AYON entity
-        ay_entity.attribs.set(
-            SHOTGRID_ID_ATTRIB,
-            sg_entity_id
-        )
-
-        ay_entity.attribs.set(
-            SHOTGRID_TYPE_ATTRIB,
-            sg_ay_dict["attribs"][SHOTGRID_TYPE_ATTRIB]
-        )
-
-        if ay_entity.entity_type == "version" and new_entity:
-            upload_ay_reviewable_to_sg(
-                sg_session,
-                entity_hub,
-                ay_entity.id,
+            # add new Shotgrid ID and type to existing AYON entity
+            ay_entity.attribs.set(
+                SHOTGRID_ID_ATTRIB,
+                sg_entity_id
             )
+            ay_entity.attribs.set(
+                SHOTGRID_TYPE_ATTRIB,
+                sg_ay_dict["attribs"][SHOTGRID_TYPE_ATTRIB]
+            )
+
+        if not sg_ay_dict:
+            log.warning(f"AYON entity {ay_entity} not found in SG, ignoring it")
+            continue
 
         # add processed entity to the set for duplicity tracking
         processed_ids.add(sg_entity_id)
