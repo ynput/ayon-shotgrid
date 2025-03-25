@@ -32,10 +32,9 @@ from typing import Dict, List, Optional, Any
 from utils import (
     create_new_ayon_entity,
     get_asset_category,
-    get_shot_category,
-    get_sequence_category,
     get_sg_entity_as_ay_dict,
     get_sg_entity_parent_field,
+    get_reparenting_from_settings,
     update_ay_entity_custom_attributes,
     handle_comment,
 )
@@ -244,17 +243,8 @@ def _get_ayon_parent_entity(
             addon_settings
         )
 
-    elif(shotgrid_type == "Sequence"):
-        log.info("ShotGrid Parent is an Sequence category.")
-        ay_parent_entity = get_sequence_category(
-            ayon_entity_hub,
-            sg_ay_dict,
-            addon_settings
-        )
-
-    elif(shotgrid_type == "Shot"):
-        log.info("ShotGrid Parent is an Shot category.")
-        ay_parent_entity = get_shot_category(
+    elif shotgrid_type in ("Shot", "Sequence", "Episode"):
+        ay_parent_entity = get_reparenting_from_settings(
             ayon_entity_hub,
             sg_ay_dict,
             addon_settings

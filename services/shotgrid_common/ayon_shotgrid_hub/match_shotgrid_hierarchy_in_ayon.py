@@ -18,8 +18,7 @@ from utils import (
     create_new_ayon_entity,
     get_sg_entities,
     get_asset_category,
-    get_sequence_category,
-    get_shot_category,
+    get_reparenting_from_settings,
     update_ay_entity_custom_attributes, handle_comment,
 )
 
@@ -118,26 +117,13 @@ def match_shotgrid_hierarchy_in_ayon(
                     sg_ay_dict,
                     addon_settings
                 )
-                # If the entity has children, add it to the deck
-                for sg_child_id in sg_ay_dicts_parents.get(sg_entity_id, []):
-                    sg_ay_dicts_deck.append((ay_parent_entity, sg_child_id))
 
-                # AssetCategory is not "real" entity to create or update ids
-                continue
-
-            elif shotgrid_type == "Sequence":
-                ay_parent_entity = get_sequence_category(
+            elif shotgrid_type in ("Sequence", "Episode", "Shot", "Asset"):
+                ay_parent_entity = get_reparenting_from_settings(
                     entity_hub,
                     sg_ay_dict,
                     addon_settings
-                )
-
-            elif shotgrid_type == "Shot":
-                ay_parent_entity = get_shot_category(
-                    entity_hub,
-                    sg_ay_dict,
-                    addon_settings
-                )
+                ) or ay_parent_entity
 
             name = slugify_string(sg_ay_dict["name"])
             for child in ay_parent_entity.children:

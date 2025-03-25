@@ -457,54 +457,36 @@ def get_asset_category(entity_hub, sg_ay_dict, addon_settings):
     )
 
 
-def get_sequence_category(entity_hub, sg_ay_dict, addon_settings):
-    """Look for existing "Sequence" folders in AYON.
-
-        Asset categories are not entities per se in ShotGrid, they are
-        a "string" field in the `Asset` type, which is then used to visually
-        group `Asset`s; here we attempt to find any `AssetCategory` folder
-        type that already matches the one in ShotGrid.
-
-    Args:
-        entity_hub (ayon_api.EntityHub): The project's entity hub.
-        parent_entity: AYON parent entity.
-        sg_ay_dict (dict): The ShotGrid entity ready for AYON consumption.
-
-    """
-    transfer_type = _get_parenting_transfer_type(addon_settings)
-    folders_and_types = _get_parents_and_types(
-        addon_settings, transfer_type, "Sequence")
-    return _get_special_category(
-        entity_hub,
-        sg_ay_dict,
-        folders_and_types=folders_and_types
-    )
-
-
-def get_shot_category(entity_hub, sg_ay_dict, addon_settings):
-    """Look for existing "shot" folders in AYON under "parent_entity".
+def get_reparenting_from_settings(entity_hub, sg_ay_dict, addon_settings):
+    """ AYON settings can change the hierarchy mapping via settings:
+    - root_relocate: move the hierarchy in-place under a different root
+    - type grouping: group all entities of a same time under a common location.
 
     Args:
         entity_hub (ayon_api.EntityHub): The project's entity hub.
         parent_entity: Ayon parent entity.
         sg_ay_dict (dict): The ShotGrid entity ready for Ayon consumption.
 
+    Returns:
+        dict. The new parent entity if modified by the settings, None otherwise.
     """
-    sg_entity_type = "Shot"
     transfer_type = _get_parenting_transfer_type(addon_settings)
-    parent_sequence = None
-    if transfer_type == FOLDER_REPARENTING_TYPE.ROOT_RELOCATE:
-        # TODO what if non standard mapping of shots
-        sg_parent = sg_ay_dict["data"].get("sg_sequence")
-        if sg_parent:
-            sg_entity_type = "Sequence"  # look for custom parents of Sequence
-            parent_sequence = (sg_parent["name"], sg_parent["type"])
+
+    # No re-parenting settings enabled,
+    # no hierarchy changes must be made.
+    if transfer_type is None:
+        return None
 
     folders_and_types = _get_parents_and_types(
-        addon_settings, transfer_type, sg_entity_type)
+        addon_settings,
+        transfer_type,
+        sg_ay_dict["folder_type"]
+    )
 
-    if parent_sequence:
-        folders_and_types.append(parent_sequence)
+    # No special rules set for this entity type
+    # in the settings, no hierarchy changes must be made.
+    if not folders_and_types:
+        return None
 
     return _get_special_category(
         entity_hub,
@@ -844,8 +826,6 @@ def get_sg_entities(
     if not project_code_field:
         project_code_field = "code"
 
-    entities_to_ignore = []
-
     sg_ay_dicts = {
         sg_project["id"]: _sg_to_ay_dict(
             sg_project,
@@ -861,11 +841,6 @@ def get_sg_entities(
 
     for enabled_entity in project_enabled_entities:
         entity_name, parent_field = enabled_entity
-
-        # Potential fix when shotgrid api returns the same entity more than
-        # once, we store the entities in a dictionary to avoid duplicates
-        if entity_name in entities_to_ignore:
-            continue
 
         sg_entities = sg_session.find(
             entity_name,
@@ -1159,6 +1134,7 @@ def get_sg_project_enabled_entities(
     Args:
         sg_session (shotgun_api3.Shotgun): Shotgun Session object.
         project_name (str): The project name to look for.
+        sg_enabled_entities (list): The SG entities enabled from the settings.
 
     Returns:
         project_entities (list[tuple(entity type, parent field)]): List of
@@ -1195,7 +1171,15 @@ def get_sg_project_enabled_entities(
             sg_entity_type, {}
         ).get("visible", {}).get("value", False)
 
-        if is_entity_enabled:
+        if not is_entity_enabled:
+            log.warning(
+                "%s is enabled in AYON settings but hidden in Flow "
+                "tracking settings. It'll be ignored, please check "
+		"your configuration.",
+                sg_entity_type
+            )
+
+        else:
             parent_field = project_navigation.get(sg_entity_type, None)
 
             if parent_field and parent_field != "__flat__":
@@ -1494,15 +1478,25 @@ def create_new_ayon_entity(
     try:
         entity_hub.commit_changes()
 
-        sg_session.update(
-            sg_ay_dict["attribs"][SHOTGRID_TYPE_ATTRIB],
-            sg_ay_dict["attribs"][SHOTGRID_ID_ATTRIB],
-            {
-                CUST_FIELD_CODE_ID: ay_entity.id
-            }
-        )
     except Exception:
         log.error("AYON Entity could not be created", exc_info=True)
+
+    else:
+        try:
+             sg_session.update(
+                sg_ay_dict["attribs"][SHOTGRID_TYPE_ATTRIB],
+                sg_ay_dict["attribs"][SHOTGRID_ID_ATTRIB],
+                {
+                    CUST_FIELD_CODE_ID: ay_entity.id
+                }
+            )
+
+        except Exception:
+            log.error(
+                "Could not update SG %d entity with AYON id %r.",
+                sg_ay_dict["attribs"][SHOTGRID_ID_ATTRIB],
+                ay_entity.id
+            )
 
     return ay_entity
 

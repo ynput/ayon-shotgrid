@@ -216,7 +216,7 @@ def match_ayon_hierarchy_in_shotgrid(
                 filters=[[
                     "id",
                     "is",
-                    sg_ay_parent_entity["attribs"][SHOTGRID_ID_ATTRIB]
+                    int(sg_ay_parent_entity["attribs"][SHOTGRID_ID_ATTRIB])
                 ]]
             )
             sg_ay_dict = create_new_sg_entity(
@@ -236,13 +236,6 @@ def match_ayon_hierarchy_in_shotgrid(
                             "couldn't be created.")
                 continue
 
-            if ay_entity.entity_type == "version":
-                upload_ay_reviewable_to_sg(
-                    sg_session,
-                    entity_hub,
-                    ay_entity.id,
-                )
-
             sg_entity_id = sg_ay_dict["attribs"][SHOTGRID_ID_ATTRIB]
             sg_ay_dicts[sg_entity_id] = sg_ay_dict
             sg_ay_dicts_parents[sg_parent_entity["id"]].add(sg_entity_id)
@@ -256,6 +249,14 @@ def match_ayon_hierarchy_in_shotgrid(
                 SHOTGRID_TYPE_ATTRIB,
                 sg_ay_dict["attribs"][SHOTGRID_TYPE_ATTRIB]
             )
+
+            if ay_entity.entity_type == "version":
+                upload_ay_reviewable_to_sg(
+                    sg_session,
+                    entity_hub,
+                    ay_entity.id,
+                )
+
 
         if not sg_ay_dict:
             log.warning(f"AYON entity {ay_entity} not found in SG, ignoring it")
