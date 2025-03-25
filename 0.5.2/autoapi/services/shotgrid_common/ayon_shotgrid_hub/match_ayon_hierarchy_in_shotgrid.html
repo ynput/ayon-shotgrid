@@ -247,8 +247,7 @@
 <span class=normal>278</span>
 <span class=normal>279</span>
 <span class=normal>280</span>
-<span class=normal>281</span>
-<span class=normal>282</span></pre></div></td><td class=code><div><pre><span></span><code><span class=k>def</span><span class=w> </span><span class=nf>match_ayon_hierarchy_in_shotgrid</span><span class=p>(</span>
+<span class=normal>281</span></pre></div></td><td class=code><div><pre><span></span><code><span class=k>def</span><span class=w> </span><span class=nf>match_ayon_hierarchy_in_shotgrid</span><span class=p>(</span>
     <span class=n>entity_hub</span><span class=p>:</span> <span class=n>ayon_api</span><span class=o>.</span><span class=n>entity_hub</span><span class=o>.</span><span class=n>EntityHub</span><span class=p>,</span>
     <span class=n>sg_project</span><span class=p>:</span> <span class=n>Dict</span><span class=p>,</span>
     <span class=n>sg_session</span><span class=p>:</span> <span class=n>shotgun_api3</span><span class=o>.</span><span class=n>Shotgun</span><span class=p>,</span>
@@ -444,20 +443,19 @@
             <span class=n>sg_ay_dicts</span><span class=p>[</span><span class=n>sg_entity_id</span><span class=p>]</span> <span class=o>=</span> <span class=n>sg_ay_dict</span>
             <span class=n>sg_ay_dicts_parents</span><span class=p>[</span><span class=n>sg_parent_entity</span><span class=p>[</span><span class=s2>&quot;id&quot;</span><span class=p>]]</span><span class=o>.</span><span class=n>add</span><span class=p>(</span><span class=n>sg_entity_id</span><span class=p>)</span>
 
+            <span class=c1># add new Shotgrid ID and type to existing AYON entity</span>
+            <span class=n>ay_entity</span><span class=o>.</span><span class=n>attribs</span><span class=o>.</span><span class=n>set</span><span class=p>(</span>
+                <span class=n>SHOTGRID_ID_ATTRIB</span><span class=p>,</span>
+                <span class=n>sg_entity_id</span>
+            <span class=p>)</span>
+            <span class=n>ay_entity</span><span class=o>.</span><span class=n>attribs</span><span class=o>.</span><span class=n>set</span><span class=p>(</span>
+                <span class=n>SHOTGRID_TYPE_ATTRIB</span><span class=p>,</span>
+                <span class=n>sg_ay_dict</span><span class=p>[</span><span class=s2>&quot;attribs&quot;</span><span class=p>][</span><span class=n>SHOTGRID_TYPE_ATTRIB</span><span class=p>]</span>
+            <span class=p>)</span>
+
         <span class=k>if</span> <span class=ow>not</span> <span class=n>sg_ay_dict</span><span class=p>:</span>
             <span class=n>log</span><span class=o>.</span><span class=n>warning</span><span class=p>(</span><span class=sa>f</span><span class=s2>&quot;AYON entity </span><span class=si>{</span><span class=n>ay_entity</span><span class=si>}</span><span class=s2> not found in SG, ignoring it&quot;</span><span class=p>)</span>
             <span class=k>continue</span>
-
-        <span class=c1># add Shotgrid ID and type to AYON entity</span>
-        <span class=n>ay_entity</span><span class=o>.</span><span class=n>attribs</span><span class=o>.</span><span class=n>set</span><span class=p>(</span>
-            <span class=n>SHOTGRID_ID_ATTRIB</span><span class=p>,</span>
-            <span class=n>sg_entity_id</span>
-        <span class=p>)</span>
-
-        <span class=n>ay_entity</span><span class=o>.</span><span class=n>attribs</span><span class=o>.</span><span class=n>set</span><span class=p>(</span>
-            <span class=n>SHOTGRID_TYPE_ATTRIB</span><span class=p>,</span>
-            <span class=n>sg_ay_dict</span><span class=p>[</span><span class=s2>&quot;attribs&quot;</span><span class=p>][</span><span class=n>SHOTGRID_TYPE_ATTRIB</span><span class=p>]</span>
-        <span class=p>)</span>
 
         <span class=c1># add processed entity to the set for duplicity tracking</span>
         <span class=n>processed_ids</span><span class=o>.</span><span class=n>add</span><span class=p>(</span><span class=n>sg_entity_id</span><span class=p>)</span>
