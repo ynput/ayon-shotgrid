@@ -1482,6 +1482,11 @@ def create_new_ayon_entity(
         log.error("AYON Entity could not be created", exc_info=True)
 
     else:
+
+        # AssetCategory AYON entity do not have any equivalent in SG.
+        if sg_ay_dict["attribs"][SHOTGRID_TYPE_ATTRIB] == "AssetCategory":
+            return ay_entity
+
         try:
              sg_session.update(
                 sg_ay_dict["attribs"][SHOTGRID_TYPE_ATTRIB],
