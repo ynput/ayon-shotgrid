@@ -42,6 +42,7 @@ from utils import (
 import ayon_api
 from ayon_api.entity_hub import EntityHub
 
+import validate
 from utils import get_logger
 
 
@@ -230,35 +231,15 @@ class AyonShotgridHub:
 
         match source:
             case "ayon":
-                disabled_entities = []
-                ay_entities = [
-                    folder["name"]
-                    for folder in self._ay_project.project_entity.folder_types
-                    if folder["name"] in self.sg_enabled_entities
-                ]
 
-                sg_entities = [
-                    entity_name
-                    for entity_name, _ in get_sg_project_enabled_entities(
-                        self._sg,
-                        self._sg_project,
-                        self.sg_enabled_entities
-                    )
-                ]
-
-                disabled_entities = [
-                    ay_entity
-                    for ay_entity in ay_entities
-                    if ay_entity not in sg_entities
-                ]
-
-                if disabled_entities:
-                    raise ValueError(
-                        f"Unable to sync project {self.project_name} "
-                        f"<{self.project_code}> from AYON to Shotgrid, you need "
-                        "to enable the following entities in the Shotgrid Project "
-                        f"> Project Actions > Tracking Settings: {disabled_entities}"
-                    )
+                error = validate.check_project_disabled_entities(
+                    self._ay_project,
+                    self._sg_project,
+                    self.sg_enabled_entities,
+                    self._sg,
+                )
+                if error:
+                    raise ValueError(error)
 
                 match_ayon_hierarchy_in_shotgrid(
                     self._ay_project,
