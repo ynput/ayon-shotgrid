@@ -216,7 +216,7 @@ def match_ayon_hierarchy_in_shotgrid(
                 filters=[[
                     "id",
                     "is",
-                    sg_ay_parent_entity["attribs"][SHOTGRID_ID_ATTRIB]
+                    int(sg_ay_parent_entity["attribs"][SHOTGRID_ID_ATTRIB])
                 ]]
             )
             sg_ay_dict = create_new_sg_entity(
