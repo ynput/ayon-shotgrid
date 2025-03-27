@@ -92,7 +92,10 @@ def add_missing_init_files(*roots, msg=""):
             if "." in dirpath:
                 continue
 
-            if not glob.glob(os.path.join(dirpath, "*.py")):
+            if (
+                not glob.glob(os.path.join(dirpath, "*.py"))
+                and "vendor" not in dirpath
+            ):
                 continue
 
             create_init_file(dirpath, msg)
