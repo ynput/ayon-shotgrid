@@ -4,10 +4,8 @@ from typing import Dict, List, Union, Any
 
 import ayon_api
 from ayon_api.entity_hub import (
-    ProjectEntity,
     TaskEntity,
     FolderEntity,
-    VersionEntity,
 )
 
 from constants import (
