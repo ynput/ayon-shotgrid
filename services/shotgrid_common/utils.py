@@ -2009,7 +2009,13 @@ def upload_ay_reviewable_to_sg(
     )
 
     response = ayon_api.get(get_revieawables_url)
-    first_reviewable = response.data["reviewables"][0]
+    try:
+        first_reviewable = response.data["reviewables"][0]
+
+    # Valid version without reviewables, nothing to upload.
+    except IndexError:
+        log.debug("Version %s does not contain any reviewable.", ay_version_id)
+        return
 
     get_file = f"projects/{ay_project_name}/files/{first_reviewable['fileId']}"
 
