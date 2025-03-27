@@ -1988,7 +1988,7 @@ def upload_ay_reviewable_to_sg(
     ayon_entity_hub: ayon_api.entity_hub.EntityHub,
     ay_version_id: int,
 ):
-    log.info(f"Uploading rewieble for '{ay_version_id}'")
+    log.info(f"Uploading reviewable for '{ay_version_id}'")
     ay_project_name = ayon_entity_hub.project_name
 
     ay_version_entity = ayon_entity_hub.get_version_by_id(ay_version_id)
