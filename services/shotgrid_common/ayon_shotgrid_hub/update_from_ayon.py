@@ -5,9 +5,6 @@ from typing import Dict, List, Any
 import shotgun_api3
 
 import ayon_api
-from ayon_api.entity_hub import (
-    ProjectEntity,
-)
 
 from utils import (
     get_sg_statuses,
