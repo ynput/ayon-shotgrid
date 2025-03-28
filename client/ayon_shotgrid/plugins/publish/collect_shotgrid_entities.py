@@ -162,16 +162,22 @@ class CollectShotgridEntities(pyblish.api.ContextPlugin):
         if not filters:
             return sg_tasks_by_asset_id
 
-        sg_tasks = sg_session.find(
-            "Task",
-            filters=filters,
-            fields=["content", "entity"],
-            filter_operator="any"
-        )
+        try:
+            sg_tasks = sg_session.find(
+                "Task",
+                filters=filters,
+                fields=["content", "entity"],
+                filter_operator="any"
+            )
+        except Exception as e:
+            self.log.debug(f"An error occurred: {e}")
+            return sg_tasks_by_asset_id
+
         for sg_task in sg_tasks:
-            parent_id = sg_task["entity"]["id"]
-            task_name = sg_task["content"]
-            sg_tasks_by_asset_id[parent_id][task_name] = sg_task
+            if "entity" in sg_task and "id" in sg_task["entity"] and "content" in sg_task:
+                parent_id = sg_task["entity"]["id"]
+                task_name = sg_task["content"]
+                sg_tasks_by_asset_id[parent_id][task_name] = sg_task
 
         return sg_tasks_by_asset_id
 
