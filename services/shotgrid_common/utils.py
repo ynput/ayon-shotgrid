@@ -1877,8 +1877,12 @@ def create_new_sg_entity(
         sg_user_id = get_sg_user_id(ay_username)
         if sg_user_id < 0:
             log.warning(
-                f"Couldn't create version for not synched {ay_username}")
-            return
+                f"{ay_username} is not synchronized, "
+                f"Version will be created under script user."
+            )
+            data["description"] = f"Created in AYON by '{ay_username}'"
+        else:
+            data["user"] = {'type': 'HumanUser', 'id': sg_user_id}
 
         product_name = ay_entity.parent.name
         version_str = str(ay_entity.version).zfill(3)
@@ -1886,7 +1890,6 @@ def create_new_sg_entity(
 
         data[sg_parent_field] = sg_parent_entity
         data["code"] = version_name
-        data["user"] = {'type': 'HumanUser', 'id': sg_user_id}
 
         _add_paths(ay_project_name, ay_entity, data)
 
