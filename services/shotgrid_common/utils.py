@@ -1857,7 +1857,7 @@ def create_new_sg_entity(
     elif ay_entity.entity_type == "version":
         sg_type = "Version"
 
-        # this query shouldnt be necessary as we are reaching for attribs of
+        # this query shouldn't be necessary as we are reaching for attribs of
         # grandparent, but it seems that field is not returned correctly TODO
         folder_id = ay_entity.parent.parent.id
         ayon_asset = ayon_api.get_folder_by_id(
@@ -1870,8 +1870,12 @@ def create_new_sg_entity(
         sg_user_id = get_sg_user_id(ay_username)
         if sg_user_id < 0:
             log.warning(
-                f"Couldn't create version for not synched {ay_username}")
-            return
+                f"{ay_username} is not synchronized, "
+                f"Version will be created under script user."
+            )
+            data["description"] = f"Created in AYON by '{ay_username}'"
+        else:
+            data["user"] = {'type': 'HumanUser', 'id': sg_user_id}
 
         product_name = ay_entity.parent.name
         version_str = str(ay_entity.version).zfill(3)
@@ -1879,7 +1883,6 @@ def create_new_sg_entity(
 
         data[sg_parent_field] = sg_parent_entity
         data["code"] = version_name
-        data["user"] = {'type': 'HumanUser', 'id': sg_user_id}
 
         _add_paths(ay_project_name, ay_entity, data)
 
@@ -1981,7 +1984,7 @@ def upload_ay_reviewable_to_sg(
     ayon_entity_hub: ayon_api.entity_hub.EntityHub,
     ay_version_id: int,
 ):
-    log.info(f"Uploading rewieble for '{ay_version_id}'")
+    log.info(f"Uploading reviewable for '{ay_version_id}'")
     ay_project_name = ayon_entity_hub.project_name
 
     ay_version_entity = ayon_entity_hub.get_version_by_id(ay_version_id)
@@ -2002,7 +2005,13 @@ def upload_ay_reviewable_to_sg(
     )
 
     response = ayon_api.get(get_revieawables_url)
-    first_reviewable = response.data["reviewables"][0]
+    try:
+        first_reviewable = response.data["reviewables"][0]
+
+    # Valid version without reviewables, nothing to upload.
+    except IndexError:
+        log.debug("Version %s does not contain any reviewable.", ay_version_id)
+        return
 
     get_file = f"projects/{ay_project_name}/files/{first_reviewable['fileId']}"
 

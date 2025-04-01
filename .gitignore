@@ -54,3 +54,6 @@ services/transmitter/__init__.py
 services/transmitter/ayon_shotgrid_hub
 services/transmitter/constants.py
 services/transmitter/utils.py
+
+# ignore mkdocs build
+site/
