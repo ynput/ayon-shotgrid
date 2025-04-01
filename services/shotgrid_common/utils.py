@@ -18,7 +18,6 @@ from constants import (
     SG_PROJECT_ATTRS,
     SHOTGRID_ID_ATTRIB,
     SHOTGRID_TYPE_ATTRIB,
-    FOLDER_REPARENTING_TYPE,
     AYON_SHOTGRID_ENTITY_TYPE_MAP
 )
 
@@ -1169,7 +1168,7 @@ def get_sg_project_enabled_entities(
             log.warning(
                 "%s is enabled in AYON settings but hidden in Flow "
                 "tracking settings. It'll be ignored, please check "
-		"your configuration.",
+                "your configuration.",
                 sg_entity_type
             )
 
