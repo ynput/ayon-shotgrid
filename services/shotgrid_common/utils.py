@@ -1877,7 +1877,7 @@ def create_new_sg_entity(
         sg_user_id = get_sg_user_id(ay_username)
         if sg_user_id < 0:
             log.warning(
-                f"Couldn't create version for not synched {ay_username}")
+                f"Couldn't create version for not synced \"{ay_username}\"")
             return
 
         product_name = ay_entity.parent.name
