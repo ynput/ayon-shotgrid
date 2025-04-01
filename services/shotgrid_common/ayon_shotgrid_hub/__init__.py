@@ -466,6 +466,7 @@ class AyonShotgridHub:
                     self._sg,
                     self._ay_project,
                     self.custom_attribs_map,
+                    self.settings
                 )
             case ("reviewable.created"):
                 ay_version_id = ayon_event["summary"]["versionId"]
