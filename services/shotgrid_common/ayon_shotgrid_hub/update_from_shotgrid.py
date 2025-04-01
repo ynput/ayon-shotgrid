@@ -27,11 +27,13 @@ import collections
 
 import shotgun_api3
 import ayon_api
+
+from ayon_api import slugify_string
+
 from typing import Dict, List, Optional, Any
 
 from utils import (
     create_new_ayon_entity,
-    get_asset_category,
     get_sg_entity_as_ay_dict,
     get_sg_entity_parent_field,
     get_reparenting_from_settings,
@@ -228,27 +230,54 @@ def _get_ayon_parent_entity(
     """
     default_task_type = addon_settings[
         "compatibility_settings"]["default_task_type"]
+    asset_category_parent = addon_settings["compatibility_settings"][
+        "folder_parenting"]["asset_category_parent"]
+
     shotgrid_type = sg_ay_dict["attribs"][SHOTGRID_TYPE_ATTRIB]
     sg_parent = sg_ay_dict["data"].get(sg_parent_field)
     ay_parent_entity = None
 
-    if (
-        shotgrid_type == "Asset"
-        and sg_ay_dict["data"].get("sg_asset_type")
-    ):
-        log.debug("ShotGrid Parent is an Asset category.")
-        ay_parent_entity = get_asset_category(
-            ayon_entity_hub,
-            sg_ay_dict,
-            addon_settings
-        )
-
-    elif shotgrid_type in ("Shot", "Sequence", "Episode"):
+    if shotgrid_type in ("Shot", "Sequence", "Episode", "Asset"):
         ay_parent_entity = get_reparenting_from_settings(
             ayon_entity_hub,
             sg_ay_dict,
             addon_settings
-        )
+        ) or ayon_entity_hub.project_entity
+
+        # Reparenting Asset under an AssetCategory ?
+        sg_asset_type = sg_ay_dict["data"].get("sg_asset_type")
+        if (
+            shotgrid_type == "Asset"
+            and sg_asset_type
+            and asset_category_parent
+        ):
+            name = slugify_string(sg_asset_type)
+
+            # Gather or create AssetCategory parent.
+            for child in ay_parent_entity.children:
+                if (
+                    child.folder_type == "AssetCategory"
+                    and child.name.lower() == name.lower()
+                ):
+                    ay_parent_entity = child
+                    break
+            else:
+                ay_parent_entity = create_new_ayon_entity(
+                    sg_session,
+                    ayon_entity_hub,
+                    ay_parent_entity,
+                    {
+                        "folder_type": "AssetCategory",
+                        "type": "AssetCategory",
+                        "name": name.lower(),
+                        "label": sg_asset_type,
+                        "data": {CUST_FIELD_CODE_ID: name},
+                        "attribs": {
+                            SHOTGRID_ID_ATTRIB: name.lower(),
+                            SHOTGRID_TYPE_ATTRIB: "AssetCategory"
+                        }
+                    },
+                )
 
     if ay_parent_entity is None:
         # INFO: Parent entity might not be added in SG so this needs to

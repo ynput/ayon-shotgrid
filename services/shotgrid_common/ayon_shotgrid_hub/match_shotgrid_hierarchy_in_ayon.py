@@ -17,7 +17,6 @@ from constants import (
 from utils import (
     create_new_ayon_entity,
     get_sg_entities,
-    get_asset_category,
     get_reparenting_from_settings,
     update_ay_entity_custom_attributes, handle_comment,
 )
