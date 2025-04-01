@@ -111,14 +111,18 @@ def match_shotgrid_hierarchy_in_ayon(
         # If we haven't found the ay_entity by its id, check by its name
         # to avoid creating duplicates and erroring out
         if ay_entity is None:
-            if shotgrid_type == "AssetCategory":
-                ay_parent_entity = get_asset_category(
-                    entity_hub,
-                    sg_ay_dict,
-                    addon_settings
-                )
 
-            elif shotgrid_type in ("Sequence", "Episode", "Shot", "Asset"):
+            asset_category_parent = addon_settings["compatibility_settings"][
+                "folder_parenting"]["asset_category_parent"]
+            if (
+                shotgrid_type == "Asset"
+                and asset_category_parent
+            ):
+                # Parenting to AssetCategory is enabled.
+                # reparenting under already set parent (asset category folder).
+                log.debug("Reparenting %r under %r.", sg_ay_dict, ay_parent_entity)
+
+            elif shotgrid_type in ("Sequence", "Episode", "Shot", "AssetCategory", "Asset"):
                 ay_parent_entity = get_reparenting_from_settings(
                     entity_hub,
                     sg_ay_dict,

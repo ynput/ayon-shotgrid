@@ -206,6 +206,16 @@ class FolderReparentingTypeGroupingModel(BaseSettingsModel):
 
 class FolderReparentingModel(BaseSettingsModel):
 
+    asset_category_parent: bool = SettingsField(
+        default=True,
+        title="Parent SG Asset under AssetCategory.",
+        description=(
+            "SG Asset can define asset type, this option creates automatically "
+            "a parent AssetCategory folder when those are synced to AYON."
+        ),
+        scope=["studio"],
+    )
+
     root_relocate: FolderReparentingRelocateModel = SettingsField(
         default_factory=FolderReparentingRelocateModel,
         title="Root relocation",

@@ -432,31 +432,6 @@ def create_sg_entities_in_ay(
     return sg_folder_entities, sg_steps
 
 
-def get_asset_category(entity_hub, sg_ay_dict, addon_settings):
-    """Look for existing "AssetCategory" folders in AYON.
-
-        Asset categories are not entities per se in ShotGrid, they are
-        a "string" field in the `Asset` type, which is then used to visually
-        group `Asset`s; here we attempt to find any `AssetCategory` folder
-        type that already matches the one in ShotGrid.
-
-    Args:
-        entity_hub (ayon_api.EntityHub): The project's entity hub.
-        parent_entity: Ayon parent entity.
-        sg_ay_dict (dict): The ShotGrid entity ready for Ayon consumption.
-        addon_settings (dict): Settings
-    """
-    transfer_type = _get_parenting_transfer_type(addon_settings)
-    folders_and_types = _get_parents_and_types(
-        addon_settings, transfer_type, "Asset")
-
-    return _get_special_category(
-        entity_hub,
-        sg_ay_dict,
-        folders_and_types=folders_and_types
-    )
-
-
 def get_reparenting_from_settings(entity_hub, sg_ay_dict, addon_settings):
     """ AYON settings can change the hierarchy mapping via settings:
     - root_relocate: move the hierarchy in-place under a different root
@@ -477,10 +452,17 @@ def get_reparenting_from_settings(entity_hub, sg_ay_dict, addon_settings):
     if transfer_type is None:
         return None
 
+    sg_type = sg_ay_dict["folder_type"]
+
+    # AssetCategory is an AYON specific entity type.
+    # Apply same logic as Asset when reparenting from SG.
+    if sg_type == "AssetCategory":
+        sg_type = "Asset"
+
     folders_and_types = _get_parents_and_types(
         addon_settings,
         transfer_type,
-        sg_ay_dict["folder_type"]
+        sg_type
     )
 
     # No special rules set for this entity type
@@ -678,8 +660,12 @@ def _get_parenting_transfer_type(addon_settings):
     folder_parenting = (addon_settings["compatibility_settings"]
                                       ["folder_parenting"])
 
+    folder_parenting_options = ("root_relocate", "type_grouping")
+
+
     enabled_transfer_type = None
-    for transfer_type, transfer_type_info in folder_parenting.items():
+    for transfer_type in folder_parenting_options:
+        transfer_type_info = folder_parenting[transfer_type]
         if transfer_type_info["enabled"]:
             if enabled_transfer_type:
                 raise RuntimeError("Both types cannot be enabled. Please "
@@ -809,6 +795,9 @@ def get_sg_entities(
     default_task_type = addon_settings[
         "compatibility_settings"]["default_task_type"]
 
+    folder_parenting = addon_settings[
+        "compatibility_settings"]["folder_parenting"]
+
     query_fields = list(SG_COMMON_ENTITY_FIELDS)
 
     if extra_fields and isinstance(extra_fields, list):
@@ -858,7 +847,12 @@ def get_sg_entities(
             ):
                 parent_id = sg_entity[parent_field]["id"]
 
-            elif entity_name == "Asset" and sg_entity["sg_asset_type"]:
+            # Reparent the current SG Asset under an AssetCategory ?
+            elif (
+                folder_parenting["asset_category_parent"]
+                and entity_name == "Asset"
+                and sg_entity["sg_asset_type"]
+            ):
                 # Asset Categories (sg_asset_type) are not entities
                 # (or at least aren't queryable) in ShotGrid
                 # thus here we create common folders.
