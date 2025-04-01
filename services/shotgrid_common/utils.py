@@ -1864,7 +1864,7 @@ def create_new_sg_entity(
     elif ay_entity.entity_type == "version":
         sg_type = "Version"
 
-        # this query shouldnt be necessary as we are reaching for attribs of
+        # this query shouldn't be necessary as we are reaching for attribs of
         # grandparent, but it seems that field is not returned correctly TODO
         folder_id = ay_entity.parent.parent.id
         ayon_asset = ayon_api.get_folder_by_id(
