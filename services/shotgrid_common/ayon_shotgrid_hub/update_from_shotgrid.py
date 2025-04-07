@@ -276,7 +276,7 @@ def _get_ayon_parent_entity(
     if ay_parent_entity is None:
         # INFO: Parent entity might not be added in SG so this needs to
         # be handled with optional way.
-        if sg_parent is None:
+        if not isinstance(sg_parent, dict):  # None (project) or str (AssetCategory)
             # Parent is the project
             log.debug(f"ShotGrid Parent is the Project: {sg_project}")
             ay_parent_entity = ayon_entity_hub.project_entity
