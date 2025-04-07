@@ -356,5 +356,5 @@ class ShotgridTransmitter:
 
 def service_main():
     ayon_api.init_service()
-    # shotgrid_transmitter = ShotgridTransmitter()
-    # sys.exit(shotgrid_transmitter.start_processing())
+    shotgrid_transmitter = ShotgridTransmitter()
+    sys.exit(shotgrid_transmitter.start_processing())
