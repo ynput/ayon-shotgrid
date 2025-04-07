@@ -92,8 +92,6 @@ def create_ay_entity_from_sg_event(
 
     extra_fields = [sg_parent_field]
 
-    if sg_event["entity_type"] == "Shot":
-        sg_parent_field = "sg_sequence"
 
     sg_ay_dict = get_sg_entity_as_ay_dict(
         sg_session,
@@ -147,31 +145,27 @@ def create_ay_entity_from_sg_event(
             ay_parent_entity = ayon_entity_hub.project_entity
 
         if not ay_parent_entity:
-            sg_ay_parent_dict = get_sg_entity_as_ay_dict(
+            if sg_ay_dict["data"][sg_parent_field]["type"] == "Asset":
+                extra_field = "sg_asset_type"
+
+            else:
+                extra_field = get_sg_entity_parent_field(
+                    sg_session,
+                    sg_project,
+                    sg_ay_dict["data"][sg_parent_field]["type"],
+                    sg_enabled_entities,
+                )
+
+            sg_ay_dict = get_sg_entity_as_ay_dict(
                 sg_session,
                 sg_ay_dict["data"][sg_parent_field]["type"],
                 sg_ay_dict["data"][sg_parent_field]["id"],
                 project_code_field,
                 default_task_type,
+                custom_attribs_map=custom_attribs_map,
+                extra_fields=[extra_field],
             )
-
-            if sg_ay_parent_dict["attribs"].get("shotgridType") == "Asset":
-                # re query to get proper parent assetType value
-                # we cannot add 'sg_asset_type' to extra_fields directly as
-                # task might be under shot/sequence
-                extra_fields.append("sg_asset_type")
-
-                sg_ay_parent_dict = get_sg_entity_as_ay_dict(
-                    sg_session,
-                    sg_ay_dict["data"][sg_parent_field]["type"],
-                    sg_ay_dict["data"][sg_parent_field]["id"],
-                    project_code_field,
-                    default_task_type,
-                    custom_attribs_map=custom_attribs_map,
-                    extra_fields=extra_fields,
-                )
-                sg_parent_field = "sg_asset_type"
-            sg_ay_dict = sg_ay_parent_dict
+            sg_parent_field = extra_field
 
     while items_to_create:
         sg_ay_dict = items_to_create.pop()
@@ -242,7 +236,7 @@ def _get_ayon_parent_entity(
             ayon_entity_hub,
             sg_ay_dict,
             addon_settings
-        ) or ayon_entity_hub.project_entity
+        )
 
         # Reparenting Asset under an AssetCategory ?
         sg_asset_type = sg_ay_dict["data"].get("sg_asset_type")
@@ -252,7 +246,7 @@ def _get_ayon_parent_entity(
             and asset_category_parent
         ):
             name = slugify_string(sg_asset_type)
-
+            ay_parent_entity = ay_parent_entity or ayon_entity_hub.project_entity
             # Gather or create AssetCategory parent.
             for child in ay_parent_entity.children:
                 if (
