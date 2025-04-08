@@ -87,7 +87,10 @@ class AyonShotgridHub:
         custom_attribs_types=None,
         sg_enabled_entities=None,
     ):
-        self.settings = ayon_api.get_service_addon_settings(project_name)
+        try:
+            self.settings = ayon_api.get_service_addon_settings(project_name)
+        except ayon_api.exceptions.HTTPRequestError:
+            self.log.warning(f"Project {project_name} does not exist in AYON.")
 
         self._sg = sg_connection
 

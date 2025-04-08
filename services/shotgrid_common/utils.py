@@ -18,7 +18,6 @@ from constants import (
     SG_PROJECT_ATTRS,
     SHOTGRID_ID_ATTRIB,
     SHOTGRID_TYPE_ATTRIB,
-    FOLDER_REPARENTING_TYPE,
     AYON_SHOTGRID_ENTITY_TYPE_MAP
 )
 
@@ -432,31 +431,6 @@ def create_sg_entities_in_ay(
     return sg_folder_entities, sg_steps
 
 
-def get_asset_category(entity_hub, sg_ay_dict, addon_settings):
-    """Look for existing "AssetCategory" folders in AYON.
-
-        Asset categories are not entities per se in ShotGrid, they are
-        a "string" field in the `Asset` type, which is then used to visually
-        group `Asset`s; here we attempt to find any `AssetCategory` folder
-        type that already matches the one in ShotGrid.
-
-    Args:
-        entity_hub (ayon_api.EntityHub): The project's entity hub.
-        parent_entity: Ayon parent entity.
-        sg_ay_dict (dict): The ShotGrid entity ready for Ayon consumption.
-        addon_settings (dict): Settings
-    """
-    transfer_type = _get_parenting_transfer_type(addon_settings)
-    folders_and_types = _get_parents_and_types(
-        addon_settings, transfer_type, "Asset")
-
-    return _get_special_category(
-        entity_hub,
-        sg_ay_dict,
-        folders_and_types=folders_and_types
-    )
-
-
 def get_reparenting_from_settings(entity_hub, sg_ay_dict, addon_settings):
     """ AYON settings can change the hierarchy mapping via settings:
     - root_relocate: move the hierarchy in-place under a different root
@@ -477,10 +451,17 @@ def get_reparenting_from_settings(entity_hub, sg_ay_dict, addon_settings):
     if transfer_type is None:
         return None
 
+    sg_type = sg_ay_dict["folder_type"]
+
+    # AssetCategory is an AYON specific entity type.
+    # Apply same logic as Asset when reparenting from SG.
+    if sg_type == "AssetCategory":
+        sg_type = "Asset"
+
     folders_and_types = _get_parents_and_types(
         addon_settings,
         transfer_type,
-        sg_ay_dict["folder_type"]
+        sg_type
     )
 
     # No special rules set for this entity type
@@ -512,7 +493,6 @@ def _get_special_category(
     parent_entity = entity_hub.project_entity
     found_folder = None
 
-    placeholders = _get_placeholders(sg_ay_dict)
     if not folders_and_types:
         return parent_entity
 
@@ -520,12 +500,6 @@ def _get_special_category(
         found_folder = None
         parent = folders_and_types.popleft()
         folder_name, folder_type = parent
-
-        try:
-            folder_name = folder_name.format(**placeholders)
-        except KeyError:
-            # ignore superfluous placeholders
-            pass
 
         for entity in parent_entity.get_children():
             if (
@@ -550,26 +524,6 @@ def _get_special_category(
                 log.error(f"Unable to create {folder_type}.", exc_info=True)
 
     return found_folder
-
-
-def _get_placeholders(sg_ay_dict):
-    """Returns dynamic values for placeholders used in folder name.
-
-    Currently implemented only `shotgrid_type` which points to name of
-    AssetCategory
-    TODO probably refactor `shotgrid_type` to different name
-    """
-    placeholders = {}
-    # regular update process
-    sg_asset_type = sg_ay_dict["data"].get("sg_asset_type")
-    if sg_asset_type:
-        placeholders["shotgrid_type"] = sg_asset_type.lower()
-    else:
-        # AssetCategory for match_
-        sg_asset_type = sg_ay_dict["attribs"].get("shotgridType")
-        if sg_asset_type:
-            placeholders["shotgrid_type"] = sg_ay_dict["name"]
-    return placeholders
 
 
 def _create_special_category(
@@ -678,8 +632,12 @@ def _get_parenting_transfer_type(addon_settings):
     folder_parenting = (addon_settings["compatibility_settings"]
                                       ["folder_parenting"])
 
+    folder_parenting_options = ("root_relocate", "type_grouping")
+
+
     enabled_transfer_type = None
-    for transfer_type, transfer_type_info in folder_parenting.items():
+    for transfer_type in folder_parenting_options:
+        transfer_type_info = folder_parenting[transfer_type]
         if transfer_type_info["enabled"]:
             if enabled_transfer_type:
                 raise RuntimeError("Both types cannot be enabled. Please "
@@ -858,7 +816,11 @@ def get_sg_entities(
             ):
                 parent_id = sg_entity[parent_field]["id"]
 
-            elif entity_name == "Asset" and sg_entity["sg_asset_type"]:
+            # Reparent the current SG Asset under an AssetCategory ?
+            elif (
+                entity_name == "Asset"
+                and sg_entity.get("sg_asset_type")
+            ):
                 # Asset Categories (sg_asset_type) are not entities
                 # (or at least aren't queryable) in ShotGrid
                 # thus here we create common folders.
@@ -1175,7 +1137,7 @@ def get_sg_project_enabled_entities(
             log.warning(
                 "%s is enabled in AYON settings but hidden in Flow "
                 "tracking settings. It'll be ignored, please check "
-		"your configuration.",
+                "your configuration.",
                 sg_entity_type
             )
 
@@ -1482,6 +1444,11 @@ def create_new_ayon_entity(
         log.error("AYON Entity could not be created", exc_info=True)
 
     else:
+
+        # AssetCategory AYON entity do not have any equivalent in SG.
+        if sg_ay_dict["attribs"][SHOTGRID_TYPE_ATTRIB] == "AssetCategory":
+            return ay_entity
+
         try:
              sg_session.update(
                 sg_ay_dict["attribs"][SHOTGRID_TYPE_ATTRIB],
@@ -1858,7 +1825,7 @@ def create_new_sg_entity(
     elif ay_entity.entity_type == "version":
         sg_type = "Version"
 
-        # this query shouldnt be necessary as we are reaching for attribs of
+        # this query shouldn't be necessary as we are reaching for attribs of
         # grandparent, but it seems that field is not returned correctly TODO
         folder_id = ay_entity.parent.parent.id
         ayon_asset = ayon_api.get_folder_by_id(
@@ -1871,8 +1838,12 @@ def create_new_sg_entity(
         sg_user_id = get_sg_user_id(ay_username)
         if sg_user_id < 0:
             log.warning(
-                f"Couldn't create version for not synched {ay_username}")
-            return
+                f"{ay_username} is not synchronized, "
+                f"Version will be created under script user."
+            )
+            data["description"] = f"Created in AYON by '{ay_username}'"
+        else:
+            data["user"] = {'type': 'HumanUser', 'id': sg_user_id}
 
         product_name = ay_entity.parent.name
         version_str = str(ay_entity.version).zfill(3)
@@ -1880,7 +1851,6 @@ def create_new_sg_entity(
 
         data[sg_parent_field] = sg_parent_entity
         data["code"] = version_name
-        data["user"] = {'type': 'HumanUser', 'id': sg_user_id}
 
         _add_paths(ay_project_name, ay_entity, data)
 
@@ -1982,7 +1952,7 @@ def upload_ay_reviewable_to_sg(
     ayon_entity_hub: ayon_api.entity_hub.EntityHub,
     ay_version_id: int,
 ):
-    log.info(f"Uploading rewieble for '{ay_version_id}'")
+    log.info(f"Uploading reviewable for '{ay_version_id}'")
     ay_project_name = ayon_entity_hub.project_name
 
     ay_version_entity = ayon_entity_hub.get_version_by_id(ay_version_id)
@@ -2003,7 +1973,13 @@ def upload_ay_reviewable_to_sg(
     )
 
     response = ayon_api.get(get_revieawables_url)
-    first_reviewable = response.data["reviewables"][0]
+    try:
+        first_reviewable = response.data["reviewables"][0]
+
+    # Valid version without reviewables, nothing to upload.
+    except IndexError:
+        log.debug("Version %s does not contain any reviewable.", ay_version_id)
+        return
 
     get_file = f"projects/{ay_project_name}/files/{first_reviewable['fileId']}"
 
