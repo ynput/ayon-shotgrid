@@ -17,6 +17,7 @@ from constants import (
 from utils import (
     create_new_ayon_entity,
     get_sg_entities,
+    get_sg_entity_parent_field,
     get_reparenting_from_settings,
     update_ay_entity_custom_attributes, handle_comment,
 )
@@ -111,8 +112,14 @@ def match_shotgrid_hierarchy_in_ayon(
         # to avoid creating duplicates and erroring out
         if ay_entity is None:
 
-            asset_category_parent = addon_settings["compatibility_settings"][
-                "folder_parenting"]["asset_category_parent"]
+            sg_parent_field = get_sg_entity_parent_field(
+                sg_session,
+                sg_project,
+                shotgrid_type,
+                sg_enabled_entities,
+            )
+            asset_category_parent = sg_parent_field == "sg_asset_type"
+
             if (
                 shotgrid_type == "Asset"
                 and asset_category_parent

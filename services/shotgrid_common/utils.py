@@ -493,7 +493,6 @@ def _get_special_category(
     parent_entity = entity_hub.project_entity
     found_folder = None
 
-    placeholders = _get_placeholders(sg_ay_dict)
     if not folders_and_types:
         return parent_entity
 
@@ -501,12 +500,6 @@ def _get_special_category(
         found_folder = None
         parent = folders_and_types.popleft()
         folder_name, folder_type = parent
-
-        try:
-            folder_name = folder_name.format(**placeholders)
-        except KeyError:
-            # ignore superfluous placeholders
-            pass
 
         for entity in parent_entity.get_children():
             if (
@@ -531,26 +524,6 @@ def _get_special_category(
                 log.error(f"Unable to create {folder_type}.", exc_info=True)
 
     return found_folder
-
-
-def _get_placeholders(sg_ay_dict):
-    """Returns dynamic values for placeholders used in folder name.
-
-    Currently implemented only `shotgrid_type` which points to name of
-    AssetCategory
-    TODO probably refactor `shotgrid_type` to different name
-    """
-    placeholders = {}
-    # regular update process
-    sg_asset_type = sg_ay_dict["data"].get("sg_asset_type")
-    if sg_asset_type:
-        placeholders["shotgrid_type"] = sg_asset_type.lower()
-    else:
-        # AssetCategory for match_
-        sg_asset_type = sg_ay_dict["attribs"].get("shotgridType")
-        if sg_asset_type:
-            placeholders["shotgrid_type"] = sg_ay_dict["name"]
-    return placeholders
 
 
 def _create_special_category(
@@ -794,9 +767,6 @@ def get_sg_entities(
     default_task_type = addon_settings[
         "compatibility_settings"]["default_task_type"]
 
-    folder_parenting = addon_settings[
-        "compatibility_settings"]["folder_parenting"]
-
     query_fields = list(SG_COMMON_ENTITY_FIELDS)
 
     if extra_fields and isinstance(extra_fields, list):
@@ -848,9 +818,8 @@ def get_sg_entities(
 
             # Reparent the current SG Asset under an AssetCategory ?
             elif (
-                folder_parenting["asset_category_parent"]
-                and entity_name == "Asset"
-                and sg_entity["sg_asset_type"]
+                entity_name == "Asset"
+                and sg_entity.get("sg_asset_type")
             ):
                 # Asset Categories (sg_asset_type) are not entities
                 # (or at least aren't queryable) in ShotGrid

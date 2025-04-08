@@ -140,11 +140,7 @@ class FolderReparentingParentsModel(BaseSettingsModel):
     folder_name: str = SettingsField(
         "assets",
         title="Parent Ayon Folder Name",
-        description=(
-            "Name of the parent folder in AYON. Anatomy presets can be used."
-            "`sg_` prefix can be used to refer to ShotGrid entities. Example: "
-            "`{shotgrid_type}` will be replaced with the ShotGrid Asset Type."
-        ),
+        description="Name of the parent folder in AYON.",
     )
 
 
@@ -205,16 +201,6 @@ class FolderReparentingTypeGroupingModel(BaseSettingsModel):
 
 
 class FolderReparentingModel(BaseSettingsModel):
-
-    asset_category_parent: bool = SettingsField(
-        default=True,
-        title="Parent SG Asset under AssetCategory.",
-        description=(
-            "SG Asset can define asset type, this option creates automatically "
-            "a parent AssetCategory folder when those are synced to AYON."
-        ),
-        scope=["studio"],
-    )
 
     root_relocate: FolderReparentingRelocateModel = SettingsField(
         default_factory=FolderReparentingRelocateModel,

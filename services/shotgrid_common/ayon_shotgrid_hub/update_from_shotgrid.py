@@ -224,8 +224,6 @@ def _get_ayon_parent_entity(
     """
     default_task_type = addon_settings[
         "compatibility_settings"]["default_task_type"]
-    asset_category_parent = addon_settings["compatibility_settings"][
-        "folder_parenting"]["asset_category_parent"]
 
     shotgrid_type = sg_ay_dict["attribs"][SHOTGRID_TYPE_ATTRIB]
     sg_parent = sg_ay_dict["data"].get(sg_parent_field)
@@ -239,11 +237,12 @@ def _get_ayon_parent_entity(
         )
 
         # Reparenting Asset under an AssetCategory ?
+        # if sg_asset_type is defined in the data, that's because
+        # the Asset needs to be parented to the AssetCategory.
         sg_asset_type = sg_ay_dict["data"].get("sg_asset_type")
         if (
             shotgrid_type == "Asset"
             and sg_asset_type
-            and asset_category_parent
         ):
             name = slugify_string(sg_asset_type)
             ay_parent_entity = ay_parent_entity or ayon_entity_hub.project_entity
