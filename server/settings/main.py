@@ -1,3 +1,7 @@
+import requests
+from pydantic import validator
+
+from ayon_server.exceptions import BadRequestException
 from ayon_server.entities.core.attrib import attribute_library
 from ayon_server.settings import BaseSettingsModel, SettingsField
 from ayon_server.settings.enum import (
@@ -320,6 +324,18 @@ class ShotgridSettings(BaseSettingsModel):
         example="https://my-site.shotgrid.autodesk.com",
         scope=["studio"]
     )
+
+    @validator("shotgrid_server")
+    def ensure_requests(cls, value):
+        """ Ensure provided shotgrid_server URL is valid.
+        """
+        if value:
+            resp = requests.get(value)
+            if not resp.ok:
+                raise BadRequestException(f"Unreachable URL: {value}")
+
+        return value
+
     client_login: ClientLoginModel = SettingsField(
         default_factory=ClientLoginModel,
         title="Client login settings",
