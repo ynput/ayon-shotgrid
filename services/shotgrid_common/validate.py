@@ -59,9 +59,11 @@ def _validate_project_statuses_mapping(
         sg_session,
         log
     ):
-    """ Check statuses are compatibles between SG and AYON
+    """ Ensure statuses are compatibles between SG and AYON
         for a a specific project.
     """
+    report = []
+
     # Ayon statuses
     ay_project_entity =  EntityHub(ay_project["name"])
     ay_project_statuses = [
@@ -76,7 +78,10 @@ def _validate_project_statuses_mapping(
             )["sg_status_list"]["properties"]
 
         except KeyError:
-            log.debug("Entity %s does not support statuses in SG.", entity)
+            report.append(
+                f'{ay_project["name"]}.{entity}: '
+                "does not support statuses in Flow."
+            )
             continue
 
         statuses = status_data["valid_values"]["value"]
@@ -101,19 +106,19 @@ def _validate_project_statuses_mapping(
                     syncable_statuses.append(sg_status)
 
         if syncable_statuses:
-            log.debug(
-                "Only %r statuses will be synced for %s.%s "
+            report.append(
+                f'{ay_project["name"]}.{entity}: '
+                f"only {syncable_statuses} statuses will be synced, "
                 "every other statuses will be ignored.",
-                syncable_statuses,
-                ay_project["name"],
-                entity,
             )
         else:
-            log.warning(
-                "No common statuses set between SG and AYON for %s.%s",
-                ay_project["name"],
-                entity,
+            report.append(
+                f'{ay_project["name"]}.{entity}: '
+                "no common statuses found in Flow and AYON "
+                "statuses will not sync."
             )
+
+    return report
 
 
 def validate_projects_sync(
@@ -125,15 +130,17 @@ def validate_projects_sync(
     """
     log = log or get_logger(__file__)
     errors = []
-
+    reports = {}
     all_ay_projects = ayon_api.get_projects()
 
     for ay_project in all_ay_projects:
+
+        project_name = ay_project["name"]
+        report = []
+        reports[project_name] = report
+
         if not ay_project["attrib"].get(constants.SHOTGRID_ID_ATTRIB):
-            log.debug(
-                "AY Project %s is not set up to sync with SG.",
-                ay_project["name"]
-            )
+            report.append("AY Project is not set up to sync with SG.")
             continue
 
         sg_project_id = int(ay_project["attrib"][constants.SHOTGRID_ID_ATTRIB])
@@ -144,32 +151,17 @@ def validate_projects_sync(
         )
 
         if not sg_project:
-            log.warning(
-                "AY Project %s is supposed to sync with SG. "
-                "However associated project cannot be found in SG (id: %s)",
-                ay_project["name"],
-                sg_project_id
+            report.append(
+                "AY Project is supposed to sync with SG. "
+                f"However associated project cannot be found in SG (id: {sg_project_id})"
             )
             continue
 
         error = check_project_disabled_entities(
-            EntityHub(ay_project["name"]),
+            EntityHub(project_name),
             sg_project,
             enabled_entities,
             sg_session,
-        )
-
-        if error:
-            errors.append(error)
-            continue
-
-        # Check statuses compatibility
-        error = _validate_project_statuses_mapping(
-            ay_project,
-            sg_project,
-            enabled_entities,
-            sg_session,
-            log,
         )
 
         if error:
@@ -177,38 +169,48 @@ def validate_projects_sync(
             continue
 
         # Autosync
-        if sg_project["sg_ayon_auto_sync"] and ay_project["attrib"]["shotgridPush"]:
-            log.debug(
-                "AY Project %s is properly setup to sync with SG project %s automatically.",
-                ay_project["name"],
-                sg_project["code"],
+        if sg_project.get("sg_ayon_auto_sync") and ay_project["attrib"].get("shotgridPush"):
+            report.append(
+                "AY project is properly setup to sync with Flow automatically.",
             )
 
-        elif sg_project["sg_ayon_auto_sync"]:
-            log.debug(
-                "AY Project %s will received updates from SG project %s automatically, "
+        elif sg_project.get("sg_ayon_auto_sync"):
+            report.append(
+                "AY project will received updates from Flow automatically, "
                 "but it will not push anything back. Enable 'shotgunPush' attribute "
-                "of the AY project to enabled that.",
-                ay_project["name"],
-                sg_project["code"],
+                "of the project anatomy to enable that.",
             )
 
-        elif ay_project["attrib"]["shotgridPush"]:
-            log.debug(
-                "AY Project %s will send updates to SG project %s automatically, "
+        elif ay_project["attrib"].get("shotgridPush"):
+            report.append(
+                "AY Project will send updates to Flow automatically, "
                 "but it will not pull anything back. Enable 'sg_ayon_auto_sync' field "
-                "of the SG project to enabled that.",
-                ay_project["name"],
-                sg_project["code"],
+                "of the Flow project to enabled that."
             )
 
         else:
-            log.debug(
-                "AY Project %s is not setup to push or receive updates "
-                "from/to SG project %s automatically. Sync must be triggered manually.",
-                ay_project["name"],
-                sg_project["code"],
+            report.append(
+                "AY Project is not setup to push nor pull updates from/to Flow "
+                "automatically. Sync must be triggered manually."
             )
+
+        # Check statuses compatibility
+        status_report = _validate_project_statuses_mapping(
+            ay_project,
+            sg_project,
+            enabled_entities,
+            sg_session,
+            log,
+        )
+
+        if status_report:
+            report.extend(status_report)
+
+    if reports:
+        for project_name, report in reports.items():
+            message = f"AYON Project {project_name}: "
+            message += "\n - ".join(report)
+            log.debug(message)
 
     if errors:
         errors.insert(0, "Project setup validation failed:")
@@ -220,10 +222,11 @@ def validate_custom_attribs_map(
         custom_attribs_map,
         log=None
     ):
-    """
+    """ Ensure the custom attribute mapping between AYON and Flow is OK.
     """
     log = log or get_logger(__file__)
     errors = []
+    report = []
     sg_schemas = {}
     ay_schemas = {}
 
@@ -256,18 +259,16 @@ def validate_custom_attribs_map(
     for entry in custom_attribs_map:
 
         if not entry["sg"]:
-            log.debug(
-                "AYON attribute %r will not be mapped to SG "
-                "(no 'sg' field set) for entities %r.",
-                entry["ayon"],
-                entry["scope"],
+            report.append(
+                f'AYON attribute {entry["ayon"]} will not be mapped to Flow '
+                f'(no SG field set) for entities {entry["scope"]}.'
             )
             continue
 
         if not entry["scope"]:
-            log.debug(
-                "AYON attribute %r will not be mapped to SG "
-                "(empty scope)", entry["ayon"]
+            report.append(
+                f'AYON attribute {entry["ayon"]} will not be mapped to Flow '
+                "(empty scope)."
             )
             continue
 
@@ -303,10 +304,14 @@ def validate_custom_attribs_map(
                     break
 
             else:
-                # TODO investigate this.
-                errors.append(
-                    f'SG field {entry["sg"]} does not exists for {scope}.'
+                report.append(
+                    f'{scope}.{entry["sg"]}: field does not exists in Flow.'
                 )
+
+    if report:
+        message = "Custom AYON attributes mapping to Flow fields:\n - "
+        message += "\n - ".join(report)
+        log.debug(message)
 
     if errors:
         errors.insert(0, "Settings validation failed:")

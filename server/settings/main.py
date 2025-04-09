@@ -245,6 +245,19 @@ class ShotgridCompatibilitySettings(BaseSettingsModel):
         ),
     )
 
+    @validator("custom_attribs_map")
+    def ensure_requests(cls, value):
+        """ Ensure custom attribs map does not contain duplicated SG fields.
+        """
+        all_sg_fields = []
+        for entry in value:
+            if entry.sg and entry.sg in all_sg_fields:
+                raise BadRequestException(f"Duplicate mapped SG field: {entry.sg}")
+            elif entry.sg:
+                all_sg_fields.append(entry.sg)
+
+        return value
+
     folder_parenting: FolderReparentingModel = SettingsField(
         title="Folder re-parenting",
         default_factory=FolderReparentingModel,
