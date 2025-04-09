@@ -11,11 +11,11 @@ from utils import get_logger, get_sg_project_enabled_entities
 
 
 def check_project_disabled_entities(
-        ay_project,
-        sg_project,
-        enabled_entities,
-        sg_session,
-    ):
+    ay_project,
+    sg_project,
+    enabled_entities,
+    sg_session,
+):
     """ Ensure enabled SG entities are compatibles for a given project.
     """
     disabled_entities = []
@@ -53,12 +53,12 @@ def check_project_disabled_entities(
 
 
 def _validate_project_statuses_mapping(
-        ay_project,
-        sg_project,
-        enabled_entities,
-        sg_session,
-        log
-    ):
+    ay_project,
+    sg_project,
+    enabled_entities,
+    sg_session,
+    log
+):
     """ Ensure statuses are compatibles between SG and AYON
         for a a specific project.
     """
@@ -122,10 +122,10 @@ def _validate_project_statuses_mapping(
 
 
 def validate_projects_sync(
-        sg_session,
-        enabled_entities,
-        log=None
-    ):
+    sg_session,
+    enabled_entities,
+    log=None
+):
     """ Validate overhall project configuration.
     """
     log = log or get_logger(__file__)
@@ -218,10 +218,10 @@ def validate_projects_sync(
 
 
 def validate_custom_attribs_map(
-        sg_session,
-        custom_attribs_map,
-        log=None
-    ):
+    sg_session,
+    custom_attribs_map,
+    log=None
+):
     """ Ensure the custom attribute mapping between AYON and Flow is OK.
     """
     log = log or get_logger(__file__)
