@@ -288,7 +288,7 @@ class ShotgridTransmitter:
         response = ayon_api.dispatch_event(
             SHOTGRID_COMMENTS_TOPIC,
             description=(
-                "Synchronizing comments from SG to AYON."
+                "Synchronizing comments from AYON to SG."
             ),
             summary=None,
             payload={},
