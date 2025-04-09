@@ -1105,7 +1105,7 @@ def get_sg_project_enabled_entities(
     sg_project = sg_session.find_one(
         "Project",
         filters=[["id", "is", sg_project["id"]]],
-        fields=["tracking_settings"]
+        fields=["tracking_settings", "name", "code"]
     )
 
     if not sg_project:
@@ -1135,10 +1135,12 @@ def get_sg_project_enabled_entities(
 
         if not is_entity_enabled:
             log.warning(
-                "%s is enabled in AYON settings but hidden in Flow "
-                "tracking settings. It'll be ignored, please check "
+                "%s is enabled in AYON settings for project "
+                "but hidden in Flow tracking settings for project %r. "
+                "It'll be ignored, please check "
                 "your configuration.",
-                sg_entity_type
+                sg_entity_type,
+                sg_project.get("name") or sg_project.get("code"),
             )
 
         else:
