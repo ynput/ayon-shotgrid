@@ -497,18 +497,18 @@ class AyonShotgridHub:
                     sg_user_id_by_user_name, ayon_username)
 
                 if sg_user_id < 0:
-                    self.log.warning(
-                        f"Author {ayon_username} is not "
-                        "synchronized to SG, skipping comment"
+                    self.log.debug(
+                        f"Author {ayon_username} is not synchronized "
+                        "to SG, associated comment will be left unassigned."
                     )
-                    continue
+                    sg_user_id = None
 
                 self._create_sg_note(
                     self.project_name,
                     entity_dict,
                     activity,
-                    sg_user_id,
-                    sg_user_id_by_user_name
+                    sg_user_id_by_user_name,
+                    author_sg_id=sg_user_id,
                 )
             else:
                 sg_update_data = {}
@@ -575,8 +575,8 @@ class AyonShotgridHub:
         project_name,
         entity_dict,
         activity,
-        author_sg_id,
-        sg_user_id_by_user_name
+        sg_user_id_by_user_name,
+        author_sg_id=None,
     ):
         """Create a new note in ShotGrid (SG) and update the activity data.
 
@@ -590,9 +590,10 @@ class AyonShotgridHub:
                 entity (folder, task, version) to which the note is linked.
             activity (dict): Activity data containing details about the comment,
                 including the author, content, and activity ID.
-            author_sg_id (int): The SG user ID of the author of the comment.
             sg_user_id_by_user_name (dict): A mapping of AYON usernames to
                 their corresponding SG user IDs.
+            author_sg_id (int): (Optional) The SG user ID of the author of the comment,
+                it'll be left unassigned otherwise.
         """
         if not self._sg_project:
             self.log.warning(
@@ -609,9 +610,11 @@ class AyonShotgridHub:
             "note_links": note_links,
             "subject": content[:50],
             "content": content,
-            "user": {"type": "HumanUser", "id": author_sg_id},
             "addressings_to": addressings_to
         }
+
+        if author_sg_id is not None:
+            data["user"] = {"type": "HumanUser", "id": author_sg_id}
 
         # Create the note
         result = self._sg.create("Note", data)
