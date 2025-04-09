@@ -255,6 +255,7 @@ def match_ayon_hierarchy_in_shotgrid(
                     ay_entity.id,
                 )
 
+
         if not sg_ay_dict:
             log.warning(f"AYON entity {ay_entity} not found in SG, ignoring it")
             continue

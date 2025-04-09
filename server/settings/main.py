@@ -140,11 +140,7 @@ class FolderReparentingParentsModel(BaseSettingsModel):
     folder_name: str = SettingsField(
         "assets",
         title="Parent Ayon Folder Name",
-        description=(
-            "Name of the parent folder in AYON. Anatomy presets can be used."
-            "`sg_` prefix can be used to refer to ShotGrid entities. Example: "
-            "`{shotgrid_type}` will be replaced with the ShotGrid Asset Type."
-        ),
+        description="Name of the parent folder in AYON.",
     )
 
 
