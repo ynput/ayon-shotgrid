@@ -265,64 +265,6 @@ class ShotgridCompatibilitySettings(BaseSettingsModel):
     )
 
 
-class ClientLoginDetailsModel(BaseSettingsModel):
-    _layout = "expanded"
-
-    client_sg_script_key: str = SettingsField(
-        default="",
-        placeholder="Create and Paste a script api key here",
-        title="Client related ShotGrid's Script api key",
-        description=(
-            "AYON Secret used for Client related user operations "
-            "Secret should lead to ShotGrid's Script api key. "
-            "See more at: https://developer.shotgridsoftware.com/python-api/"
-            "authentication.html#setting-up-shotgrid"
-        ),
-    )
-    client_sg_script_name: str = SettingsField(
-        default="",
-        placeholder="Create and Paste a script name here",
-        title="Client related ShotGrid's Script Name",
-        description=(
-            "AYON Secret used for Client related user operations "
-            "Secret should lead to ShotGrid's Script Name. "
-            "See more at: https://developer.shotgridsoftware.com/python-api/"
-            "authentication.html#setting-up-shotgrid"
-        ),
-    )
-
-
-client_login_types_enum = [
-    {"value": "env", "label": "Via Environment Variables"},
-    {"value": "tray_pass", "label": "Via Tray App with password"},
-    {"value": "tray_api_key", "label": "Via Tray App with shared api key"},
-]
-
-
-class ClientLoginModel(BaseSettingsModel):
-    _layout = "expanded"
-
-    type: str = SettingsField(
-        "env",
-        title="Client login type",
-        description="Switch between client login types",
-        enum_resolver=lambda: client_login_types_enum,
-        conditionalEnum=True
-    )
-
-    tray_api_key: ClientLoginDetailsModel = SettingsField(
-        default_factory=ClientLoginDetailsModel,
-        title="Tray App",
-        scope=["studio"],
-    )
-
-    env: ClientLoginDetailsModel = SettingsField(
-        default_factory=ClientLoginDetailsModel,
-        title="Environment Variables",
-        scope=["studio"],
-    )
-
-
 class ShotgridSettings(BaseSettingsModel):
     """ShotGrid integration settings.
 
@@ -349,12 +291,6 @@ class ShotgridSettings(BaseSettingsModel):
 
         return value
 
-    client_login: ClientLoginModel = SettingsField(
-        default_factory=ClientLoginModel,
-        title="Client login settings",
-        scope=["studio"],
-        section="---",
-    )
     shotgrid_project_code_field: str = SettingsField(
         default="code",
         title="ShotGrid Project Code field name",
