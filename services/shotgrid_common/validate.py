@@ -228,7 +228,6 @@ def validate_custom_attribs_map(
     errors = []
     report = []
     sg_schemas = {}
-    ay_schemas = {}
 
     AY_SG_TYPE_MAPPING = {
         "number": "integer",

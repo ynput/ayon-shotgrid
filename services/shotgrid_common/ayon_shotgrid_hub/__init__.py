@@ -33,7 +33,6 @@ from utils import (
     create_ay_fields_in_sg_project,
     create_ay_fields_in_sg_entities,
     create_sg_entities_in_ay,
-    get_sg_project_enabled_entities,
     get_sg_project_by_name,
     get_sg_user_id,
     upload_ay_reviewable_to_sg
