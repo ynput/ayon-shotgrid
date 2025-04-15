@@ -1,5 +1,4 @@
 import os
-import re
 
 from ayon_core.addon import (
     AYONAddon,
