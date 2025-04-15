@@ -17,6 +17,7 @@ import traceback
 import ayon_api
 import shotgun_api3
 
+import validate
 from utils import get_logger
 
 
@@ -87,6 +88,8 @@ class ShotgridProcessor:
             except Exception:
                 self.sg_polling_frequency = 10
 
+            sg_connection = self.get_sg_connection()
+
             self.custom_attribs_map = {
                 attr["ayon"]: attr["sg"]
                 for attr in self.settings["compatibility_settings"]["custom_attribs_map"]
@@ -115,6 +118,18 @@ class ShotgridProcessor:
             self.log.error("Unable to get Addon settings from the server.")
             self.log.error(traceback.format_exc())
             raise e
+
+        # Validation
+        validate.validate_projects_sync(
+            sg_connection,
+            self.sg_enabled_entities,
+            log=self.log
+        )
+        validate.validate_custom_attribs_map(
+            sg_connection,
+            self.settings["compatibility_settings"]["custom_attribs_map"],
+            log=self.log,
+        )
 
         self.handlers_map = self._get_handlers()
         if not self.handlers_map:
