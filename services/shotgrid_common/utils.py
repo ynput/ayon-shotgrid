@@ -4,6 +4,7 @@ import json
 import hashlib
 import logging
 import collections
+import math
 import re
 import tempfile
 from typing import Dict, Optional, Union, Any, List
@@ -18,7 +19,8 @@ from constants import (
     SG_PROJECT_ATTRS,
     SHOTGRID_ID_ATTRIB,
     SHOTGRID_TYPE_ATTRIB,
-    AYON_SHOTGRID_ENTITY_TYPE_MAP
+    AYON_SHOTGRID_ENTITY_TYPE_MAP,
+    COMMENTS_PARENTING_ORDER
 )
 
 from ayon_api.entity_hub import (
@@ -1559,7 +1561,7 @@ def handle_comment(sg_ay_dict, sg_session, entity_hub):
     if not ayon_user_name:
         return
 
-    ay_parent_entity = _get_parent_entity(entity_hub, sg_note, sg_session)
+    ay_parent_entity = _get_sg_note_parent_entity(entity_hub, sg_note, sg_session)
     if not ay_parent_entity:
         log.warning(f"Cannot find parent for comment '{sg_note_id}'")
         return
@@ -1608,17 +1610,37 @@ def _update_comment(
     content
 ):
     ay_activity_id = ayon_comment["activityId"]
+    prev_content = ayon_comment["body"]
 
-    updated_origin = copy.deepcopy(ayon_comment["activityData"]["origin"])
-    updated_origin["id"] = ay_parent_entity["id"]
-    updated_origin["name"] = ay_parent_entity["name"]
-    updated_origin["type"] = ay_parent_entity_type
-    updated_origin["subtype"] = ay_parent_entity["folder_type"]
+    # Compare comment origin (parent)
+    prev_origin_id = ayon_comment["activityData"]["origin"]["id"]
+    new_origin_id = ay_parent_entity.id
+    new_origin = None
+    if prev_origin_id != new_origin_id:
+        new_origin = {
+            "id": ay_parent_entity.id,
+            "type": ay_parent_entity_type,
+        }
+        try:
+            new_origin["name"] = ay_parent_entity["name"]  # Version defines no name
+            new_origin["subtype"] = ay_parent_entity["folder_type"]  # Version defines no folder type
 
-    if (content != ayon_comment["body"]
-            or updated_origin != ayon_comment["activityData"]["origin"]):
-        # TODO this doesn't seem to work, it seems not to be implemented in API
-        ayon_comment["activityData"]["origin"] = updated_origin
+        except KeyError:
+            pass
+
+    if (content != prev_content or new_origin):
+
+        if new_origin:
+            # TODO this statement seem to have no effect.
+            # It seems that re-parenting a comment has not to be implemented in API
+            log.warning(
+                "Cannot re-parent comment from %r to new folder %r "
+                "due to AYON api limitation.",
+                ayon_comment["activityData"]["origin"],
+                new_origin
+            )
+            # ayon_comment["activityData"]["origin"] = new_origin
+
         ayon_api.update_activity(
             project_name,
             ay_activity_id,
@@ -1645,11 +1667,11 @@ def _get_sg_note(sg_note_id, sg_session):
     return sg_note, sg_note_id
 
 
-def _get_parent_entity(entity_hub, sg_note, sg_session):
+def _get_sg_note_parent_entity(entity_hub, sg_note, sg_session):
     """Transforms SG links to AYON hierarchy."""
-    ay_entity = None
+    ay_parent_entities = []
 
-    for link in sg_note["note_links"]:
+    for link in reversed(sg_note["note_links"]):
         sg_id = link["id"]
         sg_entity = sg_session.find_one(
             link["type"],
@@ -1681,8 +1703,40 @@ def _get_parent_entity(entity_hub, sg_note, sg_session):
         if not ay_entity:
             log.warning(f"Couldn't find {a_entity_id} of {ay_entity_type}")
             continue
-        break  # AYON comment couldn't be pointed to multiple entities
-    return ay_entity
+
+        ay_parent_entities.append(ay_entity)
+
+    if not ay_parent_entities:
+        return None
+
+    elif len(ay_parent_entities) == 1:
+        return ay_parent_entities[0]
+
+    # Flow note can be linked to multiple entities.
+    # AYON comment are only parented to one folder (and not a task).
+    # Figure out the most relevant parent from multiple links
+    def _order_by_parent_relevance(parent):
+        parent_type =(
+            parent.folder_type
+            if hasattr(parent, "folder_type")
+            else parent.entity_type
+        )
+
+        try:
+            return COMMENTS_PARENTING_ORDER.index(parent_type)
+
+        except ValueError:
+            log.warning(
+                "Unhandled comment parent type: %r.",
+                parent_type
+            )
+            return math.inf
+
+    ay_parent_entities = sorted(
+        ay_parent_entities,
+        key=_order_by_parent_relevance
+    )
+    return ay_parent_entities[0]
 
 
 def _get_content_with_notifications(sg_note):
