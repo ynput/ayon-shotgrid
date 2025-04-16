@@ -1779,8 +1779,12 @@ def _add_comment(
     with con.as_username(ayon_username):
         attachment_ids = []
         if sg_note.get("attachments"):
-            attachment_paths = [atch["local_path"] for atch in sg_note["attachments"]]
-            for path in attachment_paths:
+            for atch in sg_note["attachments"]:
+                path = atch.get("local_path")
+                if not path or not os.path.exists(path):
+                    log.debug(f"Ignore invalid attachment path: {path}")
+                    continue
+
                 mime_type, _ = mimetypes.guess_type(path)
                 headers = {
                     "Content-Type": mime_type,
