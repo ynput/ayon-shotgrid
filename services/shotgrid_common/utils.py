@@ -1782,7 +1782,6 @@ def _add_comment(
             attachment_paths = [atch["local_path"] for atch in sg_note["attachments"]]
             for path in attachment_paths:
                 mime_type, _ = mimetypes.guess_type(path)
-                log.info(f"{mime_type = }")
                 headers = {
                     "Content-Type": mime_type,
                     "x-file-name": os.path.basename(path),
