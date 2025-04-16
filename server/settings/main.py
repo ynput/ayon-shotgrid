@@ -74,6 +74,12 @@ def get_default_folder_attributes():
             "scope": default_shotgrid_enabled_entities()
         }
 
+        # Project.startDate is usually not editable in Flow
+        if attr_name == "startDate":
+            reduce_scope = default_shotgrid_enabled_entities()
+            reduce_scope.remove("Project")
+            attr_map["scope"] = reduce_scope
+
         if attr_map not in attributes:
             attributes.append(attr_map)
 

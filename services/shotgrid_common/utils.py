@@ -1,4 +1,5 @@
 import os
+import datetime
 import json
 import hashlib
 import logging
@@ -1293,6 +1294,24 @@ def get_sg_custom_attributes_data(
             )
 
         if exists:
+
+            try:
+                value_as_date = datetime.datetime.fromisoformat(str(attrib_value))
+            except ValueError:
+                pass
+
+            # Check date vs isoformat type.
+            # AYON returns its date as isoformat, but FLOW API expects its date
+            # formatted as YYY-MM-DD
+            else:
+                schema_field = sg_session.schema_field_read(
+                    sg_entity_type,
+                    field_name=sg_attrib
+                )
+                data_type = schema_field[sg_attrib]["data_type"]["value"]
+                if data_type == "date":
+                    attrib_value = value_as_date.strftime("%Y-%m-%d")
+
             data_to_update[sg_attrib] = attrib_value
 
     return data_to_update
@@ -1341,6 +1360,32 @@ def update_ay_entity_custom_attributes(
                     " ayon-python-api version."
                 )
         else:
+
+            # Flow API return date as string, need to convert
+            # them back as datetime in order to update AYON.
+            try:
+                value_as_date = datetime.datetime.strptime(
+                    attrib_value,
+                    "%Y-%m-%d",
+                )
+
+            except ValueError:
+                value_as_date = None
+
+            # Input match a date.
+            # Confirm attrib has datetime type
+            else:
+                all_attrib_schemas = ayon_api.get_attributes_schema()
+                attrib_schemas = [
+                    attr for attr in all_attrib_schemas["attributes"]
+                    if attr["name"] == ay_attrib
+                ]
+                if (
+                    attrib_schemas
+                    and attrib_schemas[0]["data"]["type"] == "datetime"
+                ):
+                    attrib_value = value_as_date
+
             ay_entity.attribs.set(ay_attrib, attrib_value)
 
 
@@ -1366,6 +1411,25 @@ def create_new_ayon_entity(
     Returns:
         FolderEntity|TaskEntity: Added task entity.
     """
+
+    # Flow API return date as string, need to convert
+    # them back as datetime in order to set to AYON.
+    all_attrib_schemas = ayon_api.get_attributes_schema()
+    for ay_attrib, attrib_value in sg_ay_dict["attribs"].items():
+        attrib_schemas = [
+            attr for attr in all_attrib_schemas["attributes"]
+            if attr["name"] == ay_attrib
+        ]
+        if (
+            attrib_schemas
+            and attrib_schemas[0]["data"]["type"] == "datetime"
+        ):
+            value_as_date = datetime.datetime.strptime(
+                attrib_value,
+                "%Y-%m-%d",
+            )
+            sg_ay_dict["attribs"][ay_attrib] = value_as_date
+
     if sg_ay_dict["type"].lower() == "task":
         if parent_entity.entity_type == "project":
             log.warning("Cannot create task directly under project")
