@@ -1668,11 +1668,19 @@ def _get_sg_note(sg_note_id, sg_session):
     if sg_note.get("attachments"):
         # download attachments locally
         for attachment in sg_note["attachments"]:
-            with tempfile.NamedTemporaryFile(
-                delete=False,
-                suffix=attachment["name"]
-            ) as tmp_file:
-                attachment["local_path"] = sg_session.download_attachment(attachment, file_path=tmp_file.name)
+            try:
+                with tempfile.NamedTemporaryFile(
+                    delete=False,
+                    suffix=attachment["name"]
+                ) as tmp_file:
+                    attachment["local_path"] = sg_session.download_attachment(attachment, file_path=tmp_file.name)
+            except Exception as error:
+                log.warning(
+                    "Could not download note attachment for %r (attachment: %r): %r.",
+                    sg_note,
+                    attachment,
+                    error
+                )
     return sg_note, sg_note_id
 
 
