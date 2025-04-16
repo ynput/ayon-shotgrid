@@ -1,5 +1,6 @@
 import os
 import json
+import mimetypes
 import hashlib
 import logging
 import collections
@@ -1581,7 +1582,7 @@ def handle_comment(sg_ay_dict, sg_session, entity_hub):
             ay_parent_entity["entity_type"],
             ayon_user_name,
             content,
-            sg_note_id
+            sg_note,
         )
     else:
         ay_activity_id = _update_comment(
@@ -1660,9 +1661,18 @@ def _get_sg_note(sg_note_id, sg_session):
             "sg_ayon_id",
             "user",
             "note_links",
-            "addressings_to"
+            "addressings_to",
+            "attachments"
         ]
     )
+    if sg_note.get("attachments"):
+        # download attachments locally
+        for attachment in sg_note["attachments"]:
+            with tempfile.NamedTemporaryFile(
+                delete=False,
+                suffix=attachment["name"]
+            ) as tmp_file:
+                attachment["local_path"] = sg_session.download_attachment(attachment, file_path=tmp_file.name)
     return sg_note, sg_note_id
 
 
@@ -1763,17 +1773,37 @@ def _add_comment(
     ayon_entity_type,
     ayon_username,
     text,
-    sg_note_id
+    sg_note,
 ):
     con = ayon_api.get_server_api_connection()
     with con.as_username(ayon_username):
+        attachment_ids = []
+        if sg_note.get("attachments"):
+            attachment_paths = [atch["local_path"] for atch in sg_note["attachments"]]
+            for path in attachment_paths:
+                mime_type, _ = mimetypes.guess_type(path)
+                log.info(f"{mime_type = }")
+                headers = {
+                    "Content-Type": mime_type,
+                    "x-file-name": os.path.basename(path),
+                }
+                upload_resp = ayon_api.upload_file(
+                    endpoint=f"projects/{project_name}/files",
+                    filepath=path,
+                    request_type=ayon_api.RequestTypes.post,
+                    headers=headers
+                )
+                attachment_ids.append(upload_resp.json()["id"])
+                os.remove(path) # remove temp file
+
         activity_id = ayon_api.create_activity(
             project_name,
             ayon_entity_id,
             ayon_entity_type,
             "comment",
             body=text,
-            data={"sg_note_id": sg_note_id}
+            data={"sg_note_id": sg_note["id"]},
+            file_ids=attachment_ids,
         )
         log.info(f"Created note {activity_id}")
 
