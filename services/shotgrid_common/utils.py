@@ -1557,8 +1557,6 @@ def handle_comment(sg_ay_dict, sg_session, entity_hub):
         return
 
     ayon_user_name = _get_ayon_user_name(sg_note["user"])
-    if not ayon_user_name:
-        return
 
     ay_parent_entity = _get_sg_note_parent_entity(entity_hub, sg_note, sg_session)
     if not ay_parent_entity:
