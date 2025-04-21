@@ -8,37 +8,86 @@
   </head>
 
   <body>
-    <h1>ShotGrid Sync</h1>
-    <button id="sync-users-button"  class="sync-users-button" onclick="syncUsers();">Sync Users</button>
+    <h1>Flow Sync</h1>
     <p>
-        From this page you can Import projects from ShotGrid or trigger a project Sync!<br>
-        In order for the Synchronization to work, a <b><code>ShotgridProcessor</code> <a target="_parent" href="/services">service</a> must be running</b>, this page will only create <a target="_parent" href="/events"> events (with the topic: "shotgrid.event.project.sync") </a> for the processor to handle.
+        From this page you can check current sync statuses of your projects and trigger project push syncs manually !<br>
+        In order for the synchronization to work, a <b><code>ShotgridProcessor</code> <a target="_parent" href="/services">service</a> must be running</b>. This page only creates <a target="_parent" href="/events"> events </a> for the services to handle.
+        <br/><br/>Please refer to the <a href="https://docs.ayon.dev/docs/addon_flow_admin/">addon documentation</a> for more information.
     </p>
-    <p>To be able to import a project from ShotGrid, there are two minimum requirements on ShotGrid:</p>
-        <ul>
-            <li> The Project name cannot contain spaces. </li>
-            <li> The Project has to have a code, has to be lowercase and cannot start with a number. (You can choose what the field code is in the Addon Settings), </li>
-        </ul>
-    <p>If the above criteria isn't met, the Synchronization button will be greyed out.</p>
-    <p>But first we need to fetch data from ShotGrid, press the button below:</p>
-    <button id="populate-table-button"  class="populate-table-button" onclick="populateTable();">Populate Table</button>
 
+    <div>
+        <span class="sync-action-button">
+            <p>Press this button to fetch data from Flow.</p>
+            <button style="width:140px" id="populate-table-button"  class="populate-table-button" onclick="populateTable();">Populate Table</button>
+        </span>
+        <span></span>
+        <span class="sync-action-button">
+            <p>Press the button below to sync all active users from Flow to AYON.</p>
+            <button style="width:140px" id="sync-users-button"  class="sync-users-button" onclick="syncUsers();">Sync Users</button>
+        </span>
+    </div>
     <p id="call-result"> </p>
 
     <table id="sg-addon-projects-table">
         <thead id="sg-addon-projects-table-header">
             <tr>
-                <th>Name</th>
-                <th>Code</th>
-                <th>In AYON?</th>
-                <th>In ShotGrid?</th>
-                <th>Synchronize</th>
+                <th>Project Name</th>
+                <th>Flow Code</th>
+                <th>Exists in AYON?</th>
+                <th>Exists in Flow?</th>
+                <th>Manual Push Synchronize</th>
+                <th>Auto-Synchronize</th>
             </tr>
         </thead>
         <tbody class="sg-addon-projects-table-body" id="sg-addon-projects-table-body">
         </tbody>
     </table>
+    
+    <dir id="sync-helpers">
+        <span class="help">
+        <hr/>
+        <h3>Automated Synchronization</h3>
+        <p>
+            <ul>
+                <li>To automatically sync from Flow to AYON, ensure that the <code>Ayon Auto Sync</code>field is enabled in the Flow project.</li>
+                <li>To automatically sync from AYON to Flow, ensure that the <code>shotgrid push</code> attribute is enabled in the AYON project anatomy.</li>
+            </ul>        
+        </p>
+        <hr/>
+        </span>
+        <span class="help">
+        <h3>Flow ► AYON - Manual Push Sync</h3>
+        <p>
+            <ul>
+                <li>This operation will replicate all of the entity hierarchy found in Flow project under the relevant AYON project.</li>
+                <li>If the destination AYON project does not exist, it will be created.</li>
+                <li>This will also creates in the relevant project anatomy in AYON.</li>            
+                <li>Only some folders exists in the AYON project but not in Flow, those will not be deleted. </li>
+                <li>This operation will NOT sync Flow notes as those are handled by the autosync feature.</li>
+            </ul>
+        </p>
+        <p>Before attempting to sync a Flow project in AYON, please ensure that:
+            <ul>
+                <li> your Flow project name does not contain spaces. </li>
+                <li> your Flow project contains a code which is lowercase and does start with a number.<br/>(Choose which project field to use as code from the <code>ayon+settings://shotgrid/shotgrid_project_code_field</code> studio settings). </li>
+            </ul>
+        Any fail in the above criteria will keep the Synchronization button greyed out.
+        </p>
+        <hr/>
+        </span>
 
+        <span class="help">
+        <h3>AYON ► Flow - Manual Push Sync</h3>
+        <p>
+            <ul>
+                <li>This operation will report all of the folder hierarchy found in AYON project under the relevant Flow project.</li>
+                <li>If the destination Flow project does not exist, it will be created.</li>
+                <li>If entities already exist in the Flow project but not in AYON, those will not be removed.</li>
+                <li>This operation will NOT sync AYON comments as those are handled by the autosync feature.</li>
+            </ul>        
+        </p>
+        </span>
+    </div>
     <script type="text/javascript" src="shotgrid-addon.js"></script>
   </body>
 </html>

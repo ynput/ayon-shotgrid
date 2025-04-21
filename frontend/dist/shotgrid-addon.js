@@ -50,6 +50,7 @@ const populateTable = async () => {
       if (sg_project.name == project.ayonId) {
           already_exists = true
           project.shotgridId = sg_project.shotgridId
+          project.sg_ayon_auto_sync = sg_project.sg_ayon_auto_sync
       }
     })
     if (!already_exists) {
@@ -67,6 +68,13 @@ const populateTable = async () => {
   ProjectsTableBody.appendChild(ProjectsTableHeader);
 
   allProjects.forEach((project) => {
+
+    // undefined == project does not exist in AYON
+    // false == project inactive in AYON
+    // true == project active in AYON
+    if (project.active == false) { 
+      return ; 
+    }
     var tableRow = document.createElement('tr')
 
     var nameCell = document.createElement('td')
@@ -88,7 +96,7 @@ const populateTable = async () => {
     var syncCell = document.createElement('td')
 
     var sgSyncButton = document.createElement('button')
-    sgSyncButton.innerText = `Shotgrid -> AYON`
+    sgSyncButton.innerText = `Flow ► AYON`
     sgSyncButton.disabled = true;
 
     if (project.shotgridId && project.code) {
@@ -106,7 +114,7 @@ const populateTable = async () => {
     syncCell.appendChild(sgSyncButton)
 
     var ayonSyncButton = document.createElement('button')
-    ayonSyncButton.innerText = `AYON -> Shotgrid`
+    ayonSyncButton.innerText = `AYON ► Flow`
     ayonSyncButton.disabled = project.ayonId ? false : true;
     ayonSyncButton.setAttribute("data-ayon-name", project.name);
     ayonSyncButton.setAttribute("data-ayon-code", project.code);
@@ -116,6 +124,26 @@ const populateTable = async () => {
     syncCell.appendChild(ayonSyncButton)
 
     tableRow.appendChild(syncCell)
+
+    var autoSyncCell = document.createElement('td')
+    autoSyncCell.innerText = ""
+    if (ayonCell.innerText == "Yes" && sgCell.innerText == "Yes")
+    {
+        if (project.shotgridPush && project.sg_ayon_auto_sync) {
+          autoSyncCell.innerText = "Syncing both ways AYON <-> Flow";
+        }
+        else{
+          if (project.shotgridPush) {
+            autoSyncCell.innerText = "Syncing only from AYON to Flow";
+          }
+          else {
+            if (project.sg_ayon_auto_sync) {
+              autoSyncCell.innerText = "Syncing only from Flow to AYON";
+            }
+          }
+        }
+    }
+    tableRow.appendChild(autoSyncCell)
 
     ProjectsTableBody.appendChild(tableRow)
   });
@@ -332,6 +360,7 @@ const getShotgridProjects = async () => {
       "code": project.attributes[`${addonSettings.shotgrid_project_code_field}`],
       "shotgridId": project.id,
       "ayonId": project.attributes.sg_ayon_id,
+      "sg_ayon_auto_sync": project.attributes.sg_ayon_auto_sync,
     })
     });
   }
@@ -352,6 +381,7 @@ const getAyonProjects = async () => {
               node {
                 attrib {
                   shotgridId
+                  shotgridPush
                 }
                 active
                 code
@@ -372,7 +402,9 @@ const getAyonProjects = async () => {
         "name": project.node.name,
         "code": project.node.code,
         "shotgridId": project.node.attrib.shotgridId,
+        "shotgridPush": project.node.attrib.shotgridPush,
         "ayonId": project.node.name,
+        "active": project.node.active,
       })
     })
   }

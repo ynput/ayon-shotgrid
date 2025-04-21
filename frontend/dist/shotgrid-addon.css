@@ -36,11 +36,11 @@ thead {
 }
 
 thead th:nth-child(1) {
-  width: 25%;
+  width: 20%;
 }
 
 thead th:nth-child(2) {
-  width: 25%;
+  width: 15%;
 }
 
 thead th:nth-child(3) {
@@ -52,7 +52,11 @@ thead th:nth-child(4) {
 }
 
 thead th:nth-child(5) {
-  width: 30%;
+  width: 20%;
+}
+
+thead th:nth-child(6) {
+  width: 25%;
 }
 
 tbody td {
@@ -71,4 +75,36 @@ table tr:not(:first-child):nth-child(odd) {
 
 table tr:nth-child(even) {
   background-color: #2c313a;
+}
+
+.sync-action-button {
+    height: 100px;
+    width: 33%;
+    border: 1px solid darkgrey;
+    display: inline-table;
+    border-style: dashed;
+    border-radius: 10px;
+    text-align: center;
+    padding: 0 15px;
+    background-color: rgba(255, 255, 255, 0.05);
+    margin: auto 6%;
+}
+
+#sync-helpers {
+    left: 0;
+    right: 0;
+    width: 95%;
+    padding: 2.5%;
+}
+
+.help h3 {
+  color: lightblue;
+}
+
+.help hr {
+  opacity: 20%;
+}
+
+.help {
+  opacity: 90%;
 }
