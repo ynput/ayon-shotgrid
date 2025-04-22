@@ -20,7 +20,8 @@ from utils import (
     get_sg_entity_as_ay_dict,
     get_sg_custom_attributes_data,
     create_new_sg_entity,
-    upload_ay_reviewable_to_sg
+    upload_ay_reviewable_to_sg,
+    get_sg_statuses,
 )
 
 from utils import get_logger
@@ -192,10 +193,21 @@ def match_ayon_hierarchy_in_shotgrid(
                     )
                     ay_project_sync_status = "Failed"
 
-            # Update SG entity custom attributes with AYON data
+            attrib_values = {}
+            ay_statuses = {
+                status.name: status.short_name
+                for status in  entity_hub.project_entity.statuses
+            }
+            sg_statuses = get_sg_statuses(sg_session, sg_entity_type)
+            short_name = ay_statuses.get(ay_entity.status)
+            if short_name in sg_statuses:
+                attrib_values["status"] = short_name
+
+            attrib_values.update(ay_entity.attribs.to_dict())
+
             data_to_update = get_sg_custom_attributes_data(
                 sg_session,
-                ay_entity.attribs.to_dict(),
+                attrib_values,
                 sg_entity_type,
                 custom_attribs_map
             )
