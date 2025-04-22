@@ -1585,11 +1585,12 @@ def handle_comment(sg_ay_dict, sg_session, entity_hub):
         )
     else:
         ay_activity_id = _update_comment(
+            sg_session,
             project_name,
             ay_parent_entity,
             ay_parent_entity["entity_type"],
             ayon_comment,
-            content,
+            sg_note,
         )
     #updates SG with AYON comment id
     sg_session.update(
@@ -1602,11 +1603,12 @@ def handle_comment(sg_ay_dict, sg_session, entity_hub):
 
 
 def _update_comment(
+    sg_session,
     project_name,
     ay_parent_entity,
     ay_parent_entity_type,
     ayon_comment,
-    content
+    sg_note
 ):
     ay_activity_id = ayon_comment["activityId"]
     prev_content = ayon_comment["body"]
@@ -1623,12 +1625,9 @@ def _update_comment(
         try:
             new_origin["name"] = ay_parent_entity["name"]  # Version defines no name
             new_origin["subtype"] = ay_parent_entity["folder_type"]  # Version defines no folder type
-
         except KeyError:
             pass
-
-    if (content != prev_content or new_origin):
-
+    if (sg_note["content"] != prev_content or new_origin):
         if new_origin:
             # TODO this statement seem to have no effect.
             # It seems that re-parenting a comment has not to be implemented in API
@@ -1640,12 +1639,36 @@ def _update_comment(
             )
             # ayon_comment["activityData"]["origin"] = new_origin
 
-        ayon_api.update_activity(
-            project_name,
-            ay_activity_id,
-            body=content,
-            data=ayon_comment["activityData"]
-        )
+    # check for new or modified attachments#
+    file_ids = []
+    if sg_note.get("attachments"):
+        sg_atchmts = sg_note["attachments"].copy()
+        ay_atchmts = ayon_comment["activityData"].get("files", []).copy()
+        sg_atchmt_names = [atchmt["name"] for atchmt in sg_atchmts]
+
+        for ay_atchmt in ay_atchmts:
+            ay_atchmt_name = ay_atchmt["filename"]
+            if ay_atchmt_name in sg_atchmt_names:
+                file_ids.append(ay_atchmt["id"])
+                del sg_atchmts[sg_atchmt_names.index(ay_atchmt_name)]
+            else: # delete ayon attachment? or should i just keep it on the ayon server?
+                # ayon_api.delete_file( # that's not available :`(
+                #     endpoint=f"projects/{project_name}/files/{ay_atchmt['id']}"
+                # )
+                pass
+
+        for sg_atchmt in sg_atchmts:
+            # we can assume only new attachments here bc we popped the already existing ones
+            if atch_id := _handle_attachment(sg_session, sg_atchmt, project_name):
+                file_ids.append(atch_id)
+
+    ayon_api.update_activity(   #! gotta check if this causes notes to be updated everytime
+        project_name,
+        ay_activity_id,
+        body=sg_note["content"],
+        data=ayon_comment["activityData"],
+        file_ids=file_ids,
+    )
     return ay_activity_id
 
 
