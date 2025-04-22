@@ -1575,6 +1575,7 @@ def handle_comment(sg_ay_dict, sg_session, entity_hub):
 
     if not ayon_comment:
         ay_activity_id = _add_comment(
+            sg_session,
             project_name,
             ay_parent_entity["id"],
             ay_parent_entity["entity_type"],
@@ -1663,22 +1664,6 @@ def _get_sg_note(sg_note_id, sg_session):
             "attachments"
         ]
     )
-    if sg_note.get("attachments"):
-        # download attachments locally
-        for attachment in sg_note["attachments"]:
-            try:
-                with tempfile.NamedTemporaryFile(
-                    delete=False,
-                    suffix=attachment["name"]
-                ) as tmp_file:
-                    attachment["local_path"] = sg_session.download_attachment(attachment, file_path=tmp_file.name)
-            except Exception as error:
-                log.warning(
-                    "Could not download note attachment for %r (attachment: %r): %r.",
-                    sg_note,
-                    attachment,
-                    error
-                )
     return sg_note, sg_note_id
 
 
@@ -1773,7 +1758,39 @@ def _get_content_with_notifications(sg_note):
     return content
 
 
+def _handle_attachment(sg_session, attachment, project_name):
+    # download SG attachment local temprarily
+    tmp_dir = tempfile.mkdtemp() # these will stay but nevermind
+    tmp_file = os.path.join(tmp_dir, attachment["name"])
+    local_path = sg_session.download_attachment(
+        attachment, file_path=tmp_file
+    )
+    if not local_path or not os.path.exists(local_path):
+        log.debug(f"Failed to download SG attachment: {attachment}")
+        return
+    mime_type, _ = mimetypes.guess_type(local_path)
+
+    # upload to AYON
+    headers = {
+        "Content-Type": mime_type,
+        "x-file-name": os.path.basename(local_path),
+    }
+    resp = ayon_api.upload_file(
+        endpoint=f"projects/{project_name}/files",
+        filepath=local_path,
+        request_type=ayon_api.RequestTypes.post,
+        headers=headers
+    )
+    if resp.status_code != 201:
+        log.warning(f"Failed to upload attachment: {resp.content}")
+        log.warning(f"{resp.text}")
+        return
+    os.remove(local_path) # remove temp file
+    return resp.json()["id"]
+
+
 def _add_comment(
+    sg_session,
     project_name,
     ayon_entity_id,
     ayon_entity_type,
@@ -1784,26 +1801,10 @@ def _add_comment(
     con = ayon_api.get_server_api_connection()
     with con.as_username(ayon_username):
         attachment_ids = []
-        if sg_note.get("attachments"):
-            for atch in sg_note["attachments"]:
-                path = atch.get("local_path")
-                if not path or not os.path.exists(path):
-                    log.debug(f"Ignore invalid attachment path: {path}")
-                    continue
-
-                mime_type, _ = mimetypes.guess_type(path)
-                headers = {
-                    "Content-Type": mime_type,
-                    "x-file-name": os.path.basename(path),
-                }
-                upload_resp = ayon_api.upload_file(
-                    endpoint=f"projects/{project_name}/files",
-                    filepath=path,
-                    request_type=ayon_api.RequestTypes.post,
-                    headers=headers
-                )
-                attachment_ids.append(upload_resp.json()["id"])
-                os.remove(path) # remove temp file
+        if sg_note_atchmts := sg_note.get("attachments"):
+            for atch in sg_note_atchmts:
+                if atch_id := _handle_attachment(sg_session, atch, project_name):
+                    attachment_ids.append(atch_id)
 
         activity_id = ayon_api.create_activity(
             project_name,
