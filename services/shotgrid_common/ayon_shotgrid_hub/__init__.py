@@ -519,6 +519,7 @@ class AyonShotgridHub:
                 for sg_atchmt in sg_note["attachments"]:
                     if sg_atchmt["name"] not in activity_atchmt_names:
                         self._sg.delete("Attachment", sg_atchmt["id"])
+                        self.log.info(f"Deleted attachment {sg_atchmt['name']} from SG.")
 
                 if sg_note["content"] != activity["body"]:
                     sg_update_data["content"] = activity["body"]
@@ -645,6 +646,7 @@ class AyonShotgridHub:
                 filepath=tmp_file,
             )
             self._sg.upload("Note", note_id, tmp_file)
+            self.log.info(f"Uploaded AYON attachment {atchmt['filename']} to SG.")
             os.remove(tmp_file)
 
 
