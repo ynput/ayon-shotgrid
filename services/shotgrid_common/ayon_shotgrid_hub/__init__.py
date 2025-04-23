@@ -2,8 +2,10 @@
 that provided a valid Project name and code, will perform all the necessary
 checks and provide methods to keep an AYON and Shotgrid project in sync.
 """
+import os
 import collections
 import re
+import tempfile
 
 from constants import (
     AYON_SHOTGRID_ENTITY_TYPE_MAP,
@@ -485,9 +487,10 @@ class AyonShotgridHub:
                 sg_note = self._sg.find_one(
                     "Note",
                     [["id", "is", int(orig_sg_id)]],
-                    ["id", "content", "sg_ayon_id"]
+                    ["id", "content", "sg_ayon_id", "attachments"]
                 )
 
+            activity_attachments = activity_data.get("files", [])
             if sg_note is None:
                 entity_id = activity["entityId"]
                 entity_dict = entity_dicts_by_id.get(entity_id)
@@ -512,6 +515,11 @@ class AyonShotgridHub:
                 )
             else:
                 sg_update_data = {}
+                activity_atchmt_names = [atchmt["filename"] for atchmt in activity_attachments]
+                for sg_atchmt in sg_note["attachments"]:
+                    if sg_atchmt["name"] not in activity_atchmt_names:
+                        self._sg.delete("Attachment", sg_atchmt["id"])
+
                 if sg_note["content"] != activity["body"]:
                     sg_update_data["content"] = activity["body"]
 
@@ -627,6 +635,18 @@ class AyonShotgridHub:
             activity["activityId"],
             data=activity_data,
         )
+
+        # download attachments temporarily to upload to SG
+        tmp_dir = tempfile.mkdtemp()
+        for atchmt in activity_data["files"]:
+            tmp_file = os.path.join(tmp_dir, atchmt["filename"])
+            ayon_api.download_file(
+                endpoint=f"projects/{project_name}/files/{atchmt['id']}",
+                filepath=tmp_file,
+            )
+            self._sg.upload("Note", note_id, tmp_file)
+            os.remove(tmp_file)
+
 
     def _get_addressings_to(self, content, sg_user_id_by_user_name):
         """ Extract and generate the list of ShotGrid (SG) `addressings_to`
