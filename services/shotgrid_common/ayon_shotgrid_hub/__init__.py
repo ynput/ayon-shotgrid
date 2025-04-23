@@ -640,11 +640,13 @@ class AyonShotgridHub:
         # download attachments temporarily to upload to SG
         tmp_dir = tempfile.mkdtemp()
         for atchmt in activity_data["files"]:
+            self.log.debug(f"{atchmt = }")
             tmp_file = os.path.join(tmp_dir, atchmt["filename"])
             ayon_api.download_file(
                 endpoint=f"projects/{project_name}/files/{atchmt['id']}",
                 filepath=tmp_file,
             )
+            self.log.debug(f"Downloaded AYON attachment {atchmt['filename']} to {tmp_file}.")
             self._sg.upload("Note", note_id, tmp_file)
             self.log.info(f"Uploaded AYON attachment {atchmt['filename']} to SG.")
             os.remove(tmp_file)
