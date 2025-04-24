@@ -518,10 +518,11 @@ class AyonShotgridHub:
                 activity_atchmt_names = []
                 for atchmt in activity_attachments:
                     filename = atchmt["filename"]
+                    # handles filenames containing slashes which is happening when using the powerpack annotations in AYON
                     if "/" in filename:
                         filename = filename.split("/")[-1]
                     activity_atchmt_names.append(filename)
-                # activity_atchmt_names = [atchmt["filename"] for atchmt in activity_attachments]
+
                 for sg_atchmt in sg_note["attachments"]:
                     if sg_atchmt["name"] not in activity_atchmt_names:
                         self._sg.delete("Attachment", sg_atchmt["id"])
