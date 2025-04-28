@@ -404,7 +404,10 @@ def create_sg_entities_in_ay(
     project_entity.folder_types = new_folder_types
 
     # Add ShotGrid Statuses to AYON Project Entity
-    ay_statuses = {s.short_name.lower(): s.name.lower() for s in list(project_entity.statuses)}
+    ay_statuses = {
+        status.short_name.lower(): status.name.lower()
+        for status in list(project_entity.statuses)
+    }
     ay_status_codes = list(ay_statuses.keys())
     ay_status_names = list(ay_statuses.values())
     for sg_entity_type in sg_enabled_entities:

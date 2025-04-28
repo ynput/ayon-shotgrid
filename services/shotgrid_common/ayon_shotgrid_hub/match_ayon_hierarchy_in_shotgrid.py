@@ -97,6 +97,12 @@ def match_ayon_hierarchy_in_shotgrid(
 
     ay_project_sync_status = "Synced"
     processed_ids = set()
+
+    ay_statuses = {
+        status.name: status.short_name
+        for status in  entity_hub.project_entity.statuses
+    }
+
     while ay_entity_deck:
         (sg_ay_parent_entity, ay_entity) = ay_entity_deck.popleft()
         log.debug(f"Processing entity: '{ay_entity}'")
@@ -194,10 +200,6 @@ def match_ayon_hierarchy_in_shotgrid(
                     ay_project_sync_status = "Failed"
 
             attrib_values = {}
-            ay_statuses = {
-                status.name: status.short_name
-                for status in  entity_hub.project_entity.statuses
-            }
             sg_statuses = get_sg_statuses(sg_session, sg_entity_type)
             short_name = ay_statuses.get(ay_entity.status)
             if short_name in sg_statuses:
