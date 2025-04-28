@@ -153,21 +153,41 @@ const populateTable = async () => {
 const syncUsers = async () => {
   /* Get all the Users from AYON and Shotgrid, then populate the table with their info
   and a button to Synchronize if they pass the requirements */
-  ayonUsers = await getAyonUsers();
   sgUsers = await getShotgridUsers();
 
-  sgUsers.forEach((sg_user) => {
-    let already_exists = false
-    ayonUsers.forEach((user) => {
-      if (sg_user.login == user.name) {
-          already_exists = true
-      }
-    })
-    if (!already_exists) {
+  let new_users = []
+
+  for (const sg_user of sgUsers) {
+    const ayonUser = await getAyonUserFromShotgridId(sg_user.id)
+    if (typeof ayonUser === "string" && ayonUser.trim() !== "") {
+      console.log("sg_user already exists.")
+    }
+    else {
+      new_users.push(sg_user.name)
       createNewUserInAyon(
         sg_user.id ,sg_user.login, sg_user.email, sg_user.name)
     }
-  })
+  }
+
+  call_result_paragraph = document.getElementById("call-result");
+  if (new_users.length !== 0) {
+    call_result_paragraph.innerHTML = `Added new users: ` + new_users.join(" ")
+  }
+  else{
+    call_result_paragraph.innerHTML = `All users are already synced.`
+  }
+}
+
+
+const getAyonUserFromShotgridId = async (sg_user_id) => {
+  /* Query the AYON user matching provided Shotgrid Id. */
+  ayon_user = await axios({
+    url: `/api/addons/${addonName}/${addonVersion}/get_ayon_name_by_sg_id/${sg_user_id}`,
+    headers: {"Authorization": `Bearer ${accessToken}`},
+    method: 'get',
+  }).then((result) => result.data);
+
+  return ayon_user
 }
 
 
