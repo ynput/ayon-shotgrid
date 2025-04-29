@@ -153,9 +153,9 @@ class AyonShotgridHub:
             raise ValueError(f"Invalid Project Name: {project_name}")
 
         self._project_name = project_name
-        self._ay_project = EntityHub(project_name)
 
         try:
+            self._ay_project = EntityHub(project_name)
             self._ay_project.project_entity
         except Exception:
             self.log.warning(f"Project {project_name} does not exist in AYON.")

@@ -11,6 +11,26 @@ from ayon_shotgrid_hub import AyonShotgridHub
 import constants
 
 
+class MockEntityHub(EntityHub):
+
+    def __init__(self, project_name, connection=None):
+        self._connection = connection
+        self._project_name = project_name
+
+    def get_attributes_for_type(self, entity_type: "EntityType"):
+        return {
+            constants.SHOTGRID_ID_ATTRIB: str,
+            constants.SHOTGRID_TYPE_ATTRIB: str
+        }
+
+    def commit_changes(self):
+        return
+
+
+class MockFolderEntity(FolderEntity):
+    pass
+
+
 class TestBaseShotgrid(unittest.TestCase):
     """ Test shotgrid helper.
     """
@@ -41,10 +61,9 @@ class TestBaseShotgrid(unittest.TestCase):
             ),
         )
 
-        self.entity_hub = EntityHub("test_project")
-        self.entity_hub.commit_changes = mock.Mock(return_value=None)  # do nothing
+        self.entity_hub = MockEntityHub("test_project")
 
-        self.project_entity = FolderEntity(
+        self.project_entity = MockFolderEntity(
             "test_project",
             "Project",
             parent_id=None,  # no parent
@@ -56,3 +75,4 @@ class TestBaseShotgrid(unittest.TestCase):
         )
 
         self.hub._ay_project = self.entity_hub
+
