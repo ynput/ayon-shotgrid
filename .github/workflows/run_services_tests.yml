@@ -27,4 +27,4 @@ jobs:
 
       - name: Run Pytest with coverage
         run: |
-          pytest ./service_tools/tests
+          pytest ./services/tests
