@@ -17,9 +17,8 @@ from constants import (
 from utils import (
     create_new_ayon_entity,
     get_sg_entities,
-    get_asset_category,
-    get_sequence_category,
-    get_shot_category,
+    get_sg_entity_parent_field,
+    get_reparenting_from_settings,
     update_ay_entity_custom_attributes, handle_comment,
 )
 
@@ -93,6 +92,14 @@ def match_shotgrid_hierarchy_in_ayon(
             handle_comment(sg_ay_dict, sg_session, entity_hub)
             continue
 
+        shotgrid_type = sg_ay_dict["attribs"].get(SHOTGRID_TYPE_ATTRIB)
+        if shotgrid_type == "Version":
+            log.info(
+                "Version creation/update not implemented because "
+                "product name and integer version doesn't exist in SG"
+            )
+            continue
+
         ay_entity = None
         sg_entity_sync_status = "Synced"
 
@@ -104,33 +111,29 @@ def match_shotgrid_hierarchy_in_ayon(
         # If we haven't found the ay_entity by its id, check by its name
         # to avoid creating duplicates and erroring out
         if ay_entity is None:
-            shotgrid_type = sg_ay_dict["attribs"].get(SHOTGRID_TYPE_ATTRIB)
-            if shotgrid_type == "AssetCategory":
-                ay_parent_entity = get_asset_category(
+
+            sg_parent_field = get_sg_entity_parent_field(
+                sg_session,
+                sg_project,
+                shotgrid_type,
+                sg_enabled_entities,
+            )
+            asset_category_parent = sg_parent_field == "sg_asset_type"
+
+            if (
+                shotgrid_type == "Asset"
+                and asset_category_parent
+            ):
+                # Parenting to AssetCategory is enabled.
+                # reparenting under already set parent (asset category folder).
+                log.debug("Reparenting %r under %r.", sg_ay_dict, ay_parent_entity)
+
+            elif shotgrid_type in ("Sequence", "Episode", "Shot", "AssetCategory", "Asset"):
+                ay_parent_entity = get_reparenting_from_settings(
                     entity_hub,
                     sg_ay_dict,
                     addon_settings
-                )
-                # If the entity has children, add it to the deck
-                for sg_child_id in sg_ay_dicts_parents.get(sg_entity_id, []):
-                    sg_ay_dicts_deck.append((ay_parent_entity, sg_child_id))
-
-                # AssetCategory is not "real" entity to create or update ids
-                continue
-
-            elif shotgrid_type == "Sequence":
-                ay_parent_entity = get_sequence_category(
-                    entity_hub,
-                    sg_ay_dict,
-                    addon_settings
-                )
-
-            elif shotgrid_type == "Shot":
-                ay_parent_entity = get_shot_category(
-                    entity_hub,
-                    sg_ay_dict,
-                    addon_settings
-                )
+                ) or ay_parent_entity
 
             name = slugify_string(sg_ay_dict["name"])
             for child in ay_parent_entity.children:

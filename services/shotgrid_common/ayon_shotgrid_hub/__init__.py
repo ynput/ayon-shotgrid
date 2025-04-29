@@ -26,21 +26,22 @@ from .update_from_shotgrid import (
 from .update_from_ayon import (
     create_sg_entity_from_ayon_event,
     update_sg_entity_from_ayon_event,
-    remove_sg_entity_from_ayon_event
+    remove_sg_entity_from_ayon_event,
 )
 
 from utils import (
     create_ay_fields_in_sg_project,
     create_ay_fields_in_sg_entities,
     create_sg_entities_in_ay,
-    get_sg_project_enabled_entities,
     get_sg_project_by_name,
     get_sg_user_id,
+    upload_ay_reviewable_to_sg
 )
 
 import ayon_api
 from ayon_api.entity_hub import EntityHub
 
+import validate
 from utils import get_logger
 
 
@@ -85,7 +86,11 @@ class AyonShotgridHub:
         custom_attribs_types=None,
         sg_enabled_entities=None,
     ):
-        self.settings = ayon_api.get_service_addon_settings(project_name)
+        try:
+            self.settings = ayon_api.get_service_addon_settings(project_name)
+        except ayon_api.exceptions.HTTPRequestError:
+            self.log.warning(f"Project {project_name} does not exist in AYON.")
+            self.settings = ayon_api.get_service_addon_settings()
 
         self._sg = sg_connection
 
@@ -229,35 +234,15 @@ class AyonShotgridHub:
 
         match source:
             case "ayon":
-                disabled_entities = []
-                ay_entities = [
-                    folder["name"]
-                    for folder in self._ay_project.project_entity.folder_types
-                    if folder["name"] in self.sg_enabled_entities
-                ]
 
-                sg_entities = [
-                    entity_name
-                    for entity_name, _ in get_sg_project_enabled_entities(
-                        self._sg,
-                        self._sg_project,
-                        self.sg_enabled_entities
-                    )
-                ]
-
-                disabled_entities = [
-                    ay_entity
-                    for ay_entity in ay_entities
-                    if ay_entity not in sg_entities
-                ]
-
-                if disabled_entities:
-                    raise ValueError(
-                        f"Unable to sync project {self.project_name} "
-                        f"<{self.project_code}> from AYON to Shotgrid, you need "
-                        "to enable the following entities in the Shotgrid Project "
-                        f"> Project Actions > Tracking Settings: {disabled_entities}"
-                    )
+                error = validate.check_project_disabled_entities(
+                    self._ay_project,
+                    self._sg_project,
+                    self.sg_enabled_entities,
+                    self._sg,
+                )
+                if error:
+                    raise ValueError(error)
 
                 match_ayon_hierarchy_in_shotgrid(
                     self._ay_project,
@@ -352,6 +337,12 @@ class AyonShotgridHub:
                     f"| {sg_event_meta['entity_type']} "
                     f"| {sg_event_meta['entity_id']}"
                 )
+                if sg_event_meta["entity_type"] == "Version":
+                    attr_name = sg_event_meta["attribute_name"]
+                    self.log.info(
+                        f"Skipping attribute change '{attr_name}' for Version"
+                    )
+                    return
                 update_ayon_entity_from_sg_event(
                     sg_event_meta,
                     self._sg_project,
@@ -401,14 +392,20 @@ class AyonShotgridHub:
             return
 
         match ayon_event["topic"]:
-            case "entity.task.created" | "entity.folder.created":
+            case (
+                "entity.task.created" |
+                "entity.folder.created" |
+                "entity.version.created"
+            ):
                 create_sg_entity_from_ayon_event(
                     ayon_event,
                     self._sg,
                     self._ay_project,
                     self._sg_project,
                     self.sg_enabled_entities,
+                    self.sg_project_code_field,
                     self.custom_attribs_map,
+                    self.settings
                 )
 
             case "entity.task.deleted" | "entity.folder.deleted":
@@ -423,6 +420,7 @@ class AyonShotgridHub:
                     self._sg,
                     self._ay_project,
                     self.custom_attribs_map,
+                    self.settings
                 )
             case "entity.task.attrib_changed" | "entity.folder.attrib_changed":
                 attrib_key = next(iter(ayon_event["payload"]["newValue"]))
@@ -437,6 +435,7 @@ class AyonShotgridHub:
                     self._sg,
                     self._ay_project,
                     self.custom_attribs_map,
+                    self.settings,
                 )
             case (
                 "entity.task.status_changed"
@@ -452,6 +451,14 @@ class AyonShotgridHub:
                     self._sg,
                     self._ay_project,
                     self.custom_attribs_map,
+                    self.settings,
+                )
+            case ("reviewable.created"):
+                ay_version_id = ayon_event["summary"]["versionId"]
+                upload_ay_reviewable_to_sg(
+                    self._sg,
+                    self._ay_project,  # EntityHub
+                    ay_version_id
                 )
             case _:
                 raise ValueError(
@@ -491,18 +498,18 @@ class AyonShotgridHub:
                     sg_user_id_by_user_name, ayon_username)
 
                 if sg_user_id < 0:
-                    self.log.warning(
-                        f"Author {ayon_username} is not "
-                        "synchronized to SG, skipping comment"
+                    self.log.debug(
+                        f"Author {ayon_username} is not synchronized "
+                        "to SG, comment will be left unassigned."
                     )
-                    continue
+                    sg_user_id = None
 
                 self._create_sg_note(
                     self.project_name,
                     entity_dict,
                     activity,
-                    sg_user_id,
-                    sg_user_id_by_user_name
+                    sg_user_id_by_user_name,
+                    author_sg_id=sg_user_id,
                 )
             else:
                 sg_update_data = {}
@@ -569,8 +576,8 @@ class AyonShotgridHub:
         project_name,
         entity_dict,
         activity,
-        author_sg_id,
-        sg_user_id_by_user_name
+        sg_user_id_by_user_name,
+        author_sg_id=None,
     ):
         """Create a new note in ShotGrid (SG) and update the activity data.
 
@@ -584,9 +591,9 @@ class AyonShotgridHub:
                 entity (folder, task, version) to which the note is linked.
             activity (dict): Activity data containing details about the comment,
                 including the author, content, and activity ID.
-            author_sg_id (int): The SG user ID of the author of the comment.
             sg_user_id_by_user_name (dict): A mapping of AYON usernames to
                 their corresponding SG user IDs.
+            author_sg_id (int): (Optional) The SG user ID of the author of the comment.
         """
         if not self._sg_project:
             self.log.warning(
@@ -603,9 +610,11 @@ class AyonShotgridHub:
             "note_links": note_links,
             "subject": content[:50],
             "content": content,
-            "user": {"type": "HumanUser", "id": author_sg_id},
             "addressings_to": addressings_to
         }
+
+        if author_sg_id:
+            data["user"] = {"type": "HumanUser", "id": author_sg_id}
 
         # Create the note
         result = self._sg.create("Note", data)

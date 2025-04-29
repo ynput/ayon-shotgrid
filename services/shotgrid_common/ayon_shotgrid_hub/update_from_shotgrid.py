@@ -27,15 +27,16 @@ import collections
 
 import shotgun_api3
 import ayon_api
+
+from ayon_api import slugify_string
+
 from typing import Dict, List, Optional, Any
 
 from utils import (
     create_new_ayon_entity,
-    get_asset_category,
-    get_shot_category,
-    get_sequence_category,
     get_sg_entity_as_ay_dict,
     get_sg_entity_parent_field,
+    get_reparenting_from_settings,
     update_ay_entity_custom_attributes,
     handle_comment,
 )
@@ -91,8 +92,6 @@ def create_ay_entity_from_sg_event(
 
     extra_fields = [sg_parent_field]
 
-    if sg_event["entity_type"] == "Shot":
-        sg_parent_field = "sg_sequence"
 
     sg_ay_dict = get_sg_entity_as_ay_dict(
         sg_session,
@@ -103,6 +102,12 @@ def create_ay_entity_from_sg_event(
         custom_attribs_map=custom_attribs_map,
         extra_fields=extra_fields,
     )
+
+    if sg_ay_dict["type"].lower() == "comment":
+        # SG note as AYON comment creation is
+        # handled by update_ayon_entity_from_sg_event
+        return
+
     log.debug(f"ShotGrid Entity as AYON dict: {sg_ay_dict}")
     if not sg_ay_dict:
         log.warning(
@@ -146,31 +151,27 @@ def create_ay_entity_from_sg_event(
             ay_parent_entity = ayon_entity_hub.project_entity
 
         if not ay_parent_entity:
-            sg_ay_parent_dict = get_sg_entity_as_ay_dict(
+            if sg_ay_dict["data"][sg_parent_field]["type"] == "Asset":
+                extra_field = "sg_asset_type"
+
+            else:
+                extra_field = get_sg_entity_parent_field(
+                    sg_session,
+                    sg_project,
+                    sg_ay_dict["data"][sg_parent_field]["type"],
+                    sg_enabled_entities,
+                )
+
+            sg_ay_dict = get_sg_entity_as_ay_dict(
                 sg_session,
                 sg_ay_dict["data"][sg_parent_field]["type"],
                 sg_ay_dict["data"][sg_parent_field]["id"],
                 project_code_field,
                 default_task_type,
+                custom_attribs_map=custom_attribs_map,
+                extra_fields=[extra_field],
             )
-
-            if sg_ay_parent_dict["attribs"].get("shotgridType") == "Asset":
-                # re query to get proper parent assetType value
-                # we cannot add 'sg_asset_type' to extra_fields directly as
-                # task might be under shot/sequence
-                extra_fields.append("sg_asset_type")
-
-                sg_ay_parent_dict = get_sg_entity_as_ay_dict(
-                    sg_session,
-                    sg_ay_dict["data"][sg_parent_field]["type"],
-                    sg_ay_dict["data"][sg_parent_field]["id"],
-                    project_code_field,
-                    default_task_type,
-                    custom_attribs_map=custom_attribs_map,
-                    extra_fields=extra_fields,
-                )
-                sg_parent_field = "sg_asset_type"
-            sg_ay_dict = sg_ay_parent_dict
+            sg_parent_field = extra_field
 
     while items_to_create:
         sg_ay_dict = items_to_create.pop()
@@ -229,41 +230,58 @@ def _get_ayon_parent_entity(
     """
     default_task_type = addon_settings[
         "compatibility_settings"]["default_task_type"]
+
     shotgrid_type = sg_ay_dict["attribs"][SHOTGRID_TYPE_ATTRIB]
     sg_parent = sg_ay_dict["data"].get(sg_parent_field)
     ay_parent_entity = None
 
-    if (
-        shotgrid_type == "Asset"
-        and sg_ay_dict["data"].get("sg_asset_type")
-    ):
-        log.debug("ShotGrid Parent is an Asset category.")
-        ay_parent_entity = get_asset_category(
+    if shotgrid_type in ("Shot", "Sequence", "Episode", "Asset"):
+        ay_parent_entity = get_reparenting_from_settings(
             ayon_entity_hub,
             sg_ay_dict,
             addon_settings
         )
 
-    elif(shotgrid_type == "Sequence"):
-        log.info("ShotGrid Parent is an Sequence category.")
-        ay_parent_entity = get_sequence_category(
-            ayon_entity_hub,
-            sg_ay_dict,
-            addon_settings
-        )
-
-    elif(shotgrid_type == "Shot"):
-        log.info("ShotGrid Parent is an Shot category.")
-        ay_parent_entity = get_shot_category(
-            ayon_entity_hub,
-            sg_ay_dict,
-            addon_settings
-        )
+        # Reparenting Asset under an AssetCategory ?
+        # if sg_asset_type is defined in the data, that's because
+        # the Asset needs to be parented to the AssetCategory.
+        sg_asset_type = sg_ay_dict["data"].get("sg_asset_type")
+        if (
+            shotgrid_type == "Asset"
+            and sg_asset_type
+        ):
+            name = slugify_string(sg_asset_type)
+            ay_parent_entity = ay_parent_entity or ayon_entity_hub.project_entity
+            # Gather or create AssetCategory parent.
+            for child in ay_parent_entity.children:
+                if (
+                    child.folder_type == "AssetCategory"
+                    and child.name.lower() == name.lower()
+                ):
+                    ay_parent_entity = child
+                    break
+            else:
+                ay_parent_entity = create_new_ayon_entity(
+                    sg_session,
+                    ayon_entity_hub,
+                    ay_parent_entity,
+                    {
+                        "folder_type": "AssetCategory",
+                        "type": "AssetCategory",
+                        "name": name.lower(),
+                        "label": sg_asset_type,
+                        "data": {CUST_FIELD_CODE_ID: name},
+                        "attribs": {
+                            SHOTGRID_ID_ATTRIB: name.lower(),
+                            SHOTGRID_TYPE_ATTRIB: "AssetCategory"
+                        }
+                    },
+                )
 
     if ay_parent_entity is None:
         # INFO: Parent entity might not be added in SG so this needs to
         # be handled with optional way.
-        if sg_parent is None:
+        if not isinstance(sg_parent, dict):  # None (project) or str (AssetCategory)
             # Parent is the project
             log.debug(f"ShotGrid Parent is the Project: {sg_project}")
             ay_parent_entity = ayon_entity_hub.project_entity
