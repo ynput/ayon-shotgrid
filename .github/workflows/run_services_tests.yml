@@ -27,4 +27,4 @@ jobs:
 
       - name: Run Pytest with coverage
         run: |
-          pytest --cov-report=term ./service_tools/tests
+          pytest ./service_tools/tests
