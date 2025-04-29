@@ -2,14 +2,11 @@
 """
 import mock
 
-from shotgun_api3.lib import mockgun
 
 import ayon_api
-from ayon_api.entity_hub import EntityHub, FolderEntity, TaskEntity, VersionEntity
+from ayon_api.entity_hub import EntityHub, FolderEntity, TaskEntity
 
-from ayon_shotgrid_hub import AyonShotgridHub
 import constants
-import utils
 
 from ..test_sg_base import TestBaseShotgrid
 
@@ -202,17 +199,6 @@ class TestUpdateEntityToSG(TestBaseShotgrid):
             'user': 'admin'
         }
 
-        shot_entity = FolderEntity(
-            "new_shot",
-            "Shot",
-            parent_id=None,  # no parent
-            entity_hub=self.entity_hub,
-            attribs={
-                constants.SHOTGRID_ID_ATTRIB: str(sg_shot["id"]),
-                constants.SHOTGRID_TYPE_ATTRIB: "Shot",
-            }
-        )
-
         task_entity = TaskEntity(
             "new_task",
             task_type="edit",
@@ -333,7 +319,7 @@ class TestUpdateEntityToSG(TestBaseShotgrid):
         self.assertEquals(
             {
                 'id': 1,
-                'task_assignees': [{'id': 1, 'type': 'HumanUser'}],
+                'task_assignees': [{'id': sg_user["id"], 'type': 'HumanUser'}],
                 'type': 'Task',
             },
             task,

@@ -95,7 +95,7 @@ class AyonShotgridHub:
             self.log.warning(f"Project {project_name} does not exist in AYON.")
             self.settings = ayon_api.get_service_addon_settings()
 
-        except ValueError as error:
+        except ValueError:
             # automated tests (service not initialized)
             if isinstance(sg_connection, mockgun.Shotgun):
                 self.settings = {}

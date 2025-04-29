@@ -1,6 +1,5 @@
 """ Base class to test Shotgrid implementation via Mockgun.
 """
-import mock
 import unittest
 
 from shotgun_api3.lib import mockgun
@@ -17,7 +16,7 @@ class MockEntityHub(EntityHub):
         self._connection = connection
         self._project_name = project_name
 
-    def get_attributes_for_type(self, entity_type: "EntityType"):
+    def get_attributes_for_type(self, _):
         return {
             constants.SHOTGRID_ID_ATTRIB: str,
             constants.SHOTGRID_TYPE_ATTRIB: str

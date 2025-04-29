@@ -1,14 +1,8 @@
 """ Test delete entity sync.
 """
-import mock
 
-from shotgun_api3.lib import mockgun
 
-from ayon_api.entity_hub import EntityHub, FolderEntity, TaskEntity, VersionEntity
 
-from ayon_shotgrid_hub import AyonShotgridHub
-import constants
-import utils
 
 from ..test_sg_base import TestBaseShotgrid
 
@@ -20,13 +14,21 @@ class TestDeleteEntityToSG(TestBaseShotgrid):
     def test_delete_folder(self):
         """ Delete folder reported in SG.
         """
-        sg_sequence = self.mg.create(
+        self.mg.create(  # create one sequence
             "Sequence",
             {
                 "project": self.project,
                 "code": "my_sequence",
             }
         )
+
+        all_sequences = self.mg.find(
+            "Sequence",
+            [["project", "is", self.project]],
+        )
+
+        self.assertEquals(1, len(all_sequences))
+
 
         ay_event = {
             'createdAt': '2025-04-29T17:02:17.951175+00:00',
@@ -62,17 +64,6 @@ class TestDeleteEntityToSG(TestBaseShotgrid):
             'updatedAt': '2025-04-29T17:02:17.951175+00:00',
             'user': 'admin'
         }
-
-        sequence_entity = FolderEntity(
-            "new_sequence",
-            "Sequence",
-            parent_id=None,  # no parent
-            entity_hub=self.entity_hub,
-            attribs={
-                constants.SHOTGRID_ID_ATTRIB: str(sg_sequence["id"]),
-                constants.SHOTGRID_TYPE_ATTRIB: "Sequence",
-            }
-        )
 
         self.hub.react_to_ayon_event(ay_event)
 

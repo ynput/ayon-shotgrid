@@ -2,11 +2,9 @@
 """
 import mock
 
-from shotgun_api3.lib import mockgun
 
-from ayon_api.entity_hub import EntityHub, FolderEntity, TaskEntity, VersionEntity
+from ayon_api.entity_hub import EntityHub, FolderEntity, TaskEntity
 
-from ayon_shotgrid_hub import AyonShotgridHub
 import constants
 import utils
 
@@ -234,7 +232,7 @@ class TestSyncEntityToSG(TestBaseShotgrid):
                 "code": "my_sequence",
             }
         )
-        pipeline_step = self.mg.create(
+        self.mg.create(  # create pipeline step associated to task
             "Step",
             {
                 "code": "edit",
