@@ -1,6 +1,9 @@
 """ Tests for services code.
 """
 import os
+import unittest
+
+from shotgun_api3.lib import mockgun
 
 from shotgun_api3.lib import mockgun
 
@@ -16,4 +19,4 @@ mockgun.Shotgun.set_schema_paths(
 
 # hack "service" is not a proper python package
 import sys
-sys.path.append(os.path.join(_current_dir, ".."))
+sys.path.append(os.path.join(_current_dir, "..", "shotgrid_common"))

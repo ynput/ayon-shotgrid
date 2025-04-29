@@ -5,6 +5,8 @@ checks and provide methods to keep an AYON and Shotgrid project in sync.
 import collections
 import re
 
+from shotgun_api3.lib import mockgun
+
 from constants import (
     AYON_SHOTGRID_ENTITY_TYPE_MAP,
     CUST_FIELD_CODE_AUTO_SYNC,
@@ -88,9 +90,17 @@ class AyonShotgridHub:
     ):
         try:
             self.settings = ayon_api.get_service_addon_settings(project_name)
+
         except ayon_api.exceptions.HTTPRequestError:
             self.log.warning(f"Project {project_name} does not exist in AYON.")
             self.settings = ayon_api.get_service_addon_settings()
+
+        except ValueError as error:
+            # automated tests (service not initialized)
+            if isinstance(sg_connection, mockgun.Shotgun):
+                self.settings = {}
+            else:
+                raise
 
         self._sg = sg_connection
 
@@ -143,9 +153,9 @@ class AyonShotgridHub:
             raise ValueError(f"Invalid Project Name: {project_name}")
 
         self._project_name = project_name
+        self._ay_project = EntityHub(project_name)
 
         try:
-            self._ay_project = EntityHub(project_name)
             self._ay_project.project_entity
         except Exception:
             self.log.warning(f"Project {project_name} does not exist in AYON.")

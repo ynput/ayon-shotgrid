@@ -2001,8 +2001,8 @@ def create_new_sg_entity(
             f"Unable to create SG entity {sg_type} with data: {data}")
         raise e
 
-    default_task_type = addon_settings[
-        "compatibility_settings"]["default_task_type"]
+    compatibility_settings = addon_settings.get("compatibility_settings", {})
+    default_task_type = compatibility_settings.get("default_task_type")
 
     return get_sg_entity_as_ay_dict(
         sg_session,

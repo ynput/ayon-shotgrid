@@ -68,9 +68,9 @@ function Load-Env {
 
 function Activate-Venv {
   # Make sure venv is created
-  $venv_path = "$($script_dir)\.venv"
+  $venv_path = "$($script_dir)\.venv_test"
   if (-not(Test-Path $venv_path)) {
-    & python -m venv $venv_path
+    & C:\Python\Python310\python.exe -m venv $venv_path
   }
   & "$($venv_path)\Scripts\activate.ps1"
 }
