@@ -35,7 +35,7 @@ function Default-Func {
 
 function Install-Requirements {
   # TODO Install/verify venv is created
-  & C:\Python\Python310\python.exe -m pip install -e "$($script_dir)[test]"
+  & python -m pip install -e "$($script_dir)"
 }
 
 function Start-Leecher {
@@ -68,9 +68,9 @@ function Load-Env {
 
 function Activate-Venv {
   # Make sure venv is created
-  $venv_path = "$($script_dir)\.venv_test"
+  $venv_path = "$($script_dir)\.venv"
   if (-not(Test-Path $venv_path)) {
-    & C:\Python\Python310\python.exe -m venv $venv_path
+    & python -m venv $venv_path
   }
   & "$($venv_path)\Scripts\activate.ps1"
 }
