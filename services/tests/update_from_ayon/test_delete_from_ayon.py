@@ -1,7 +1,5 @@
 """ Test entity deletion from AYON to SG.
 """
-import pytest
-
 from ..test_sg_base import hub_and_project, mockgun_project
 
 
@@ -61,4 +59,3 @@ def test_delete_folder(hub_and_project):
     # Vérifie que la séquence n'existe plus
     no_sequences = mg.find("Sequence", [["project", "is", project]])
     assert no_sequences == []
-

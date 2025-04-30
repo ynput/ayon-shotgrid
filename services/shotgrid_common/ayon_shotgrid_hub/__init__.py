@@ -139,6 +139,10 @@ class AyonShotgridHub:
         )
 
     @property
+    def entity_hub(self):
+        return self._ay_project
+
+    @property
     def project_name(self):
         return self._project_name
 

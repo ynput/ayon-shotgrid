@@ -1,16 +1,14 @@
 """ Test entity creation from AYON to SG.
 """
-
 import pytest
 from unittest import mock
 
 from ayon_api.entity_hub import EntityHub, FolderEntity, TaskEntity
-from ayon_shotgrid_hub import AyonShotgridHub
 import constants
 import utils
 
-from ..test_sg_base import hub_and_project, mockgun_project
 
+from ..test_sg_base import hub_and_project, mockgun_project
 
 @pytest.fixture
 def common_ay_event():

@@ -130,6 +130,7 @@ SG_COMMON_ENTITY_FIELDS = [
     "content",
     "entity",
     "step",
+    "step.Step.code",
     "task_assignees",
     CUST_FIELD_CODE_ID,
     CUST_FIELD_CODE_SYNC,
