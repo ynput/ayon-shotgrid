@@ -7,8 +7,6 @@ from ayon_api.entity_hub import EntityHub, FolderEntity, TaskEntity
 
 import constants
 
-from ..test_sg_base import hub_and_project, mockgun_project
-
 
 def test_update_folder(hub_and_project):
     mg = hub_and_project["mg"]

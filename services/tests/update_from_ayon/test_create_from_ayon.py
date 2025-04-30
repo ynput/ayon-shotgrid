@@ -8,8 +8,6 @@ import constants
 import utils
 
 
-from ..test_sg_base import hub_and_project, mockgun_project
-
 @pytest.fixture
 def common_ay_event():
     return {

@@ -1,6 +1,5 @@
 """ Test entity deletion from AYON to SG.
 """
-from ..test_sg_base import hub_and_project, mockgun_project
 
 
 def test_delete_folder(hub_and_project):

@@ -4,21 +4,24 @@ import mock
 import os
 import pytest
 
-from pytest_ayon.plugin import empty_project
+from pytest_ayon.plugin import empty_project  # noqa: F401
 
 from ayon_shotgrid_hub import AyonShotgridHub
 import validate
 import utils
 
-from ..test_sg_base import mockgun_project
+
+_IS_GITHUB_ACTIONS = os.getenv("GITHUB_ACTIONS")
 
 
+# TODO make this run via Docker service.
 os.environ["AYON_SERVER_URL"] = "http://localhost:5000"
 os.environ["AYON_API_KEY"] = "cf8d512ad405457b801a6804d4bf5368"
 
 
+@pytest.mark.skipif(_IS_GITHUB_ACTIONS, reason="WIP make it run on GitHub actions.")
 @pytest.mark.parametrize("empty_project", [{"task_types": ("rendering", "edit")}], indirect=True)
-def test_match_hierarchy(empty_project, mockgun_project):
+def test_match_hierarchy(empty_project, mockgun_project):    # noqa: F811
 
     ay_project_data = empty_project
     mg, _ = mockgun_project
@@ -84,7 +87,6 @@ def test_match_hierarchy(empty_project, mockgun_project):
         label="my_edit_task",
         parent_id=ay_shot.id,
     )
-    entity_hub.commit_changes()
 
     # Launch hierarchy sync
     with (
@@ -94,5 +96,81 @@ def test_match_hierarchy(empty_project, mockgun_project):
         hub.synchronize_projects()
 
     # Checks
+    assets = mg.find("Asset", [["project", "is", sg_project]], ["project", "code", "sg_ayon_id"])
+    shots = mg.find("Shot", [["project", "is", sg_project]], ["project", "sg_sequence", "code", "sg_ayon_id"])
+    sequences = mg.find("Sequence", [["project", "is", sg_project]], ["project", "code", "sg_ayon_id"])
+    tasks = mg.find("Task", [["project", "is", sg_project]], ["project", "code", "step.Step.code", "entity", "sg_ayon_id"])
+
+    assert assets == [
+        {
+            'code': 'my_asset',
+            'id': 1,
+            'project': {
+                'id': 2,
+                'name': ay_project_data.project_name,
+                'type': 'Project'
+            },
+            'type': 'Asset',
+            'sg_ayon_id': ay_asset.id,
+        }
+    ]
+    assert sequences == [
+        {
+            'code': 'my_sequence',
+            'id': 1,
+            'project': {
+                'id': 2,
+                'name': ay_project_data.project_name,
+                'type': 'Project'
+            },
+            'type': 'Sequence',
+            'sg_ayon_id': ay_sequence.id,
+        }
+    ]
+    assert shots == [
+        {
+            'code': 'my_shot',
+            'id': 1,
+            'project': {
+                'id': 2,
+                'name': ay_project_data.project_name,
+                'type': 'Project'
+            },
+            'sg_sequence': {
+                'id': 1,
+                'type': 'Sequence'
+            },
+            'type': 'Shot',
+            'sg_ayon_id': ay_shot.id
+        }
+    ]
+    assert tasks == [
+        {
+            'code': None,
+            'entity': {'id': 1, 'type': 'Asset'},
+            'id': 1,
+            'project': {
+                'id': 2,
+                'name': ay_project_data.project_name,
+                'type': 'Project'
+            },
+            'step.Step.code': 'rendering',
+            'type': 'Task',
+            'sg_ayon_id': rendering_task.id
+        },
+        {
+            'code': None,
+            'entity': {'id': 1, 'type': 'Shot'},
+            'id': 2,
+            'project': {
+                'id': 2,
+                'name': ay_project_data.project_name,
+                'type': 'Project'
+            },
+            'step.Step.code': 'edit',
+            'type': 'Task',
+            'sg_ayon_id': edit_task.id
+        }
+    ]
 
     print("OK")
