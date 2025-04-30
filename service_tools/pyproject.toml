@@ -12,5 +12,6 @@ dependencies = [
 [project.optional-dependencies]
 test = [
     "pytest",
-    "mock"
+    "mock",
+    "pytest-ayon @ git+https://github.com/ynput/pytest-ayon.git",
 ]
