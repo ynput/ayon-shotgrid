@@ -12,7 +12,7 @@ import validate
 import utils
 
 
-_IS_GITHUB_ACTIONS = os.getenv("GITHUB_ACTIONS")
+_IS_GITHUB_ACTIONS = bool(os.getenv("GITHUB_ACTIONS"))
 
 
 # TODO make this run via Docker service.
