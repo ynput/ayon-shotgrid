@@ -8,10 +8,25 @@ from ayon_shotgrid_hub import AyonShotgridHub
 import constants
 
 
+class MockStatus():
+
+    def __init__(self, short_name, name):
+        self.short_name = short_name
+        self.name = name
+
+
+class MockProjectEntity():
+
+    statuses = [
+        MockStatus("fin", "Final"),
+    ]
+
+
 class MockEntityHub(EntityHub):
     def __init__(self, project_name, connection=None):
         self._connection = connection
         self._project_name = project_name
+        self._project_entity = MockProjectEntity()
 
     def get_attributes_for_type(self, _):
         return {
