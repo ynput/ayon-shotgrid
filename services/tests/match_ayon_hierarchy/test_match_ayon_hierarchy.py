@@ -20,7 +20,7 @@ os.environ["AYON_SERVER_URL"] = "http://localhost:5000"
 os.environ["AYON_API_KEY"] = "cf8d512ad405457b801a6804d4bf5368"
 
 
-@pytest.mark.skipif(_IS_GITHUB_ACTIONS, reason="WIP make it run on GitHub actions.")
+#@pytest.mark.skipif(_IS_GITHUB_ACTIONS, reason="WIP make it run on GitHub actions.")
 @pytest.mark.parametrize("empty_project", [{"task_types": ("rendering", "edit")}], indirect=True)
 def test_match_hierarchy(empty_project, mockgun_project):    # noqa: F811
 
