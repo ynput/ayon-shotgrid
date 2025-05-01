@@ -20,6 +20,11 @@ os.environ["AYON_SERVER_URL"] = "http://localhost:5000"
 os.environ["AYON_API_KEY"] = "veryinsecurapikey"
 
 
+import request
+response = request.get("http://localhost:5000/api/info")
+assert response.status_code == 201
+
+
 #@pytest.mark.skipif(_IS_GITHUB_ACTIONS, reason="WIP make it run on GitHub actions.")
 @pytest.mark.parametrize("empty_project", [{"task_types": ("rendering", "edit")}], indirect=True)
 def test_match_hierarchy(empty_project, mockgun_project):    # noqa: F811
