@@ -5,7 +5,7 @@ import os
 import pytest
 
 # TODO enable this
-#from pytest_ayon.plugin import empty_project  # noqa: F401
+from pytest_ayon.plugin import empty_project  # noqa: F401
 
 from ayon_shotgrid_hub import AyonShotgridHub
 import validate
