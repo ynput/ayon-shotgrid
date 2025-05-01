@@ -17,7 +17,7 @@ _IS_GITHUB_ACTIONS = bool(os.getenv("GITHUB_ACTIONS"))
 
 # TODO make this run via Docker service.
 os.environ["AYON_SERVER_URL"] = "http://localhost:5000"
-os.environ["AYON_API_KEY"] = "cf8d512ad405457b801a6804d4bf5368"
+os.environ["AYON_API_KEY"] = "veryinsecurapikey"
 
 
 #@pytest.mark.skipif(_IS_GITHUB_ACTIONS, reason="WIP make it run on GitHub actions.")
