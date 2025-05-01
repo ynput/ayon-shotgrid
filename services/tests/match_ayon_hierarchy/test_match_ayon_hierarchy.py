@@ -20,8 +20,8 @@ os.environ["AYON_SERVER_URL"] = "http://localhost:5000"
 os.environ["AYON_API_KEY"] = "veryinsecurapikey"
 
 
-import request
-response = request.get("http://localhost:5000/api/info")
+import requests
+response = requests.get("http://localhost:5000/api/info")
 assert response.status_code == 201
 
 
