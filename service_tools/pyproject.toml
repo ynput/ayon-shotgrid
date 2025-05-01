@@ -13,5 +13,5 @@ dependencies = [
 test = [
     "pytest",
     "mock",
-    "pytest-ayon @ git+https://github.com/ynput/pytest-ayon.git",
+    "pytest-ayon @ git+https://github.com/ynput/pytest-ayon.git#enhancement/split_project_fixture",
 ]
