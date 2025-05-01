@@ -22,7 +22,7 @@ os.environ["AYON_API_KEY"] = "veryinsecurapikey"
 
 import requests
 response = requests.get("http://localhost:5000/api/info")
-assert response.status_code == 201
+assert response.status_code == 200
 
 
 #@pytest.mark.skipif(_IS_GITHUB_ACTIONS, reason="WIP make it run on GitHub actions.")
