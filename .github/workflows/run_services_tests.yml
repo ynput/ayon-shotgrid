@@ -30,6 +30,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install ./service_tools/.[test]
+          pip install git+https://github.com/ynput/pytest-ayon.git@enhancement/split_project_fixture
 
       - name: Run Pytest with coverage
         run: |
