@@ -24,6 +24,7 @@ jobs:
         run: |
           git clone https://github.com/ynput/ayon-docker.git
           cd ayon-docker
+          docker compose up -d
           make setup
 
       - name: Install dependencies
