@@ -124,6 +124,13 @@ In all instances, you'll want to keep an eye on the terminal where you launched 
 
 # Automated tests
 
+These tests do not yet cover all use cases and features provided by the sync services.
+Instead, they act as a safety net to proactively catch regressions on core functionalities.
+
+We strongly recommend running them locally with each new contribution.
+They require a local AYON server but no FLOW instance, thanks to [Mockgun](https://github.com/shotgunsoftware/python-api/blob/master/shotgun_api3/lib/mockgun/mockgun.py), which simulates a FLOW environment entirely in memory.
+
+
 ## Requirements
 
 * Your local `python` should be >=3.10
