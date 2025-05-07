@@ -120,3 +120,23 @@ With the `leecher` **and** the `processor` services running, and the `Ayon Auto 
 With the `transmitter` **and** the `processor` services running, and the `Ayon Auto Sync` field **enabled** in Shotgrid, whenever an event on `entity.*` occurs in AYON, an event will be dispatched in Ayon `shotgrid.push`; this event will attempt to replicate the changes made in AYON in Shotgrid.
 
 In all instances, you'll want to keep an eye on the terminal where you launched the services, where you can track the progress of any of the handlers. This will be improved in the future so it can be tracked from AYON.
+
+
+# Automated tests
+
+## Requirements
+
+* Your local `python` should be >=3.10
+* You need a local AYON server with a service AYON_API_KEY defined
+
+## Run the tests
+
+Windows:
+```shell
+.\service_tools\manage.ps1 run-tests
+```
+
+Linux:
+```
+./service_tools/make runtests
+```

@@ -4,8 +4,7 @@ import mock
 import os
 import pytest
 
-# TODO enable this
-#from pytest_ayon.plugin import empty_project  # noqa: F401
+from pytest_ayon.plugin import empty_project  # noqa: F401
 
 from ayon_shotgrid_hub import AyonShotgridHub
 import validate
@@ -13,11 +12,6 @@ import utils
 
 
 _IS_GITHUB_ACTIONS = bool(os.getenv("GITHUB_ACTIONS"))
-
-
-# TODO make this run via Docker service.
-os.environ["AYON_SERVER_URL"] = "http://localhost:5000"
-os.environ["AYON_API_KEY"] = "cf8d512ad405457b801a6804d4bf5368"
 
 
 @pytest.mark.skipif(_IS_GITHUB_ACTIONS, reason="WIP make it run on GitHub actions.")
