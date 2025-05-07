@@ -226,10 +226,13 @@ def update_sg_entity_from_ayon_event(
         # Otherwise it's a tag/status update
         elif ayon_event["topic"].endswith("status_changed"):
             sg_statuses = get_sg_statuses(sg_session, sg_entity_type)
-            for sg_status_code, sg_status_name in sg_statuses.items():
-                if new_attribs.lower() == sg_status_name.lower():
-                    new_attribs = {"status": sg_status_code}
-                    break
+            ay_statuses = {
+                status.name: status.short_name
+                for status in  ayon_entity_hub.project_entity.statuses
+            }
+            short_name = ay_statuses.get(new_attribs)
+            if short_name in sg_statuses:
+                new_attribs = {"status": short_name}
             else:
                 log.error(
                     f"Unable to update '{sg_entity_type}' with status "
