@@ -134,7 +134,7 @@ def _sg_to_ay_dict(
             )
             task_type = default_task_type
         else:
-            task_type = sg_entity["step"]["name"]
+            task_type = sg_entity["step.Step.code"]
 
         label = sg_entity["content"]
 
@@ -773,8 +773,8 @@ def get_sg_entities(
         )
 
     """
-    default_task_type = addon_settings[
-        "compatibility_settings"]["default_task_type"]
+    compatibility_settings = addon_settings.get("compatibility_settings", {})
+    default_task_type = compatibility_settings.get("default_task_type")
 
     query_fields = list(SG_COMMON_ENTITY_FIELDS)
 
@@ -1912,6 +1912,7 @@ def create_new_sg_entity(
         task_step = sg_session.find_one(
             "Step",
             filters=step_query_filters,
+            fields=["code", "name"],
         )
         if not task_step:
             raise ValueError(
@@ -1958,8 +1959,8 @@ def create_new_sg_entity(
         if not ayon_asset:
             raise ValueError(f"Not found '{folder_id}'")
 
-        ay_username = ay_entity.data["author"]
-        sg_user_id = get_sg_user_id(ay_username)
+        ay_username = ay_entity.data.get("author")
+        sg_user_id = get_sg_user_id(ay_username) if ay_username else -1
         if sg_user_id < 0:
             log.warning(
                 f"{ay_username} is not synchronized, "
@@ -2008,8 +2009,8 @@ def create_new_sg_entity(
             f"Unable to create SG entity {sg_type} with data: {data}")
         raise e
 
-    default_task_type = addon_settings[
-        "compatibility_settings"]["default_task_type"]
+    compatibility_settings = addon_settings.get("compatibility_settings", {})
+    default_task_type = compatibility_settings.get("default_task_type")
 
     return get_sg_entity_as_ay_dict(
         sg_session,
