@@ -57,14 +57,6 @@ def test_match_hierarchy(empty_project, mockgun_project):    # noqa: F811
             "sg_ayon_auto_sync": False,
         }
     )
-    sg_edit_step = mg.create(
-        "Step",
-        {
-            "code": "edit",
-            "entity_type": "Shot",
-            "short_name": "edit",
-        }
-    )
 
     sg_asset = mg.create(
         "Asset",
@@ -106,8 +98,6 @@ def test_match_hierarchy(empty_project, mockgun_project):    # noqa: F811
         sg_project_code_field="code",
         sg_enabled_entities=enabled_entities.keys(),
     )
-
-    entity_hub = hub.entity_hub
 
     # Launch hierarchy sync
     with (
