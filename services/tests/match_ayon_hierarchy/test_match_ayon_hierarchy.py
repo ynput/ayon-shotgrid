@@ -167,5 +167,3 @@ def test_match_hierarchy(empty_project, mockgun_project):    # noqa: F811
             'sg_ayon_id': edit_task.id
         }
     ]
-
-    print("OK")

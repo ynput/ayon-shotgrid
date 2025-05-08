@@ -638,19 +638,21 @@ def _get_parenting_transfer_type(addon_settings):
             "root_relocate" - keep SG hierachy, put in additional AYON folder
             "type_grouping" - separate SG objects into AYON folders
     """
-    folder_parenting = (addon_settings["compatibility_settings"]
-                                      ["folder_parenting"])
+    compatibility_settings = addon_settings.get("compatibility_settings", {})
+    folder_parenting = compatibility_settings.get("folder_parenting", {})
 
     folder_parenting_options = ("root_relocate", "type_grouping")
 
 
     enabled_transfer_type = None
     for transfer_type in folder_parenting_options:
-        transfer_type_info = folder_parenting[transfer_type]
-        if transfer_type_info["enabled"]:
+        transfer_type_info = folder_parenting.get(transfer_type, {})
+        if transfer_type_info.get("enabled", False):
             if enabled_transfer_type:
-                raise RuntimeError("Both types cannot be enabled. Please "
-                                   "disable one.")
+                raise RuntimeError(
+                    "Both types cannot be enabled. Please disable one."
+                )
+
             enabled_transfer_type = transfer_type
 
     return enabled_transfer_type
@@ -824,6 +826,8 @@ def get_sg_entities(
                 and entity_name != "Asset"
             ):
                 parent_id = sg_entity[parent_field]["id"]
+                parent_type = sg_entity[parent_field]["type"]
+                parent_id = f'{parent_type}_{parent_id}'
 
             # Reparent the current SG Asset under an AssetCategory ?
             elif (
@@ -867,7 +871,10 @@ def get_sg_entities(
                 default_task_type
             )
 
-            sg_id = sg_ay_dict["attribs"][SHOTGRID_ID_ATTRIB]
+            sg_id = (
+                f'{sg_ay_dict["attribs"][SHOTGRID_TYPE_ATTRIB]}_'
+                f'{sg_ay_dict["attribs"][SHOTGRID_ID_ATTRIB]}'
+            )
             sg_ay_dicts[sg_id] = sg_ay_dict
             sg_ay_dicts_parents[parent_id].add(sg_id)
 

@@ -75,7 +75,7 @@ def match_shotgrid_hierarchy_in_ayon(
         (ay_parent_entity, sg_ay_dict_child_id) = sg_ay_dicts_deck.popleft()
         sg_ay_dict = sg_ay_dicts[sg_ay_dict_child_id]
         sg_entity_id = sg_ay_dict["attribs"][SHOTGRID_ID_ATTRIB]
-        if sg_entity_id in processed_ids:
+        if sg_ay_dict_child_id in processed_ids:
             msg = (
                 f"Entity {sg_entity_id} already processed, skipping..."
                 f"Sg Ay Dict: {sg_ay_dict} - "
@@ -84,7 +84,7 @@ def match_shotgrid_hierarchy_in_ayon(
             log.warning(msg)
             continue
 
-        processed_ids.add(sg_entity_id)
+        processed_ids.add(sg_ay_dict_child_id)
 
         log.debug(f"Deck size: {len(sg_ay_dicts_deck)}")
 
@@ -178,7 +178,7 @@ def match_shotgrid_hierarchy_in_ayon(
         )
 
         # If the entity has children, add it to the deck
-        for sg_child_id in sg_ay_dicts_parents.get(sg_entity_id, []):
+        for sg_child_id in sg_ay_dicts_parents.get(sg_ay_dict_child_id, []):
             sg_ay_dicts_deck.append((ay_entity, sg_child_id))
 
     _sync_project_attributes(entity_hub, custom_attribs_map, sg_project)
