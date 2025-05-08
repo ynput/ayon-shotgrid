@@ -97,15 +97,6 @@ def test_match_hierarchy(empty_project, mockgun_project):    # noqa: F811
             "code": "my_shot",
         }
     )
-    sg_tasks = mg.create(
-        "Task",
-        {
-            "project": sg_project,
-            "entity": sg_shot,
-            "step": sg_edit_step,
-            "content": "my_task",
-        }
-    )
 
     # create some data in AYON
     hub = AyonShotgridHub(
@@ -125,9 +116,8 @@ def test_match_hierarchy(empty_project, mockgun_project):    # noqa: F811
     ):
         hub.synchronize_projects(source="shotgrid")
 
-    # Checks
+    # Query values
     project_name = ay_project_data.project_name
-    project_children = entity_hub.project_entity.children
     asset_folder = ayon_api.get_folder_by_name(project_name, "my_asset")
     episode_folder = ayon_api.get_folder_by_name(project_name, "my_episode")
     sequence_folder = ayon_api.get_folder_by_name(project_name, "my_sequence")
