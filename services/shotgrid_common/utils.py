@@ -1977,6 +1977,33 @@ def create_new_sg_entity(
         else:
             data["user"] = {'type': 'HumanUser', 'id': sg_user_id}
 
+        # sync associated task
+        task_data = ayon_api.get_task_by_id(ay_project_name, ay_entity.task_id)
+        sg_task = task_data["attrib"].get(SHOTGRID_ID_ATTRIB)
+        if sg_task:
+            data["sg_task"] = {"type": "Task", "id": int(sg_task)}
+
+        # sync comment for description
+        data["description"] = ay_entity.attribs.get("comment")
+
+        # sync productType as version type
+        product_data =  ayon_api.get_product_by_id(ay_project_name, ay_entity.product_id)
+        sg_version_field = sg_session.schema_field_read(
+            "Version", "sg_version_type")["sg_version_type"]
+        sg_valid_values = sg_version_field["properties"]["valid_values"]["value"]
+
+        if product_data["productType"] in sg_valid_values:
+            data["sg_version_type"] = product_data["productType"]
+
+        # sync first/last frames
+        frame_start = ay_entity.attribs.get("frameStart", 0)
+        frame_end = ay_entity.attribs.get("frameEnd", 0)
+        handle_start = ay_entity.attribs.get("handleStart", 0)
+        handle_end = ay_entity.attribs.get("handleEnd", 0)
+
+        data["sg_first_frame"]  = frame_start - handle_start
+        data["sg_last_frame"] = frame_end + handle_end
+
         product_name = ay_entity.parent.name
         version_str = str(ay_entity.version).zfill(3)
         version_name = f"{product_name}_v{version_str}"
