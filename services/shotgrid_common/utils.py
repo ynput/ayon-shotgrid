@@ -405,13 +405,20 @@ def create_sg_entities_in_ay(
     project_entity.folder_types = new_folder_types
 
     # Add ShotGrid Statuses to AYON Project Entity
-    ay_status_codes = [s.short_name.lower() for s in list(project_entity.statuses)]
+    ay_statuses = {
+        status.short_name.lower(): status.name.lower()
+        for status in list(project_entity.statuses)
+    }
+    ay_status_codes = list(ay_statuses.keys())
+    ay_status_names = list(ay_statuses.values())
     for sg_entity_type in sg_enabled_entities:
         if sg_entity_type == "Project":
             # Skipping statuses from SG project as they are irrelevant in AYON
             continue
         for status_code, status_name in get_sg_statuses(sg_session, sg_entity_type).items():
             if status_code.lower() not in ay_status_codes:
+                if status_name.lower() in ay_status_names:
+                    status_name += " (from SG)"
                 project_entity.statuses.create(status_name, short_name=status_code)
                 ay_status_codes.append(status_code)
 
@@ -2016,6 +2023,7 @@ def create_new_sg_entity(
         if not ayon_asset:
             raise ValueError(f"Not found '{folder_id}'")
 
+        # sync version author
         ay_username = ay_entity.data["author"]
         sg_user_id = get_sg_user_id(ay_username)
         if sg_user_id < 0:
@@ -2026,6 +2034,33 @@ def create_new_sg_entity(
             data["description"] = f"Created in AYON by '{ay_username}'"
         else:
             data["user"] = {'type': 'HumanUser', 'id': sg_user_id}
+
+        # sync associated task
+        task_data = ayon_api.get_task_by_id(ay_project_name, ay_entity.task_id)
+        sg_task = task_data["attrib"].get(SHOTGRID_ID_ATTRIB)
+        if sg_task:
+            data["sg_task"] = {"type": "Task", "id": int(sg_task)}
+
+        # sync comment for description
+        data["description"] = ay_entity.attribs.get("comment")
+
+        # sync productType as version type
+        product_data =  ayon_api.get_product_by_id(ay_project_name, ay_entity.product_id)
+        sg_version_field = sg_session.schema_field_read(
+            "Version", "sg_version_type")["sg_version_type"]
+        sg_valid_values = sg_version_field["properties"]["valid_values"]["value"]
+
+        if product_data["productType"] in sg_valid_values:
+            data["sg_version_type"] = product_data["productType"]
+
+        # sync first/last frames
+        frame_start = ay_entity.attribs.get("frameStart", 0)
+        frame_end = ay_entity.attribs.get("frameEnd", 0)
+        handle_start = ay_entity.attribs.get("handleStart", 0)
+        handle_end = ay_entity.attribs.get("handleEnd", 0)
+
+        data["sg_first_frame"]  = frame_start - handle_start
+        data["sg_last_frame"] = frame_end + handle_end
 
         product_name = ay_entity.parent.name
         version_str = str(ay_entity.version).zfill(3)
