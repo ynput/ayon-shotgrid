@@ -1,6 +1,7 @@
 import os
 import datetime
 import json
+import mimetypes
 import hashlib
 import logging
 import collections
@@ -1645,20 +1646,22 @@ def handle_comment(sg_ay_dict, sg_session, entity_hub):
 
     if not ayon_comment:
         ay_activity_id = _add_comment(
+            sg_session,
             project_name,
             ay_parent_entity["id"],
             ay_parent_entity["entity_type"],
             ayon_user_name,
             content,
-            sg_note_id
+            sg_note,
         )
     else:
         ay_activity_id = _update_comment(
+            sg_session,
             project_name,
             ay_parent_entity,
             ay_parent_entity["entity_type"],
             ayon_comment,
-            content,
+            sg_note,
         )
     #updates SG with AYON comment id
     sg_session.update(
@@ -1671,11 +1674,12 @@ def handle_comment(sg_ay_dict, sg_session, entity_hub):
 
 
 def _update_comment(
+    sg_session,
     project_name,
     ay_parent_entity,
     ay_parent_entity_type,
     ayon_comment,
-    content
+    sg_note
 ):
     ay_activity_id = ayon_comment["activityId"]
     prev_content = ayon_comment["body"]
@@ -1692,12 +1696,9 @@ def _update_comment(
         try:
             new_origin["name"] = ay_parent_entity["name"]  # Version defines no name
             new_origin["subtype"] = ay_parent_entity["folder_type"]  # Version defines no folder type
-
         except KeyError:
             pass
-
-    if (content != prev_content or new_origin):
-
+    if (sg_note["content"] != prev_content or new_origin):
         if new_origin:
             # TODO this statement seem to have no effect.
             # It seems that re-parenting a comment has not to be implemented in API
@@ -1709,12 +1710,36 @@ def _update_comment(
             )
             # ayon_comment["activityData"]["origin"] = new_origin
 
-        ayon_api.update_activity(
-            project_name,
-            ay_activity_id,
-            body=content,
-            data=ayon_comment["activityData"]
-        )
+    # check for new or modified attachments#
+    file_ids = []
+    if sg_note.get("attachments"):
+        sg_atchmts = sg_note["attachments"].copy()
+        ay_atchmts = ayon_comment["activityData"].get("files", []).copy()
+        sg_atchmt_names = [atchmt["name"] for atchmt in sg_atchmts]
+
+        for ay_atchmt in ay_atchmts:
+            ay_atchmt_name = ay_atchmt["filename"]
+            if ay_atchmt_name in sg_atchmt_names:
+                file_ids.append(ay_atchmt["id"])
+                del sg_atchmts[sg_atchmt_names.index(ay_atchmt_name)]
+            else: # delete ayon attachment? or should i just keep it on the ayon server?
+                # ayon_api.delete_file( # that's not available :`(
+                #     endpoint=f"projects/{project_name}/files/{ay_atchmt['id']}"
+                # )
+                pass
+
+        for sg_atchmt in sg_atchmts:
+            # we can assume only new attachments here bc we popped the already existing ones
+            if atch_id := _handle_attachment(sg_session, sg_atchmt, project_name):
+                file_ids.append(atch_id)
+
+    ayon_api.update_activity(   #! gotta check if this causes notes to be updated everytime
+        project_name,
+        ay_activity_id,
+        body=sg_note["content"],
+        data=ayon_comment["activityData"],
+        file_ids=file_ids,
+    )
     return ay_activity_id
 
 
@@ -1729,7 +1754,8 @@ def _get_sg_note(sg_note_id, sg_session):
             "sg_ayon_id",
             "user",
             "note_links",
-            "addressings_to"
+            "addressings_to",
+            "attachments"
         ]
     )
     return sg_note, sg_note_id
@@ -1826,23 +1852,62 @@ def _get_content_with_notifications(sg_note):
     return content
 
 
+def _handle_attachment(sg_session, attachment, project_name):
+    # download SG attachment local temprarily
+    tmp_dir = tempfile.mkdtemp() # these will stay but nevermind
+    tmp_file = os.path.join(tmp_dir, attachment["name"])
+    local_path = sg_session.download_attachment(
+        attachment, file_path=tmp_file
+    )
+    if not local_path or not os.path.exists(local_path):
+        log.debug(f"Failed to download SG attachment: {attachment}")
+        return
+    mime_type, _ = mimetypes.guess_type(local_path)
+
+    # upload to AYON
+    headers = {
+        "Content-Type": mime_type,
+        "x-file-name": os.path.basename(local_path),
+    }
+    resp = ayon_api.upload_file(
+        endpoint=f"projects/{project_name}/files",
+        filepath=local_path,
+        request_type=ayon_api.RequestTypes.post,
+        headers=headers
+    )
+    if resp.status_code != 201:
+        log.warning(f"Failed to upload attachment: {resp.content}")
+        log.warning(f"{resp.text}")
+        return
+    os.remove(local_path) # remove temp file
+    return resp.json()["id"]
+
+
 def _add_comment(
+    sg_session,
     project_name,
     ayon_entity_id,
     ayon_entity_type,
     ayon_username,
     text,
-    sg_note_id
+    sg_note,
 ):
     con = ayon_api.get_server_api_connection()
     with con.as_username(ayon_username):
+        attachment_ids = []
+        if sg_note_atchmts := sg_note.get("attachments"):
+            for atch in sg_note_atchmts:
+                if atch_id := _handle_attachment(sg_session, atch, project_name):
+                    attachment_ids.append(atch_id)
+
         activity_id = ayon_api.create_activity(
             project_name,
             ayon_entity_id,
             ayon_entity_type,
             "comment",
             body=text,
-            data={"sg_note_id": sg_note_id}
+            data={"sg_note_id": sg_note["id"]},
+            file_ids=attachment_ids,
         )
         log.info(f"Created note {activity_id}")
 
