@@ -68,8 +68,8 @@ def match_ayon_hierarchy_in_shotgrid(
         custom_attribs_map,
         addon_settings=addon_settings,
     )
-    default_task_type = addon_settings[
-        "compatibility_settings"]["default_task_type"]
+    compatibility_settings = addon_settings.get("compatibility_settings", {})
+    default_task_type = compatibility_settings.get("default_task_type")
 
     ay_entity_deck = collections.deque()
 
@@ -237,6 +237,7 @@ def match_ayon_hierarchy_in_shotgrid(
                     int(sg_ay_parent_entity["attribs"][SHOTGRID_ID_ATTRIB])
                 ]]
             )
+
             sg_ay_dict = create_new_sg_entity(
                 ay_entity,
                 sg_session,
