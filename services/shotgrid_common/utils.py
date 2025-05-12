@@ -1352,7 +1352,7 @@ def update_ay_entity_custom_attributes(
                 for status in ay_project.statuses
             }
             new_status = status_mapping.get(attrib_value)
-            if ay_entity.entity_type in new_status.scope:
+            if new_status and ay_entity.entity_type in new_status.scope:
                 ay_entity.status = new_status.name
             else:
                 logging.warning(
