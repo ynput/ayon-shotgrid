@@ -2049,10 +2049,15 @@ def create_new_sg_entity(
         data["description"] = ay_entity.attribs.get("comment")
 
         # sync productType as version type
-        product_data =  ayon_api.get_product_by_id(ay_project_name, ay_entity.product_id)
+        product_data =  ayon_api.get_product_by_id(
+            ay_project_name,
+            ay_entity.product_id
+        )
         sg_version_field = sg_session.schema_field_read(
             "Version", "sg_version_type")["sg_version_type"]
-        sg_valid_values = sg_version_field["properties"]["valid_values"]["value"]
+        sg_valid_values = (
+            sg_version_field["properties"]["valid_values"]["value"]
+        )
 
         if product_data["productType"] in sg_valid_values:
             data["sg_version_type"] = product_data["productType"]
