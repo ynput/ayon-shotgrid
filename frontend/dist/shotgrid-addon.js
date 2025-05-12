@@ -164,7 +164,7 @@ const syncUsers = async () => {
       console.log("sg_user already exists.")
     }
     else {
-        // make sure no @ and . or - is in login string
+        // make sure no @ and validate login string
         let ay_fixed_login = validateLogin(sg_user.login);
         let login_already_exists = false;
 
@@ -333,7 +333,7 @@ const updateUserInAyon = async (id, login) => {
   /* Update an existing AYON user to set its sg_user_id. */
   call_result_paragraph = document.getElementById("call-result");
 
-  // make sure no @ and . or - is in login string
+  // make sure no @ and validate login string
   let fixed_login = validateLogin(login);
 
   response = await ayonAPI
@@ -354,7 +354,7 @@ const createNewUserInAyon = async (id, login, email, name) => {
   /* Create a new AYON user.*/
   call_result_paragraph = document.getElementById("call-result");
 
-  // make sure no @ and . or - is in login string
+  // make sure no @ and validate login string
   let fixed_login = validateLogin(login);
 
   response = await ayonAPI
