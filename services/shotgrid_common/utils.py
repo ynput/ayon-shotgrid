@@ -2036,10 +2036,14 @@ def create_new_sg_entity(
             data["user"] = {'type': 'HumanUser', 'id': sg_user_id}
 
         # sync associated task
-        task_data = ayon_api.get_task_by_id(ay_project_name, ay_entity.task_id)
-        sg_task = task_data["attrib"].get(SHOTGRID_ID_ATTRIB)
-        if sg_task:
-            data["sg_task"] = {"type": "Task", "id": int(sg_task)}
+        if ay_entity.task_id:
+            task_data = ayon_api.get_task_by_id(
+                ay_project_name,
+                ay_entity.task_id
+            )
+            sg_task = task_data["attrib"].get(SHOTGRID_ID_ATTRIB)
+            if sg_task:
+                data["sg_task"] = {"type": "Task", "id": int(sg_task)}
 
         # sync comment for description
         data["description"] = ay_entity.attribs.get("comment")
