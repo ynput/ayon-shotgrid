@@ -84,6 +84,10 @@ def create_sg_entity_from_ayon_event(
         sg_parent_entity = _get_sg_parent_entity(
             sg_session, ay_entity, ayon_event)
 
+        if sg_parent_entity is None:
+            log.warning(f"Couldn't create SG entity for '{ay_id}, parent not found.")
+            return
+
         sg_entity = create_new_sg_entity(
             ay_entity,
             sg_session,
@@ -161,6 +165,10 @@ def _get_sg_parent_entity(sg_session, ay_entity, ayon_event):
     else:
         sg_parent_id = ay_entity.parent.attribs.get(SHOTGRID_ID_ATTRIB)
         sg_parent_type = ay_entity.parent.attribs.get(SHOTGRID_TYPE_ATTRIB)
+
+    if sg_parent_type is None or sg_parent_id is None:
+        return None
+
     sg_parent_entity = sg_session.find_one(
         sg_parent_type,
         filters=[[
