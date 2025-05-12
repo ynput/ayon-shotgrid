@@ -309,7 +309,7 @@ class ShotgridTransmitter:
             success = True
         except Exception:
             success = False
-            self._log.warning("Failed to sync comments.", exc_info=True)
+            self.log.warning("Failed to sync comments.", exc_info=True)
 
         finally:
             ayon_api.update_event(
