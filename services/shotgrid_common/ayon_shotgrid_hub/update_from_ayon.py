@@ -78,7 +78,7 @@ def create_sg_entity_from_ayon_event(
 
     if sg_entity:
         log.warning(f"Entity {sg_entity} already exists in Shotgrid!")
-        return
+        return ay_entity
 
     try:
         sg_parent_entity = _get_sg_parent_entity(
@@ -120,7 +120,7 @@ def create_sg_entity_from_ayon_event(
                     f"Unable to create `{ay_entity.entity_type}` <{ay_id}> "
                     "in Shotgrid!"
                 )
-            return
+            return None
 
         sg_id = sg_entity["attribs"]["shotgridId"]
         sg_type = sg_entity["attribs"]["shotgridType"]
@@ -135,11 +135,31 @@ def create_sg_entity_from_ayon_event(
             sg_type
         )
         ayon_entity_hub.commit_changes()
+        return ay_entity
+
     except Exception:
         log.error(
             f"Unable to create {sg_type} <{ay_id}> in Shotgrid!",
             exc_info=True
         )
+        return None
+
+
+def _get_parent_sg_id_type(ay_entity):
+    """ Recursively find a parent with a valid Shotgrid ID.
+    """
+    # Sync new Asset parented under an AssetCategory.
+    # Sync children of a generic Folder.
+    sg_parent_id = ay_entity.parent.attribs.get(SHOTGRID_ID_ATTRIB)
+    sg_parent_type = ay_entity.parent.attribs.get(SHOTGRID_TYPE_ATTRIB)
+
+    if sg_parent_id and sg_parent_type:
+        return sg_parent_id, sg_parent_type
+
+    elif not ay_entity.parent:
+        return None, None
+
+    return _get_parent_sg_id_type(ay_entity.parent)
 
 
 def _get_sg_parent_entity(sg_session, ay_entity, ayon_event):
@@ -154,13 +174,18 @@ def _get_sg_parent_entity(sg_session, ay_entity, ayon_event):
             ayon_event["project"], folder_id)
 
         if not ayon_asset:
-            raise ValueError(f"Not fount '{folder_id}'")
+            raise ValueError(
+                f"Could not find Version parent folder from ID: '{folder_id}'."
+            )
 
         sg_parent_id = ayon_asset["attrib"].get(SHOTGRID_ID_ATTRIB)
         sg_parent_type = ayon_asset["attrib"].get(SHOTGRID_TYPE_ATTRIB)
     else:
-        sg_parent_id = ay_entity.parent.attribs.get(SHOTGRID_ID_ATTRIB)
-        sg_parent_type = ay_entity.parent.attribs.get(SHOTGRID_TYPE_ATTRIB)
+        sg_parent_id, sg_parent_type = _get_parent_sg_id_type(ay_entity)
+
+    if not sg_parent_id or not sg_parent_type:
+        raise ValueError("Could not find valid parent for {ay_entity}.")
+
     sg_parent_entity = sg_session.find_one(
         sg_parent_type,
         filters=[[
@@ -176,6 +201,9 @@ def update_sg_entity_from_ayon_event(
     ayon_event: Dict,
     sg_session: shotgun_api3.Shotgun,
     ayon_entity_hub: ayon_api.entity_hub.EntityHub,
+    sg_project: Dict,
+    sg_enabled_entities: List[str],
+    sg_project_code_field: [str],
     custom_attribs_map: Dict[str, str],
     addon_settings: Dict[str, Any],
 ):
@@ -193,7 +221,7 @@ def update_sg_entity_from_ayon_event(
     """
     ay_id = ayon_event["summary"]["entityId"]
     ay_entity = ayon_entity_hub.get_or_query_entity_by_id(
-        ay_id, ["folder", "task"])
+        ay_id, ["folder", "task", "version"])
 
     if not ay_entity:
         raise ValueError(
@@ -204,15 +232,43 @@ def update_sg_entity_from_ayon_event(
     sg_id = ay_entity.attribs.get("shotgridId")
     sg_entity_type = ay_entity.attribs.get("shotgridType")
 
+    # react to an AYON entity being updated
+    # that does not exist yet in Shotgrid.
+    if sg_id is None:
+
+        # Create SG entity and update existing ay_entity.
+        ay_entity = create_sg_entity_from_ayon_event(
+            ayon_event,
+            sg_session,
+            ayon_entity_hub,
+            sg_project,
+            sg_enabled_entities,
+            sg_project_code_field,
+            custom_attribs_map,
+            addon_settings,
+        )
+
+        sg_id = ay_entity.attribs.get("shotgridId")
+        sg_entity_type = ay_entity.attribs.get("shotgridType")
+
+        if sg_id is None:
+            log.warning(f"Could not create SG entity from {ay_entity}.")
+            return
+
     try:
         sg_field_name = "code"
         if ay_entity["entity_type"] == "task":
             sg_field_name = "content"
 
         data_to_update = {
-            sg_field_name: ay_entity["name"],
             CUST_FIELD_CODE_ID: ay_entity["id"]
         }
+
+        try:
+            data_to_update[sg_field_name] = ay_entity["name"]
+        except NotImplementedError:
+            pass  # Version does not have a name.
+
         # Add any possible new values to update
         new_attribs = ayon_event["payload"].get("newValue")
 
