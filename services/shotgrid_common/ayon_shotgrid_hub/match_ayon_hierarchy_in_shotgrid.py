@@ -230,7 +230,7 @@ def match_ayon_hierarchy_in_shotgrid(
         # entity was not synced before and need to be created
         if not sg_entity_id or not sg_ay_dict:
 
-            sg_parent_id = sg_ay_parent_entity["attribs"][SHOTGRID_ID_ATTRIB]
+            sg_parent_id = sg_ay_parent_entity["attribs"].get(SHOTGRID_ID_ATTRIB)
             if sg_parent_id is None:
                 log.warning(
                     f"AYON parent entity {sg_ay_parent_entity} not found in SG, "
@@ -239,7 +239,7 @@ def match_ayon_hierarchy_in_shotgrid(
                 continue
 
             sg_parent_entity = sg_session.find_one(
-                sg_ay_parent_entity["attribs"][SHOTGRID_TYPE_ATTRIB],
+                sg_ay_parent_entity["attribs"].get(SHOTGRID_TYPE_ATTRIB),
                 filters=[[
                     "id",
                     "is",
