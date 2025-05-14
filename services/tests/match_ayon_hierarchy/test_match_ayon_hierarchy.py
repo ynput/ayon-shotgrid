@@ -231,7 +231,7 @@ def test_match_hierarchy_update(empty_project, mockgun_project):    # noqa: F811
     )
 
     # A sequence that does not exist in SG but needs update.
-    ay_sequence = entity_hub.add_new_folder(
+    entity_hub.add_new_folder(
         folder_type="Sequence",
         name="my_sequence",
         label="my_sequence",
