@@ -153,6 +153,7 @@ const populateTable = async () => {
 const syncUsers = async () => {
   /* Get all the Users from AYON and Shotgrid, then populate the table with their info
   and a button to Synchronize if they pass the requirements */
+  ayonUsers = await getAyonUsers();
   sgUsers = await getShotgridUsers();
 
   let new_users = []
@@ -163,9 +164,28 @@ const syncUsers = async () => {
       console.log("sg_user already exists.")
     }
     else {
+        // make sure no @ and validate login string
+        let ay_fixed_login = validateLogin(sg_user.login);
+        let login_already_exists = false;
+
+        ayonUsers.forEach((user) => {
+          if (ay_fixed_login == user.name) {
+              login_already_exists = true
+          }
+        })
+
+        // User login exists in AYON but no associated sg_user_id.
+        if (login_already_exists){
+          updateUserInAyon(sg_user.id, sg_user.login)
+        }
+
+        // User login does not exist in AYON.
+        else {
+          createNewUserInAyon(
+            sg_user.id, sg_user.login, sg_user.email, sg_user.name)
+        }
+
       new_users.push(sg_user.name)
-      createNewUserInAyon(
-        sg_user.id ,sg_user.login, sg_user.email, sg_user.name)
     }
   }
 
@@ -309,12 +329,32 @@ function validateLogin(login) {
   return new_login;
 }
 
-const createNewUserInAyon = async (id, login, email, name) => {
-  /* Spawn an AYON Event of topic "shotgrid.event" to synchcronize a project
-  from Shotgrid into AYON. */
+const updateUserInAyon = async (id, login) => {
+  /* Update an existing AYON user to set its sg_user_id. */
   call_result_paragraph = document.getElementById("call-result");
 
-  // make sure no @ and . or - is in login string
+  // make sure no @ and validate login string
+  let fixed_login = validateLogin(login);
+
+  response = await ayonAPI
+    .patch("/api/users/" + fixed_login, {
+      "data": {
+        "sg_user_id": id
+      },
+    })
+    .then((result) => result)
+    .catch((error) => {
+      console.log("Unable to update user in AYON!")
+      console.log(error)
+      call_result_paragraph.innerHTML = `Unable to update user in AYON! ${error}`
+    });
+}
+
+const createNewUserInAyon = async (id, login, email, name) => {
+  /* Create a new AYON user.*/
+  call_result_paragraph = document.getElementById("call-result");
+
+  // make sure no @ and validate login string
   let fixed_login = validateLogin(login);
 
   response = await ayonAPI
