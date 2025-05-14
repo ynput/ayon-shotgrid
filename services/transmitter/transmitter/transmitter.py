@@ -259,7 +259,12 @@ class ShotgridTransmitter:
                 custom_attribs_types=self.custom_attribs_types,
                 sg_enabled_entities=self.sg_enabled_entities,
             )
-            self._cached_hubs[project_name] = hub
+
+            # Do not cache the hub object
+            # if the SG project does not exist (yet?).
+            # This is to force refresh on next event.
+            if hub.sg_project is not None:
+                self._cached_hubs[project_name] = hub
 
         return hub
 

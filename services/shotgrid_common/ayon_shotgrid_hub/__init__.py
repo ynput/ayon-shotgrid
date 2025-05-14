@@ -131,6 +131,10 @@ class AyonShotgridHub:
         )
 
     @property
+    def sg_project(self):
+        return self._sg_project
+
+    @property
     def project_name(self):
         return self._project_name
 
@@ -387,9 +391,9 @@ class AyonShotgridHub:
             ayon_event (dict): A dictionary describing what
                 the change encompases, i.e. a new shot, new asset, etc.
         """
-        if not self._sg_project[CUST_FIELD_CODE_AUTO_SYNC]:
+        if not self._sg_project:
             self.log.info(
-                "Ignoring event, Shotgrid field 'Ayon Auto Sync' is disabled."
+                "Ignoring event, Shotgrid project does not exist."
             )
             return
 
