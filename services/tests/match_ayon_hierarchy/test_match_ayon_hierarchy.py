@@ -37,7 +37,7 @@ def setup_sg_project_and_hub(
         {
             "code": ay_project_data.project_code,
             "name": ay_project_data.project_name,
-            "sg_ayon_auto_sync": False,
+            "sg_ayon_auto_sync": True,
         }
     )
     mg.create("Step", {"code": "edit", "entity_type": "Shot"})
@@ -51,6 +51,10 @@ def setup_sg_project_and_hub(
         sg_project_code_field="code",
         sg_enabled_entities=ENABLED_ENTITIES.keys(),
     )
+
+    hub.entity_hub.project_entity.attribs[constants.SHOTGRID_TYPE_ATTRIB] = "Project"
+    hub.entity_hub.project_entity.attribs[constants.SHOTGRID_ID_ATTRIB] = sg_project["id"]
+    hub.entity_hub.commit_changes()
 
     return hub, sg_project
 
@@ -249,3 +253,50 @@ def test_match_hierarchy_update(empty_project, mockgun_project):    # noqa: F811
 
     # Ensure asset status got updated.
     assert sg_asset["sg_status_list"] == "fin"
+
+
+@pytest.mark.skipif(_IS_GITHUB_ACTIONS, reason="WIP make it run on GitHub actions.")
+def test_update_create_folder(empty_project, mockgun_project):    # noqa: F811
+    """ Ensure updating a folder that does not exist yet in SG, creates it.
+    """
+    ay_project_data = empty_project
+    mg, _ = mockgun_project
+    hub, sg_project = setup_sg_project_and_hub(ay_project_data, mg)
+
+    entity_hub = hub.entity_hub
+
+    ay_shot = entity_hub.add_new_folder(
+        folder_type="Shot",
+        name="my_shot",
+        label="my_shot",
+    )
+
+
+    # Add "final" status
+    data = entity_hub.project_entity.statuses.to_data()
+    data.append({"name": "Final", "shortName": "fin"})
+    entity_hub.project_entity.set_statuses(data)
+    entity_hub.commit_changes()
+
+    ay_event = {
+        'topic': 'entity.folder.status_changed',
+        'project': 'test_project',
+        'payload': {
+            'oldValue': 'not_started',
+            'newValue': 'Final'
+        },
+        'summary': {
+            'entityId': ay_shot.id,
+            'parentId': ay_shot.parent.id
+        },
+        'user': 'admin'
+    }
+
+    with (
+        mock.patch.object(validate, "get_sg_project_enabled_entities", return_value=ENABLED_ENTITIES.items()),
+        mock.patch.object(utils, "get_sg_project_enabled_entities", return_value=ENABLED_ENTITIES.items()),
+    ):
+        hub.react_to_ayon_event(ay_event)
+
+    result = mg.find_one("Shot", [["project", "is", sg_project]], ["sg_ayon_id"])
+    assert result["sg_ayon_id"] == ay_shot.id

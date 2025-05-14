@@ -97,42 +97,6 @@ def test_update_folder_status(hub_and_project):
     assert result == {'id': 1, 'type': 'Shot', 'sg_status_list': 'fin'}
 
 
-def test_update_create_folder(hub_and_project):
-    """ Ensure updating a folder that does not exist yet in SG, creates it.
-    """
-    mg = hub_and_project["mg"]
-    project = hub_and_project["project"]
-    hub = hub_and_project["hub"]
-    entity_hub = hub_and_project["entity_hub"]
-
-    ay_event = {
-        'topic': 'entity.folder.status_changed',
-        'project': 'test_project',
-        'payload': {
-            'oldValue': 'Waiting to Start',
-            'newValue': 'Final'
-        },
-        'summary': {
-            'entityId': 'dummy',
-            'parentId': 'dummy_parent'
-        },
-        'user': 'admin'
-    }
-
-    shot_entity = FolderEntity(
-        "my_shot",
-        "Shot",
-        parent_id=None,
-        entity_hub=entity_hub,
-    )
-
-    with mock.patch.object(EntityHub, "get_or_query_entity_by_id", return_value=shot_entity):
-        hub.react_to_ayon_event(ay_event)
-
-    result = mg.find("Shot", [["project", "is", project]], ["sg_status_list"])
-    assert result == []
-
-
 def test_update_task_status(hub_and_project):
     mg = hub_and_project["mg"]
     project = hub_and_project["project"]
