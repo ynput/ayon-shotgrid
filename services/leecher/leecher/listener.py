@@ -125,6 +125,11 @@ class ShotgridListener:
             self.log.error("Unable to connect to Shotgrid Instance:")
             raise e
 
+        self.sg_current_api_user = self.sg_session.find_one(
+            "ApiUser",
+            [["firstname", "is", self.sg_script_name]]
+        )
+
         signal.signal(signal.SIGINT, self._signal_teardown_handler)
         signal.signal(signal.SIGTERM, self._signal_teardown_handler)
 
@@ -355,19 +360,24 @@ class ShotgridListener:
                 self.log.error(traceback.format_exc())
 
     def _is_api_user_event(self, event: dict[str, Any]) -> bool:
-        """Check if the event was caused by an API user.
+        """Check if the event was caused by our API user.
 
         Args:
             event (dict): The Shotgrid Event data.
 
         Returns:
-            bool: True if the event was caused by an API user.
+            bool: True if the event was caused by our API user.
         """
-        # TODO: we have to create specific api user filtering
+        # Ignore events that are coming from ourselves.
+        # Other ApiUser generated events are OK.
         if (
-            event.get("meta", {}).get("sudo_actual_user", {}).get("type")
-            == "ApiUser"
+            event.get("user", {}).get("type") == "ApiUser"
+            and event.get("user", {}).get("id") == self.sg_current_api_user["id"]
         ):
+            self.log.warning(
+                "Ignore event from the AYON<->SG service ApiUser. "
+                f"Better turn off events generation for {self.sg_script_name} in Flow."
+            )
             return True
 
     def send_shotgrid_event_to_ayon(
