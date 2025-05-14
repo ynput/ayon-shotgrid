@@ -68,8 +68,8 @@ def match_ayon_hierarchy_in_shotgrid(
         custom_attribs_map,
         addon_settings=addon_settings,
     )
-    default_task_type = addon_settings[
-        "compatibility_settings"]["default_task_type"]
+    compatibility_settings = addon_settings.get("compatibility_settings", {})
+    default_task_type = compatibility_settings.get("default_task_type")
 
     ay_entity_deck = collections.deque()
 
@@ -87,13 +87,6 @@ def match_ayon_hierarchy_in_shotgrid(
             ),
             ay_entity_child
         ))
-    versions = ayon_api.get_versions(entity_hub.project_name)
-    for version in versions:
-        product_entity = entity_hub.get_product_by_id(version["productId"])
-        ay_entity_deck.append(
-            (product_entity.parent,
-             entity_hub.get_version_by_id(version["id"]))
-        )
 
     ay_project_sync_status = "Synced"
     processed_ids = set()
@@ -139,6 +132,7 @@ def match_ayon_hierarchy_in_shotgrid(
 
         sg_entity_id = ay_entity.attribs.get(SHOTGRID_ID_ATTRIB, None)
         sg_entity_type = ay_entity.attribs.get(SHOTGRID_TYPE_ATTRIB, "")
+        sg_dict_id = f"{sg_entity_type}_{sg_entity_id}"
 
         if sg_entity_id and sg_entity_id == "removed":
             # if SG entity is removed then it is marked as "removed"
@@ -161,7 +155,7 @@ def match_ayon_hierarchy_in_shotgrid(
             continue
 
         # make sure we don't process the same entity twice
-        if sg_entity_id in processed_ids:
+        if sg_dict_id in processed_ids:
             msg = (
                 f"Entity {sg_entity_id} already processed, skipping..."
                 f"Sg Ay Dict: {sg_ay_dict} - "
@@ -171,8 +165,8 @@ def match_ayon_hierarchy_in_shotgrid(
             continue
 
         # entity was already synced before and we need to update it
-        if sg_entity_id and sg_entity_id in sg_ay_dicts:
-            sg_ay_dict = sg_ay_dicts[sg_entity_id]
+        if sg_entity_id and sg_dict_id in sg_ay_dicts:
+            sg_ay_dict = sg_ay_dicts[sg_dict_id]
             log.info(
                 f"Entity already exists in Shotgrid {sg_ay_dict['name']}")
 
@@ -237,6 +231,7 @@ def match_ayon_hierarchy_in_shotgrid(
                     int(sg_ay_parent_entity["attribs"][SHOTGRID_ID_ATTRIB])
                 ]]
             )
+
             sg_ay_dict = create_new_sg_entity(
                 ay_entity,
                 sg_session,
@@ -255,8 +250,10 @@ def match_ayon_hierarchy_in_shotgrid(
                 continue
 
             sg_entity_id = sg_ay_dict["attribs"][SHOTGRID_ID_ATTRIB]
-            sg_ay_dicts[sg_entity_id] = sg_ay_dict
-            sg_ay_dicts_parents[sg_parent_entity["id"]].add(sg_entity_id)
+            sg_dict_id = f'{sg_ay_dict["attribs"][SHOTGRID_TYPE_ATTRIB]}_{sg_entity_id}'
+            sg_ay_dicts[sg_dict_id] = sg_ay_dict
+            sg_parent_id = f'{sg_ay_parent_entity["attribs"][SHOTGRID_TYPE_ATTRIB]}_{sg_parent_entity["id"]}'
+            sg_ay_dicts_parents[sg_parent_id].add(sg_dict_id)
 
             # add new Shotgrid ID and type to existing AYON entity
             ay_entity.attribs.set(
@@ -281,7 +278,7 @@ def match_ayon_hierarchy_in_shotgrid(
             continue
 
         # add processed entity to the set for duplicity tracking
-        processed_ids.add(sg_entity_id)
+        processed_ids.add(sg_dict_id)
 
         _add_items_to_queue(entity_hub, ay_entity_deck, ay_entity, sg_ay_dict)
 
@@ -336,7 +333,21 @@ def _add_items_to_queue(
         ay_entity (Union[TaskEntity, FolderEntity]): The AYON entity.
         sg_ay_dict (Dict): The Shotgrid AYON entity dictionary.
     """
+    # Add children entity
     for ay_entity_child in entity_hub._entities_by_parent_id.get(
                 ay_entity.id, []
             ):
         ay_entity_deck.append((sg_ay_dict, ay_entity_child))
+
+    # Add direct children version underneath
+    versions = ayon_api.get_versions(entity_hub.project_name)
+    for version in versions:
+        product_entity = entity_hub.get_product_by_id(version["productId"])
+
+        if product_entity.parent.id == ay_entity.id:
+            ay_entity_deck.append(
+                (
+                    sg_ay_dict,
+                    entity_hub.get_version_by_id(version["id"])
+                )
+            )
