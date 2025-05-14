@@ -184,7 +184,7 @@ def _get_sg_parent_entity(sg_session, ay_entity, ayon_event):
         sg_parent_id, sg_parent_type = _get_parent_sg_id_type(ay_entity)
 
     if not sg_parent_id or not sg_parent_type:
-        raise ValueError("Could not find valid parent for {ay_entity}.")
+        raise ValueError(f"Could not find valid parent for {ay_entity}.")
 
     sg_parent_entity = sg_session.find_one(
         sg_parent_type,
