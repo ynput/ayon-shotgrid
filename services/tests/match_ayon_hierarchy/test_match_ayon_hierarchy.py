@@ -3,32 +3,34 @@
 import mock
 import os
 import pytest
+import dataclasses
+
+from shotgun_api3.lib import mockgun
 
 from pytest_ayon.plugin import empty_project  # noqa: F401
 
 from ayon_shotgrid_hub import AyonShotgridHub
+import constants
 import validate
 import utils
 
 
 _IS_GITHUB_ACTIONS = bool(os.getenv("GITHUB_ACTIONS"))
+ENABLED_ENTITIES = {
+    "Episode": "project",
+    "Sequence": "project",
+    "Shot": "sg_sequence",
+    "Asset": "project",
+    "Version": "entity"
+}
 
 
-@pytest.mark.skipif(_IS_GITHUB_ACTIONS, reason="WIP make it run on GitHub actions.")
-@pytest.mark.parametrize("empty_project", [{"task_types": ("rendering", "edit")}], indirect=True)
-def test_match_hierarchy(empty_project, mockgun_project):    # noqa: F811
-
-    ay_project_data = empty_project
-    mg, _ = mockgun_project
-
-    enabled_entities = {
-        "Episode": "project",
-        "Sequence": "project",
-        "Shot": "sg_sequence",
-        "Asset": "project",
-        "Version": "entity"
-    }
-
+def setup_sg_project_and_hub(
+        ay_project_data: dataclasses.dataclass,
+        mg: mockgun.Shotgun
+    ) -> AyonShotgridHub:
+    """ Utils setup SG project and hub objects.
+    """
     # create SG project and step in Mockgun
     sg_project = mg.create(
         "Project",
@@ -47,8 +49,21 @@ def test_match_hierarchy(empty_project, mockgun_project):    # noqa: F811
         ay_project_data.project_name,
         ay_project_data.project_code,
         sg_project_code_field="code",
-        sg_enabled_entities=enabled_entities.keys(),
+        sg_enabled_entities=ENABLED_ENTITIES.keys(),
     )
+
+    return hub, sg_project
+
+
+@pytest.mark.skipif(_IS_GITHUB_ACTIONS, reason="WIP make it run on GitHub actions.")
+@pytest.mark.parametrize("empty_project", [{"task_types": ("rendering", "edit")}], indirect=True)
+def test_match_hierarchy_create(empty_project, mockgun_project):    # noqa: F811
+    """ Ensure new Flow entities are created from an AYON hierarchy.
+    """
+
+    ay_project_data = empty_project
+    mg, _ = mockgun_project
+    hub, sg_project = setup_sg_project_and_hub(ay_project_data, mg)
 
     entity_hub = hub.entity_hub
 
@@ -85,8 +100,8 @@ def test_match_hierarchy(empty_project, mockgun_project):    # noqa: F811
 
     # Launch hierarchy sync
     with (
-        mock.patch.object(validate, "get_sg_project_enabled_entities", return_value=enabled_entities.items()),
-        mock.patch.object(utils, "get_sg_project_enabled_entities", return_value=enabled_entities.items()),
+        mock.patch.object(validate, "get_sg_project_enabled_entities", return_value=ENABLED_ENTITIES.items()),
+        mock.patch.object(utils, "get_sg_project_enabled_entities", return_value=ENABLED_ENTITIES.items()),
     ):
         hub.synchronize_projects()
 
@@ -109,6 +124,7 @@ def test_match_hierarchy(empty_project, mockgun_project):    # noqa: F811
             'sg_ayon_id': ay_asset.id,
         }
     ]
+
     assert sequences == [
         {
             'code': 'my_sequence',
@@ -167,3 +183,69 @@ def test_match_hierarchy(empty_project, mockgun_project):    # noqa: F811
             'sg_ayon_id': edit_task.id
         }
     ]
+
+
+@pytest.mark.skipif(_IS_GITHUB_ACTIONS, reason="WIP make it run on GitHub actions.")
+@pytest.mark.parametrize("empty_project", [{"statuses": ("not_started",)}], indirect=True)
+def test_match_hierarchy_update(empty_project, mockgun_project):    # noqa: F811
+    """ Ensure new Flow entities are updated from an AYON hierarchy.
+    """
+
+    ay_project_data = empty_project
+    mg, _ = mockgun_project
+    hub, sg_project = setup_sg_project_and_hub(ay_project_data, mg)
+
+    entity_hub = hub.entity_hub
+
+    # Add "final" status
+    data = entity_hub.project_entity.statuses.to_data()
+    data.append({"name": "Final", "shortName": "fin"})
+    entity_hub.project_entity.set_statuses(data)
+    entity_hub.commit_changes()
+
+    # An asset that exist in SG but needs update.
+    ay_asset = entity_hub.add_new_folder(
+        folder_type="Asset",
+        name="my_asset",
+        label="my_asset",
+        parent_id=entity_hub.project_entity.id,
+        status="Final",
+        attribs={
+            constants.SHOTGRID_ID_ATTRIB: "1",
+            constants.SHOTGRID_TYPE_ATTRIB: "Asset"
+        }
+    )
+
+    mg.create(
+        "Asset",
+        {
+            "code": "my_asset",
+            "sg_ayon_id": ay_asset.id,
+            "sg_status_list": "wtg",
+            "project": sg_project,
+        }
+    )
+
+    # A sequence that does not exist in SG but needs update.
+    ay_sequence = entity_hub.add_new_folder(
+        folder_type="Sequence",
+        name="my_sequence",
+        label="my_sequence",
+        parent_id=entity_hub.project_entity.id,
+    )
+
+    # Launch hierarchy sync
+    with (
+        mock.patch.object(validate, "get_sg_project_enabled_entities", return_value=ENABLED_ENTITIES.items()),
+        mock.patch.object(utils, "get_sg_project_enabled_entities", return_value=ENABLED_ENTITIES.items()),
+    ):
+        hub.synchronize_projects()
+
+    sg_asset = mg.find_one(
+        "Asset",
+        [["id", "is", 1]],
+        ["sg_status_list"]
+    )
+
+    # Ensure asset status got updated.
+    assert sg_asset["sg_status_list"] == "fin"

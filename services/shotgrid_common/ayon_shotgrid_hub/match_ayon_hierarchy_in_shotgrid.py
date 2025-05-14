@@ -139,6 +139,7 @@ def match_ayon_hierarchy_in_shotgrid(
 
         sg_entity_id = ay_entity.attribs.get(SHOTGRID_ID_ATTRIB, None)
         sg_entity_type = ay_entity.attribs.get(SHOTGRID_TYPE_ATTRIB, "")
+        sg_dict_id = f"{sg_entity_type}_{sg_entity_id}"
 
         if sg_entity_id and sg_entity_id == "removed":
             # if SG entity is removed then it is marked as "removed"
@@ -161,7 +162,7 @@ def match_ayon_hierarchy_in_shotgrid(
             continue
 
         # make sure we don't process the same entity twice
-        if sg_entity_id in processed_ids:
+        if sg_dict_id in processed_ids:
             msg = (
                 f"Entity {sg_entity_id} already processed, skipping..."
                 f"Sg Ay Dict: {sg_ay_dict} - "
@@ -171,8 +172,8 @@ def match_ayon_hierarchy_in_shotgrid(
             continue
 
         # entity was already synced before and we need to update it
-        if sg_entity_id and sg_entity_id in sg_ay_dicts:
-            sg_ay_dict = sg_ay_dicts[sg_entity_id]
+        if sg_entity_id and sg_dict_id in sg_ay_dicts:
+            sg_ay_dict = sg_ay_dicts[sg_dict_id]
             log.info(
                 f"Entity already exists in Shotgrid {sg_ay_dict['name']}")
 
@@ -256,8 +257,10 @@ def match_ayon_hierarchy_in_shotgrid(
                 continue
 
             sg_entity_id = sg_ay_dict["attribs"][SHOTGRID_ID_ATTRIB]
-            sg_ay_dicts[sg_entity_id] = sg_ay_dict
-            sg_ay_dicts_parents[sg_parent_entity["id"]].add(sg_entity_id)
+            sg_dict_id = f'{sg_ay_dict["attribs"][SHOTGRID_TYPE_ATTRIB]}_{sg_entity_id}'
+            sg_ay_dicts[sg_dict_id] = sg_ay_dict
+            sg_parent_id = f'{sg_ay_parent_entity["attribs"][SHOTGRID_TYPE_ATTRIB]}_{sg_parent_entity["id"]}'
+            sg_ay_dicts_parents[sg_parent_id].add(sg_dict_id)
 
             # add new Shotgrid ID and type to existing AYON entity
             ay_entity.attribs.set(
@@ -282,7 +285,7 @@ def match_ayon_hierarchy_in_shotgrid(
             continue
 
         # add processed entity to the set for duplicity tracking
-        processed_ids.add(sg_entity_id)
+        processed_ids.add(sg_dict_id)
 
         _add_items_to_queue(entity_hub, ay_entity_deck, ay_entity, sg_ay_dict)
 
