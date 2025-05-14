@@ -2,8 +2,10 @@
 that provided a valid Project name and code, will perform all the necessary
 checks and provide methods to keep an AYON and Shotgrid project in sync.
 """
+import os
 import collections
 import re
+import tempfile
 
 from shotgun_api3.lib import mockgun
 
@@ -433,6 +435,9 @@ class AyonShotgridHub:
                     ayon_event,
                     self._sg,
                     self._ay_project,
+                    self._sg_project,
+                    self.sg_enabled_entities,
+                    self.sg_project_code_field,
                     self.custom_attribs_map,
                     self.settings
                 )
@@ -448,6 +453,9 @@ class AyonShotgridHub:
                     ayon_event,
                     self._sg,
                     self._ay_project,
+                    self._sg_project,
+                    self.sg_enabled_entities,
+                    self.sg_project_code_field,
                     self.custom_attribs_map,
                     self.settings,
                 )
@@ -457,6 +465,7 @@ class AyonShotgridHub:
                 | "entity.task.tags_changed"
                 | "entity.folder.tags_changed"
                 | "entity.task.assignees_changed"
+                | "entity.version.status_changed"
             ):
                 # TODO: for some reason the payload here is not a dict but we know
                 # we always want to update the entity
@@ -464,6 +473,9 @@ class AyonShotgridHub:
                     ayon_event,
                     self._sg,
                     self._ay_project,
+                    self._sg_project,
+                    self.sg_enabled_entities,
+                    self.sg_project_code_field,
                     self.custom_attribs_map,
                     self.settings,
                 )
@@ -476,7 +488,7 @@ class AyonShotgridHub:
                 )
             case _:
                 raise ValueError(
-                    f"Unable to process event {ayon_event['topic']}."
+                    f"Unable to process event {ayon_event['topic']} (unsupported event)."
                 )
 
     def sync_comments(self, activities_after_date):
@@ -500,9 +512,10 @@ class AyonShotgridHub:
                 sg_note = self._sg.find_one(
                     "Note",
                     [["id", "is", int(orig_sg_id)]],
-                    ["id", "content", "sg_ayon_id"]
+                    ["id", "content", "sg_ayon_id", "attachments"]
                 )
 
+            activity_attachments = activity_data.get("files", [])
             if sg_note is None:
                 entity_id = activity["entityId"]
                 entity_dict = entity_dicts_by_id.get(entity_id)
@@ -527,6 +540,19 @@ class AyonShotgridHub:
                 )
             else:
                 sg_update_data = {}
+                activity_atchmt_names = []
+                for atchmt in activity_attachments:
+                    filename = atchmt["filename"]
+                    # handles filenames containing slashes which is happening when using the powerpack annotations in AYON
+                    if "/" in filename:
+                        filename = filename.split("/")[-1]
+                    activity_atchmt_names.append(filename)
+
+                for sg_atchmt in sg_note["attachments"]:
+                    if sg_atchmt["name"] not in activity_atchmt_names:
+                        self._sg.delete("Attachment", sg_atchmt["id"])
+                        self.log.info(f"Deleted attachment {sg_atchmt['name']} from SG.")
+
                 if sg_note["content"] != activity["body"]:
                     sg_update_data["content"] = activity["body"]
 
@@ -642,6 +668,21 @@ class AyonShotgridHub:
             activity["activityId"],
             data=activity_data,
         )
+
+        # download attachments temporarily to upload to SG
+        tmp_dir = tempfile.mkdtemp()
+        for atchmt in activity_data["files"]:
+            self.log.debug(f"{atchmt = }")
+            tmp_file = os.path.join(tmp_dir, atchmt["filename"])
+            ayon_api.download_file(
+                endpoint=f"projects/{project_name}/files/{atchmt['id']}",
+                filepath=tmp_file,
+            )
+            self.log.debug(f"Downloaded AYON attachment {atchmt['filename']} to {tmp_file}.")
+            self._sg.upload("Note", note_id, tmp_file)
+            self.log.info(f"Uploaded AYON attachment {atchmt['filename']} to SG.")
+            os.remove(tmp_file)
+
 
     def _get_addressings_to(self, content, sg_user_id_by_user_name):
         """ Extract and generate the list of ShotGrid (SG) `addressings_to`

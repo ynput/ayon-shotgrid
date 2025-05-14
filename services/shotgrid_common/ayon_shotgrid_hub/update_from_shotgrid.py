@@ -128,7 +128,11 @@ def create_ay_entity_from_sg_event(
             log.debug("ShotGrid Entity exists in AYON.")
             # Ensure AYON Entity has the correct ShotGrid ID
             ay_entity = _update_sg_id(
-                ay_entity, custom_attribs_map, sg_ay_dict)
+                ay_entity,
+                custom_attribs_map,
+                sg_ay_dict,
+                ayon_entity_hub.project_entity
+            )
 
             return ay_entity
 
@@ -310,7 +314,7 @@ def _get_ayon_parent_entity(
     return ay_parent_entity
 
 
-def _update_sg_id(ay_entity, custom_attribs_map, sg_ay_dict):
+def _update_sg_id(ay_entity, custom_attribs_map, sg_ay_dict, project_entity):
     ayon_entity_sg_id = str(
         ay_entity.attribs.get_attribute(SHOTGRID_ID_ATTRIB).value)
     # Ensure AYON Entity has the correct Shotgrid ID
@@ -326,7 +330,7 @@ def _update_sg_id(ay_entity, custom_attribs_map, sg_ay_dict):
             sg_ay_dict["type"]
         )
     update_ay_entity_custom_attributes(
-        ay_entity, sg_ay_dict, custom_attribs_map
+        ay_entity, sg_ay_dict, custom_attribs_map, project_entity
     )
 
     return ay_entity

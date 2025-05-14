@@ -22,6 +22,7 @@ from utils import (
 from constants import (
     SG_EVENT_TYPES,
     SG_EVENT_QUERY_FIELDS,
+    SHOTGRID_ID_ATTRIB,
 )
 
 import ayon_api
@@ -228,6 +229,23 @@ class ShotgridListener:
 
         return last_event_id
 
+
+    @staticmethod
+    def _get_syncing_projects():
+        """Get shotgrid project IDs defined from current AYON projects.
+        """
+        all_ay_projects = ayon_api.get_projects()
+        syncing_sg_ids = []
+
+        for ay_project in all_ay_projects:
+            syncing_id = ay_project["attrib"].get(SHOTGRID_ID_ATTRIB)
+            if not syncing_id:
+                continue
+            syncing_sg_ids.append(syncing_id)
+
+        return syncing_sg_ids
+
+
     def start_listening(self):
         """Main loop querying the Shotgrid database for new events
 
@@ -242,9 +260,15 @@ class ShotgridListener:
         last_event_id = None
 
         while True:
+
+            # Ensure we only fetch the event from the syncing projects.
+            # - project has to exists in Flow instance and AYON server
+            # - sg_project in Flow must define sg_ayon_auto_sync field
             sg_projects = self.sg_session.find(
                 "Project", filters=[["sg_ayon_auto_sync", "is", True]]
             )
+            ayon_sg_ids = self._get_syncing_projects()  # project set in AYON server
+            sg_projects = [proj for proj in sg_projects if str(proj["id"]) in ayon_sg_ids]
             sg_filters = self._build_shotgrid_filters(sg_projects)
 
             self.log.debug(f"Last Event ID: {last_event_id}")
