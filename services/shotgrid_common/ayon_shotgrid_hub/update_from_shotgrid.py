@@ -436,7 +436,7 @@ def update_ayon_entity_from_sg_event(
 
     # only update name, label for non-version entities
     # versions cannot have these fields in AYON
-    if not ay_entity.entity_type == "version":
+    if ay_entity.entity_type != "version":
         ay_entity.name = sg_ay_dict["name"]
         ay_entity.label = sg_ay_dict["label"]
 
