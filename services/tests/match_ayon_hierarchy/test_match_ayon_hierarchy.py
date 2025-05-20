@@ -4,6 +4,7 @@ import mock
 import os
 import pytest
 import dataclasses
+import datetime
 
 from shotgun_api3.lib import mockgun
 
@@ -187,6 +188,41 @@ def test_match_hierarchy_create(empty_project, mockgun_project):    # noqa: F811
             'sg_ayon_id': edit_task.id
         }
     ]
+
+
+@pytest.mark.skipif(_IS_GITHUB_ACTIONS, reason="WIP make it run on GitHub actions.")
+def test_match_heavy_hierarchy(empty_project, mockgun_project):    # noqa: F811
+    """ Ensure syncing 20 assets takes less than 1 second.
+    """
+    ay_project_data = empty_project
+    mg, _ = mockgun_project
+    hub, sg_project = setup_sg_project_and_hub(ay_project_data, mg)
+
+    entity_hub = hub.entity_hub
+
+    for idx in range(20):
+        ay_asset = entity_hub.add_new_folder(
+            folder_type="Asset",
+            name=f"my_asset_{idx}",
+            parent_id=entity_hub.project_entity.id,
+        )
+
+    # Launch hierarchy sync
+    with (
+        mock.patch.object(validate, "get_sg_project_enabled_entities", return_value=ENABLED_ENTITIES.items()),
+        mock.patch.object(utils, "get_sg_project_enabled_entities", return_value=ENABLED_ENTITIES.items()),
+    ):
+        before = datetime.datetime.now()
+        hub.synchronize_projects()
+        after = datetime.datetime.now()
+
+    # Checks
+    assets = mg.find("Asset", [["project", "is", sg_project]], ["project", "code", "sg_ayon_id"])
+    elapsed = after - before
+
+    assert elapsed.total_seconds() <= 1.0
+    assert len(assets) == 20
+
 
 
 @pytest.mark.skipif(_IS_GITHUB_ACTIONS, reason="WIP make it run on GitHub actions.")
