@@ -210,7 +210,7 @@ def update_sg_entity_from_ayon_event(
             sg_field_name = "content"
 
         data_to_update = {
-            sg_field_name: ay_entity["name"],
+            sg_field_name: ay_entity.label or ay_entity["name"],
             CUST_FIELD_CODE_ID: ay_entity["id"]
         }
         # Add any possible new values to update

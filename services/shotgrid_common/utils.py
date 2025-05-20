@@ -1985,7 +1985,7 @@ def create_new_sg_entity(
             )
 
         sg_type = "Task"
-        data["content"] = ay_entity.label
+        data["content"] = ay_entity.name
         data["entity"] = sg_parent_entity
         data["step"] = task_step
 

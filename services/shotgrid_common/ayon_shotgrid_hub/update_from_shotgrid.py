@@ -434,6 +434,7 @@ def update_ayon_entity_from_sg_event(
         log.error("Mismatching ShotGrid IDs, aborting...")
         raise ValueError("Mismatching ShotGrid IDs, aborting...")
 
+    # Update entity name and label.
     ay_entity.name = sg_ay_dict["name"]
     ay_entity.label = sg_ay_dict["label"]
 
