@@ -22,7 +22,7 @@ def recursive_partial_assert(expected, actual):
         for key, value in expected.items():
             assert key in actual
 
-        return any(recursive_partial_assert(value, actual[key]) for key, value in expected.items())
+        return all(recursive_partial_assert(value, actual[key]) for key, value in expected.items())
 
     elif isinstance(expected, list):
         assert isinstance(actual, list)
@@ -149,6 +149,7 @@ def test_match_hierarchy(empty_project, mockgun_project):    # noqa: F811
                 'children': None,
                 'folderType': 'Asset',
                 'name': 'my_asset',
+                'label': 'my_asset',
             },
             {
                 'children': [
@@ -158,14 +159,17 @@ def test_match_hierarchy(empty_project, mockgun_project):    # noqa: F811
                                 'children': None,
                                 'folderType': 'Shot',
                                 'name': 'my_shot',
+                                'label': 'my_shot',
                             }
                         ],
                         'folderType': 'Sequence',
                         'name': 'my_sequence',
+                        'label': 'my_sequence',
                     }
                 ],
                 'folderType': 'Episode',
                 'name': 'my_episode',
+                'label': 'my_episode',
             }
         ],
         'projectName': project_name
