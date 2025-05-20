@@ -824,7 +824,14 @@ def get_sg_entities(
                 and sg_entity[parent_field]
                 and entity_name != "Asset"
             ):
-                parent_id = sg_entity[parent_field]["id"]
+
+                sg_parent = sg_entity[parent_field]
+
+                # Parenting in Project tracking settings can
+                # point to a non-entity entry (e.g. AYON Sync status).
+                # Set parent id only if defined parent is a valid entity.
+                if isinstance(sg_parent, dict) and sg_parent.get("id"):
+                    parent_id = sg_parent["id"]
 
             # Reparent the current SG Asset under an AssetCategory ?
             elif (
