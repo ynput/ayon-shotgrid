@@ -368,7 +368,7 @@ class ShotgridListener:
         Returns:
             bool: True if the event was caused by our API user.
         """
-        # Ignore events that are comming from ourselves.
+        # Ignore events that are coming from ourselves.
         # Other ApiUser generated events are OK.
         if (
             event.get("user", {}).get("type") == "ApiUser"
