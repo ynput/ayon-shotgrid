@@ -1305,19 +1305,21 @@ def get_sg_custom_attributes_data(
 
             try:
                 value_as_date = datetime.datetime.fromisoformat(str(attrib_value))
-            except ValueError:
-                pass
 
-            # Check date vs isoformat type.
-            # AYON returns its date as isoformat, but FLOW API expects its date
-            # formatted as YYY-MM-DD
-            else:
+            except (ValueError, TypeError):
+                value_as_date = None
+
+            # AYON attribute value converts as date,
+            # confirm targeted SG field is also of type date.
+            if value_as_date:
                 schema_field = sg_session.schema_field_read(
                     sg_entity_type,
                     field_name=sg_attrib
                 )
                 data_type = schema_field[sg_attrib]["data_type"]["value"]
                 if data_type == "date":
+                    # AYON returns its date as isoformat, but FLOW API expects its date
+                    # formatted as YYY-MM-DD
                     attrib_value = value_as_date.strftime("%Y-%m-%d")
 
             data_to_update[sg_attrib] = attrib_value
@@ -1369,20 +1371,20 @@ def update_ay_entity_custom_attributes(
                 )
         else:
 
-            # Flow API return date as string, need to convert
-            # them back as datetime in order to update AYON.
+            # SG API returns date values as string.
+            # Attempt to detect date field values.
             try:
                 value_as_date = datetime.datetime.strptime(
-                    attrib_value,
+                    str(attrib_value),
                     "%Y-%m-%d",
                 )
 
-            except ValueError:
+            except (ValueError, TypeError):
                 value_as_date = None
 
-            # Input match a date.
-            # Confirm attrib has datetime type
-            else:
+            # Field value matches a valid date,
+            # confirm target AYON attribute is of type datetime.
+            if value_as_date:
                 all_attrib_schemas = ayon_api.get_attributes_schema()
                 attrib_schemas = [
                     attr for attr in all_attrib_schemas["attributes"]
