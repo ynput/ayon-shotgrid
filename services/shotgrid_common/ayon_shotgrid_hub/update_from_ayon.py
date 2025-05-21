@@ -210,7 +210,6 @@ def update_sg_entity_from_ayon_event(
             sg_field_name = "content"
 
         data_to_update = {
-            sg_field_name: ay_entity.label or ay_entity["name"],
             CUST_FIELD_CODE_ID: ay_entity["id"]
         }
         # Add any possible new values to update
@@ -222,6 +221,12 @@ def update_sg_entity_from_ayon_event(
             # newValue dict
             if "attribs" in new_attribs:
                 new_attribs = new_attribs["attribs"]
+
+        # Label changed
+        elif ayon_event["topic"].endswith("label_changed"):
+            new_value = ayon_event["payload"].get("newValue")
+            data_to_update[sg_field_name] = new_value
+            new_attribs = None
 
         # Otherwise it's a tag/status update
         elif ayon_event["topic"].endswith("status_changed"):
@@ -240,6 +245,7 @@ def update_sg_entity_from_ayon_event(
                     f"It should be one of: {sg_statuses}"
                 )
                 return
+
         elif ayon_event["topic"].endswith("tags_changed"):
             tags_event_list = new_attribs
             new_attribs = {"tags": []}
@@ -291,6 +297,7 @@ def update_sg_entity_from_ayon_event(
         )
         log.info(f"Updated ShotGrid entity: {sg_entity}")
         return sg_entity
+
     except Exception:
         log.error(
             f"Unable to update {sg_entity_type} <{sg_id}> in ShotGrid!",
