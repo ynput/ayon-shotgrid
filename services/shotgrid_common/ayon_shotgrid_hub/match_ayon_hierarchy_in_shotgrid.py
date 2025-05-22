@@ -87,13 +87,6 @@ def match_ayon_hierarchy_in_shotgrid(
             ),
             ay_entity_child
         ))
-    versions = ayon_api.get_versions(entity_hub.project_name)
-    for version in versions:
-        product_entity = entity_hub.get_product_by_id(version["productId"])
-        ay_entity_deck.append(
-            (product_entity.parent,
-             entity_hub.get_version_by_id(version["id"]))
-        )
 
     ay_project_sync_status = "Synced"
     processed_ids = set()
@@ -351,7 +344,21 @@ def _add_items_to_queue(
         ay_entity (Union[TaskEntity, FolderEntity]): The AYON entity.
         sg_ay_dict (Dict): The Shotgrid AYON entity dictionary.
     """
+    # Add children entity
     for ay_entity_child in entity_hub._entities_by_parent_id.get(
                 ay_entity.id, []
             ):
         ay_entity_deck.append((sg_ay_dict, ay_entity_child))
+
+    # Add direct children version underneath
+    versions = ayon_api.get_versions(entity_hub.project_name)
+    for version in versions:
+        product_entity = entity_hub.get_product_by_id(version["productId"])
+
+        if product_entity.parent.id == ay_entity.id:
+            ay_entity_deck.append(
+                (
+                    sg_ay_dict,
+                    entity_hub.get_version_by_id(version["id"])
+                )
+            )

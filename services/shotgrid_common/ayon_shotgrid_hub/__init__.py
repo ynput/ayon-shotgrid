@@ -343,12 +343,6 @@ class AyonShotgridHub:
                     f"| {sg_event_meta['entity_type']} "
                     f"| {sg_event_meta['entity_id']}"
                 )
-                if sg_event_meta["entity_type"] == "Version":
-                    attr_name = sg_event_meta["attribute_name"]
-                    self.log.info(
-                        f"Skipping attribute change '{attr_name}' for Version"
-                    )
-                    return
                 update_ayon_entity_from_sg_event(
                     sg_event_meta,
                     self._sg_project,
@@ -430,6 +424,9 @@ class AyonShotgridHub:
                     ayon_event,
                     self._sg,
                     self._ay_project,
+                    self._sg_project,
+                    self.sg_enabled_entities,
+                    self.sg_project_code_field,
                     self.custom_attribs_map,
                     self.settings
                 )
@@ -445,6 +442,9 @@ class AyonShotgridHub:
                     ayon_event,
                     self._sg,
                     self._ay_project,
+                    self._sg_project,
+                    self.sg_enabled_entities,
+                    self.sg_project_code_field,
                     self.custom_attribs_map,
                     self.settings,
                 )
@@ -454,6 +454,7 @@ class AyonShotgridHub:
                 | "entity.task.tags_changed"
                 | "entity.folder.tags_changed"
                 | "entity.task.assignees_changed"
+                | "entity.version.status_changed"
             ):
                 # TODO: for some reason the payload here is not a dict but we know
                 # we always want to update the entity
@@ -461,6 +462,9 @@ class AyonShotgridHub:
                     ayon_event,
                     self._sg,
                     self._ay_project,
+                    self._sg_project,
+                    self.sg_enabled_entities,
+                    self.sg_project_code_field,
                     self.custom_attribs_map,
                     self.settings,
                 )
@@ -473,7 +477,7 @@ class AyonShotgridHub:
                 )
             case _:
                 raise ValueError(
-                    f"Unable to process event {ayon_event['topic']}."
+                    f"Unable to process event {ayon_event['topic']} (unsupported event)."
                 )
 
     def sync_comments(self, activities_after_date):
