@@ -152,6 +152,9 @@ def match_shotgrid_hierarchy_in_ayon(
                 sg_ay_dict
             )
         else:
+            # Update entity label.
+            ay_entity.label = sg_ay_dict["label"]
+
             if not _update_ay_entity(
                 ay_entity,
                 custom_attribs_map,
