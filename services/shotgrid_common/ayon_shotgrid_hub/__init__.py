@@ -141,6 +141,10 @@ class AyonShotgridHub:
         )
 
     @property
+    def sg_project(self):
+        return self._sg_project
+
+    @property
     def entity_hub(self):
         return self._ay_project
 
@@ -353,12 +357,6 @@ class AyonShotgridHub:
                     f"| {sg_event_meta['entity_type']} "
                     f"| {sg_event_meta['entity_id']}"
                 )
-                if sg_event_meta["entity_type"] == "Version":
-                    attr_name = sg_event_meta["attribute_name"]
-                    self.log.info(
-                        f"Skipping attribute change '{attr_name}' for Version"
-                    )
-                    return
                 update_ayon_entity_from_sg_event(
                     sg_event_meta,
                     self._sg_project,
@@ -401,9 +399,9 @@ class AyonShotgridHub:
             ayon_event (dict): A dictionary describing what
                 the change encompases, i.e. a new shot, new asset, etc.
         """
-        if not self._sg_project[CUST_FIELD_CODE_AUTO_SYNC]:
+        if not self._sg_project:
             self.log.info(
-                "Ignoring event, Shotgrid field 'Ayon Auto Sync' is disabled."
+                "Ignoring event, Shotgrid project does not exist."
             )
             return
 
@@ -430,7 +428,12 @@ class AyonShotgridHub:
                     self._sg,
                 )
 
-            case "entity.task.renamed" | "entity.folder.renamed":
+            case (
+                "entity.task.renamed"
+                | "entity.folder.renamed"
+                | "entity.folder.label_changed"
+                | "entity.task.label_changed"
+            ):
                 update_sg_entity_from_ayon_event(
                     ayon_event,
                     self._sg,

@@ -93,20 +93,22 @@ def match_shotgrid_hierarchy_in_ayon(
             continue
 
         shotgrid_type = sg_ay_dict["attribs"].get(SHOTGRID_TYPE_ATTRIB)
-        if shotgrid_type == "Version":
-            log.info(
-                "Version creation/update not implemented because "
-                "product name and integer version doesn't exist in SG"
-            )
-            continue
+        ay_id = sg_ay_dict["data"].get(CUST_FIELD_CODE_ID)
 
         ay_entity = None
         sg_entity_sync_status = "Synced"
 
-        ay_id = sg_ay_dict["data"].get(CUST_FIELD_CODE_ID)
         if ay_id:
             ay_entity = entity_hub.get_or_query_entity_by_id(
                 ay_id, [sg_ay_dict["type"]])
+
+        if shotgrid_type == "Version" and not ay_entity:
+            log.warning(
+                "Version creation from Flow is not implemented because "
+                "Flow entity is much less strict than AYON product with reviewable "
+                "(e.g. product name and integer are not mandatory in Flow)."
+            )
+            continue
 
         # If we haven't found the ay_entity by its id, check by its name
         # to avoid creating duplicates and erroring out
@@ -150,6 +152,9 @@ def match_shotgrid_hierarchy_in_ayon(
                 sg_ay_dict
             )
         else:
+            # Update entity label.
+            ay_entity.label = sg_ay_dict["label"]
+
             if not _update_ay_entity(
                 ay_entity,
                 custom_attribs_map,
@@ -232,7 +237,7 @@ def _update_ay_entity(
     # If the ShotGrid ID in AYON doesn't match the one in ShotGrid
     if str(ay_sg_id_attrib) != str(sg_entity_id):  # noqa
         log.error(
-            f"The AYON entity {ay_entity.name} <{ay_entity.id}> has the "  # noqa
+            f"The AYON entity {ay_entity.entity_type} <{ay_entity.id}> has the "  # noqa
             f"ShotgridId {ay_sg_id_attrib}, while the ShotGrid ID "  # noqa
             f"should be {sg_entity_id}"
         )

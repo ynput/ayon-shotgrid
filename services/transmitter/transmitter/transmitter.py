@@ -150,12 +150,14 @@ class ShotgridTransmitter:
             "entity.task.create",
             "entity.task.assignees_changed",
             "entity.task.attrib_changed",
+            "entity.task.label_changed",
             "entity.task.status_changed",
             "entity.task.tags_changed",
             "entity.folder.created",
             "entity.folder.deleted",
             "entity.folder.renamed",
             "entity.folder.attrib_changed",
+            "entity.folder.label_changed",
             "entity.folder.status_changed",
             "entity.folder.tags_changed",
             "entity.version.created",
@@ -259,7 +261,12 @@ class ShotgridTransmitter:
                 custom_attribs_types=self.custom_attribs_types,
                 sg_enabled_entities=self.sg_enabled_entities,
             )
-            self._cached_hubs[project_name] = hub
+
+            # Do not cache the hub object
+            # if the SG project does not exist (yet?).
+            # This is to force refresh on next event.
+            if hub.sg_project is not None:
+                self._cached_hubs[project_name] = hub
 
         return hub
 

@@ -207,11 +207,26 @@ def match_ayon_hierarchy_in_shotgrid(
 
             attrib_values.update(ay_entity.attribs.to_dict())
 
-            data_to_update = get_sg_custom_attributes_data(
-                sg_session,
-                attrib_values,
-                sg_entity_type,
-                custom_attribs_map
+            # Ensure name still matching folder/task label or name
+            data_to_update = {}
+            try:
+                name = ay_entity.label or ay_entity.get_name()
+
+            except NotImplementedError:
+                pass
+
+            else:
+                if name != sg_ay_dict.get("name"):
+                    sg_name_field = "content" if sg_entity_type == "Task" else "code"
+                    data_to_update = {sg_name_field: name}
+
+            data_to_update.update(
+                get_sg_custom_attributes_data(
+                    sg_session,
+                    attrib_values,
+                    sg_entity_type,
+                    custom_attribs_map
+                )
             )
             if data_to_update:
                 log.info("Syncing custom attributes on entity.")

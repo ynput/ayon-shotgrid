@@ -826,9 +826,16 @@ def get_sg_entities(
                 and sg_entity[parent_field]
                 and entity_name != "Asset"
             ):
-                parent_id = sg_entity[parent_field]["id"]
-                parent_type = sg_entity[parent_field]["type"]
-                parent_id = f'{parent_type}_{parent_id}'
+
+                sg_parent = sg_entity[parent_field]
+
+                # Parenting in Project tracking settings can
+                # point to a non-entity entry (e.g. AYON Sync status).
+                # Set parent id only if defined parent is a valid entity.
+                if isinstance(sg_parent, dict) and sg_parent.get("id"):
+                    parent_id = sg_parent["id"]
+                    parent_type = sg_parent["type"]
+                    parent_id = f'{parent_type}_{parent_id}'
 
             # Reparent the current SG Asset under an AssetCategory ?
             elif (
@@ -1312,19 +1319,21 @@ def get_sg_custom_attributes_data(
 
             try:
                 value_as_date = datetime.datetime.fromisoformat(str(attrib_value))
-            except ValueError:
-                pass
 
-            # Check date vs isoformat type.
-            # AYON returns its date as isoformat, but FLOW API expects its date
-            # formatted as YYY-MM-DD
-            else:
+            except (ValueError, TypeError):
+                value_as_date = None
+
+            # AYON attribute value converts as date,
+            # confirm targeted SG field is also of type date.
+            if value_as_date:
                 schema_field = sg_session.schema_field_read(
                     sg_entity_type,
                     field_name=sg_attrib
                 )
                 data_type = schema_field[sg_attrib]["data_type"]["value"]
                 if data_type == "date":
+                    # AYON returns its date as isoformat, but FLOW API expects its date
+                    # formatted as YYY-MM-DD
                     attrib_value = value_as_date.strftime("%Y-%m-%d")
 
             data_to_update[sg_attrib] = attrib_value
@@ -1462,7 +1471,11 @@ def create_new_ayon_entity(
     elif sg_ay_dict["type"].lower() == "version":
         # SG doesn't have values for product_name and version (int)
         # we might create some assumption how to parsem out in the future
-        log.warning("Cannot create new versions yet.")
+        log.warning(
+            "Version creation from Flow is not implemented because "
+            "Flow entity is much less strict than AYON product with reviewable "
+            "(e.g. product name and integer are not mandatory in Flow)."
+        )
         return
     elif sg_ay_dict["type"].lower() == "comment":
         handle_comment(sg_ay_dict, sg_session, entity_hub)
@@ -1993,7 +2006,7 @@ def create_new_sg_entity(
             )
 
         sg_type = "Task"
-        data["content"] = ay_entity.label
+        data["content"] = ay_entity.name
         data["entity"] = sg_parent_entity
         data["step"] = task_step
 
