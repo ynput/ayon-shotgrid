@@ -14,6 +14,14 @@ import utils
 
 
 _IS_GITHUB_ACTIONS = bool(os.getenv("GITHUB_ACTIONS"))
+ENABLED_ENTITIES = {
+    "Episode": "project",
+    "Sequence": "project",
+    "Shot": "sg_sequence",
+    "Asset": "project",
+    "Version": "entity",
+    "Task": "entity",
+}
 
 
 def recursive_partial_assert(expected, actual):
@@ -39,14 +47,6 @@ def test_match_hierarchy(empty_project, mockgun_project):    # noqa: F811
 
     ay_project_data = empty_project
     mg, _ = mockgun_project
-
-    enabled_entities = {
-        "Episode": "project",
-        "Sequence": "episode",
-        "Shot": "sg_sequence",
-        "Asset": "project",
-        "Version": "entity"
-    }
 
     # create SG project and step in Mockgun
     sg_project = mg.create(
@@ -96,13 +96,13 @@ def test_match_hierarchy(empty_project, mockgun_project):    # noqa: F811
         ay_project_data.project_name,
         ay_project_data.project_code,
         sg_project_code_field="code",
-        sg_enabled_entities=enabled_entities.keys(),
+        sg_enabled_entities=ENABLED_ENTITIES.keys(),
     )
 
     # Launch hierarchy sync
     with (
-        mock.patch.object(validate, "get_sg_project_enabled_entities", return_value=enabled_entities.items()),
-        mock.patch.object(utils, "get_sg_project_enabled_entities", return_value=enabled_entities.items()),
+        mock.patch.object(validate, "get_sg_project_enabled_entities", return_value=ENABLED_ENTITIES.items()),
+        mock.patch.object(utils, "get_sg_project_enabled_entities", return_value=ENABLED_ENTITIES.items()),
     ):
         hub.synchronize_projects(source="shotgrid")
 
@@ -177,3 +177,61 @@ def test_match_hierarchy(empty_project, mockgun_project):    # noqa: F811
 
     hierarchy_ok = recursive_partial_assert(expected, hierarchy)
     assert hierarchy_ok is True
+
+
+@pytest.mark.skipif(_IS_GITHUB_ACTIONS, reason="WIP make it run on GitHub actions.")
+def test_match_hierarchy(empty_project, mockgun_project):    # noqa: F811
+
+    ay_project_data = empty_project
+    mg, _ = mockgun_project
+
+    # create SG project and step in Mockgun
+    sg_project = mg.create(
+        "Project",
+        {
+            "code": ay_project_data.project_code,
+            "name": ay_project_data.project_name,
+            "sg_ayon_auto_sync": False,
+        }
+    )
+    sg_asset = mg.create(
+        "Asset",
+        {
+            "project": sg_project,
+            "code": "my_asset",
+        }
+    )
+
+    # create some data in AYON
+    hub = AyonShotgridHub(
+        mg,
+        ay_project_data.project_name,
+        ay_project_data.project_code,
+        sg_project_code_field="code",
+        sg_enabled_entities=ENABLED_ENTITIES.keys(),
+    )
+
+    # Launch hierarchy sync
+    with (
+        mock.patch.object(validate, "get_sg_project_enabled_entities", return_value=ENABLED_ENTITIES.items()),
+        mock.patch.object(utils, "get_sg_project_enabled_entities", return_value=ENABLED_ENTITIES.items()),
+    ):
+        hub.synchronize_projects(source="shotgrid")
+
+    mg.update(
+        "Asset",
+        1,
+        {"code": "my_asset (renamed)"},
+    )
+
+    # React to sg event.
+    with (
+        mock.patch.object(validate, "get_sg_project_enabled_entities", return_value=ENABLED_ENTITIES.items()),
+        mock.patch.object(utils, "get_sg_project_enabled_entities", return_value=ENABLED_ENTITIES.items()),
+    ):
+        hub.synchronize_projects(source="shotgrid")
+
+    asset_folder = ayon_api.get_folder_by_name(ay_project_data.project_name, "my_asset")
+
+    assert asset_folder["name"] == "my_asset"
+    assert asset_folder["label"] == "my_asset (renamed)"
