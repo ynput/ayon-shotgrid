@@ -114,7 +114,7 @@ def test_match_hierarchy_create(empty_project, mockgun_project):    # noqa: F811
     assets = mg.find("Asset", [["project", "is", sg_project]], ["project", "code", "sg_ayon_id"])
     shots = mg.find("Shot", [["project", "is", sg_project]], ["project", "sg_sequence", "code", "sg_ayon_id"])
     sequences = mg.find("Sequence", [["project", "is", sg_project]], ["project", "code", "sg_ayon_id"])
-    tasks = mg.find("Task", [["project", "is", sg_project]], ["project", "code", "step.Step.code", "entity", "sg_ayon_id"])
+    tasks = mg.find("Task", [["project", "is", sg_project]], ["project", "content", "step.Step.code", "entity", "sg_ayon_id"])
 
     assert assets == [
         {
@@ -162,7 +162,7 @@ def test_match_hierarchy_create(empty_project, mockgun_project):    # noqa: F811
     ]
     assert tasks == [
         {
-            'code': None,
+            'content': 'my_rendering_task',
             'entity': {'id': 1, 'type': 'Asset'},
             'id': 1,
             'project': {
@@ -175,7 +175,7 @@ def test_match_hierarchy_create(empty_project, mockgun_project):    # noqa: F811
             'sg_ayon_id': rendering_task.id
         },
         {
-            'code': None,
+            'content': 'my_edit_task',
             'entity': {'id': 1, 'type': 'Shot'},
             'id': 2,
             'project': {
