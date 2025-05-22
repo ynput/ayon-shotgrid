@@ -1464,7 +1464,11 @@ def create_new_ayon_entity(
     elif sg_ay_dict["type"].lower() == "version":
         # SG doesn't have values for product_name and version (int)
         # we might create some assumption how to parsem out in the future
-        log.warning("Cannot create new versions yet.")
+        log.warning(
+            "Version creation from Flow is not implemented because "
+            "Flow entity is much less strict than AYON product with reviewable "
+            "(e.g. product name and integer are not mandatory in Flow)."
+        )
         return
     elif sg_ay_dict["type"].lower() == "comment":
         handle_comment(sg_ay_dict, sg_session, entity_hub)
