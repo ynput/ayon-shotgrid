@@ -16,7 +16,7 @@ from .. import helpers
 
 
 @pytest.mark.skipif(helpers.IS_GITHUB_ACTIONS, reason="WIP make it run on GitHub actions.")
-@pytest.mark.parametrize("empty_project", [{"statuses": ("not_started",)}], indirect=True)
+@pytest.mark.parametrize("empty_project", [{"task_types": ("rendering", "edit")}], indirect=True)
 def test_match_hierarchy_update(empty_project, mockgun_project):    # noqa: F811
     """ Ensure new Flow entities are updated from an AYON hierarchy.
     """
@@ -29,8 +29,8 @@ def test_match_hierarchy_update(empty_project, mockgun_project):    # noqa: F811
     # Add "final" status
     data = entity_hub.project_entity.statuses.to_data()
     data.append({"name": "Final", "shortName": "fin"})
+    data.append({"name": "In Progress", "shortName": "ip"})
     entity_hub.project_entity.set_statuses(data)
-    entity_hub.commit_changes()
 
     # An asset that exist in SG but needs update.
     ay_asset = entity_hub.add_new_folder(
@@ -44,8 +44,19 @@ def test_match_hierarchy_update(empty_project, mockgun_project):    # noqa: F811
             constants.SHOTGRID_TYPE_ATTRIB: "Asset"
         }
     )
+    edit_task = entity_hub.add_new_task(
+        task_type="edit",
+        name="my_edit_task",
+        label="my_edit_task",
+        parent_id=ay_asset.id,
+        status="Final",
+        attribs={
+            constants.SHOTGRID_ID_ATTRIB: "1",
+            constants.SHOTGRID_TYPE_ATTRIB: "Task"
+        }
+    )
 
-    mg.create(
+    sg_asset = mg.create(
         "Asset",
         {
             "code": "my_asset",
@@ -54,14 +65,26 @@ def test_match_hierarchy_update(empty_project, mockgun_project):    # noqa: F811
             "project": sg_project,
         }
     )
+    mg.create(
+        "Task",
+        {
+            'content': 'my_edit_task',
+            'entity': sg_asset,
+            'project': sg_project,
+            'sg_ayon_id': edit_task.id,
+            "sg_status_list": "wtg",
+        }
+    )
 
     # A sequence that does not exist in SG but needs update.
-    entity_hub.add_new_folder(
+    ay_sequence = entity_hub.add_new_folder(
         folder_type="Sequence",
         name="my_sequence",
         label="my_sequence",
+        status="Final",
         parent_id=entity_hub.project_entity.id,
     )
+    entity_hub.commit_changes()
 
     # Launch hierarchy sync
     with (
@@ -75,9 +98,26 @@ def test_match_hierarchy_update(empty_project, mockgun_project):    # noqa: F811
         [["id", "is", 1]],
         ["sg_status_list"]
     )
+    sg_sequence = mg.find_one(
+        "Sequence",
+        [["id", "is", 1]],
+        ["sg_status_list", "sg_ayon_id"],
+    )
+    sg_task = mg.find_one(
+        "Task",
+        [["id", "is", 1]],
+        ["sg_status_list"]
+    )
 
     # Ensure asset status got updated.
     assert sg_asset["sg_status_list"] == "fin"
+
+    # Ensure sequence got created and updated.
+    assert sg_sequence["sg_ayon_id"] == ay_sequence.id
+    assert sg_sequence["sg_status_list"] == "fin"
+
+    # Ensure task status got updated.
+    assert sg_task["sg_status_list"] == "fin"
 
 
 @pytest.mark.skipif(helpers.IS_GITHUB_ACTIONS, reason="WIP make it run on GitHub actions.")

@@ -55,6 +55,7 @@ def setup_sg_project_and_hub(
             "sg_ayon_auto_sync": True,
         }
     )
+    mg.create("Step", {"code": "edit", "entity_type": "Asset"})
     mg.create("Step", {"code": "edit", "entity_type": "Shot"})
     mg.create("Step", {"code": "rendering", "entity_type": "Asset"})
     mg.create("Step", {"code": "rendering", "entity_type": "Shot"})
