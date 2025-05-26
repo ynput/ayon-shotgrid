@@ -25,6 +25,7 @@ Runtime targets:
 	processor    Main processing logic
 	transmitter  Transmit AYON events to shotgrid
 	services     Start all services leecher, processor and transmitter
+	runtests     Install test environement and run the tests.
 
 endef
 export HELP_INFO
@@ -59,6 +60,11 @@ services:
 		export AYON_ADDON_VERSION=$(VERSION) && \
 		. $(CURDIR)/venv/bin/activate && \
 		python "$(CURDIR)/main.py" --service all $@
+
+runtests:
+		$(shell [[ -d $(CURDIR)/venv_test ]] || python -m venv $(CURDIR)/venv_test) && \
+		. $(CURDIR)/venv/bin/activate && python -m pip install -e "$(CURDIR)/.[test]"	&& \
+		python -m pytest "$(CURDIR)/../services/tests"
 
 info: help
 default: help
