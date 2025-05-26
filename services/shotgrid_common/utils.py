@@ -2115,6 +2115,25 @@ def create_new_sg_entity(
             data[sg_parent_field] = sg_parent_entity
         data["code"] = ay_entity.name
 
+    # Set status
+    if ay_entity.status:
+        entity = ay_entity
+        project_entity = None
+        while entity.parent:
+            entity = entity.parent
+            if entity.entity_type == "project":
+                project_entity = entity
+                break
+
+        if project_entity:
+            ay_statuses = {
+                status.name: status.short_name
+                for status in project_entity.statuses
+            }
+            ay_status = ay_statuses.get(ay_entity.status)
+            if ay_status and ay_status in get_sg_statuses(sg_session, sg_type):
+                data["sg_status_list"] = ay_status
+
     # Fill up data with any extra attributes from AYON we want to sync to SG
     data |= get_sg_custom_attributes_data(
         sg_session,
