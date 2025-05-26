@@ -178,8 +178,8 @@ def _get_sg_parent_entity(sg_session, ay_entity, ayon_event):
                 f"Could not find Version parent folder from ID: '{folder_id}'."
             )
 
-        sg_parent_id = ayon_asset["attrib"].get(SHOTGRID_ID_ATTRIB)
-        sg_parent_type = ayon_asset["attrib"].get(SHOTGRID_TYPE_ATTRIB)
+        sg_parent_id = ayon_asset.attribs.get(SHOTGRID_ID_ATTRIB)
+        sg_parent_type = ayon_asset.attribs.get(SHOTGRID_TYPE_ATTRIB)
     else:
         sg_parent_id, sg_parent_type = _get_parent_sg_id_type(ay_entity)
 

@@ -3,7 +3,9 @@
 import pytest
 from unittest import mock
 
-from ayon_api.entity_hub import EntityHub, FolderEntity, TaskEntity
+import ayon_api
+from ayon_api.entity_hub import EntityHub, FolderEntity, TaskEntity, VersionEntity, ProductEntity
+
 import constants
 import utils
 
@@ -30,6 +32,9 @@ def common_ay_event():
 
 
 def test_create_new_episode(hub_and_project, common_ay_event):
+    """ Ensure a new Episode is created in Flow from an AYON event.
+    """
+
     common_ay_event["description"] = "Folder my_new_episode created"
     common_ay_event["topic"] = "entity.folder.created"
 
@@ -47,6 +52,9 @@ def test_create_new_episode(hub_and_project, common_ay_event):
 
 
 def test_create_new_asset(hub_and_project, common_ay_event):
+    """ Ensure a new Asset is created in Flow from an AYON event.
+    """
+
     common_ay_event["description"] = "Folder new_asset created"
     common_ay_event["topic"] = "entity.folder.created"
 
@@ -64,6 +72,9 @@ def test_create_new_asset(hub_and_project, common_ay_event):
 
 
 def test_create_new_shot(hub_and_project, common_ay_event):
+    """ Ensure a new Shot is created in Flow from an AYON event.
+    """
+
     sg_sequence = hub_and_project["mg"].create("Sequence", {"project": hub_and_project["project"], "code": "my_sequence"})
     sequence_entity = FolderEntity(
         "new_sequence",
@@ -98,6 +109,9 @@ def test_create_new_shot(hub_and_project, common_ay_event):
 
 
 def test_create_new_task(hub_and_project):
+    """ Ensure a new Task is created in Flow from an AYON event.
+    """
+
     mg = hub_and_project["mg"]
     project = hub_and_project["project"]
     entity_hub = hub_and_project["entity_hub"]
@@ -161,4 +175,93 @@ def test_create_new_task(hub_and_project):
         'step': {'id': 1, 'type': 'Step'},
         'id': 1,
         'type': 'Task'
+    }
+
+def test_create_new_version(hub_and_project):
+    """ Ensure a new Task is created in Flow from an AYON event.
+    """
+
+    mg = hub_and_project["mg"]
+    project = hub_and_project["project"]
+    entity_hub = hub_and_project["entity_hub"]
+    hub = hub_and_project["hub"]
+
+    sg_sequence = mg.create("Sequence", {"project": project, "code": "my_sequence"})
+    mg.create("Step", {"code": "edit", "entity_type": "Sequence"})
+
+    sequence_entity = FolderEntity(
+        "new_sequence",
+        "Sequence",
+        parent_id=project,
+        entity_hub=entity_hub,
+        attribs={
+            constants.SHOTGRID_ID_ATTRIB: str(sg_sequence["id"]),
+            constants.SHOTGRID_TYPE_ATTRIB: "Sequence",
+        }
+    )
+
+    product_entity = ProductEntity(
+        "product_name",
+        "render",
+        folder_id=sequence_entity.id,
+        entity_hub=entity_hub,
+    )
+
+    version_entity = VersionEntity(
+        30,
+        product_id=product_entity.id,
+        data={},
+        entity_hub=entity_hub,
+    )
+
+    ay_event = {
+        'createdAt': '2025-04-29T15:45:23.550702+00:00',
+        'dependsOn': None,
+        'description': 'Task new_edit_task created',
+        'hash': 'f69a64a6251011f0ac900242ac120002',
+        'id': 'f69a64a6251011f0ac900242ac120002',
+        'payload': {},
+        'project': 'test_project',
+        'retries': 0,
+        'sender': '1YWHoUnmujGNUKwXWuiLvP',
+        'senderType': 'api',
+        'status': 'finished',
+        'summary': {
+            'entityId': 'f56a1540251011f08eedd9567d7d6404',
+            'parentId': '11d9f4cd1fac11f099587cb566e6652d'
+        },
+        'topic': 'entity.version.created',
+        'updatedAt': '2025-04-29T15:45:23.550702+00:00',
+        'user': 'admin'
+    }
+
+    with mock.patch.object(EntityHub, "get_or_query_entity_by_id", return_value=version_entity), \
+         mock.patch.object(VersionEntity, "parent", new_callable=mock.PropertyMock) as mock_parent, \
+         mock.patch.object(ProductEntity, "parent", new_callable=mock.PropertyMock) as mock_parent_2, \
+         mock.patch.object(ayon_api, "get_folder_by_id", return_value=sequence_entity), \
+         mock.patch.object(ayon_api, "get_product_by_id", return_value={"productType": "render"}), \
+         mock.patch.object(utils, "get_sg_entity_parent_field", return_value="entity"), \
+         mock.patch.object(utils, "_add_paths", return_value=None):
+
+        mock_parent.return_value = product_entity
+        mock_parent_2.return_value = sequence_entity
+        hub.react_to_ayon_event(ay_event)
+
+    new_version = mg.find_one(
+        "Version",
+        [["project", "is", project]],
+        [
+            "code", "entity", "sg_version_type",
+            "sg_first_frame", "sg_last_frame"
+        ]
+    )
+
+    assert new_version == {
+        'sg_version_type': 'render',
+        'entity': {'type': 'Sequence', 'id': 1},
+        'sg_last_frame': 0,
+        'code': 'product_name_v030',
+        'sg_first_frame': 0,
+        'type': 'Version',
+        'id': 1
     }
