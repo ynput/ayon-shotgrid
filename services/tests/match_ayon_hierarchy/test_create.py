@@ -1,14 +1,11 @@
 """ Test match an AYON hierarchy to SG.
 """
 import mock
-import os
 import pytest
 import datetime
 
 from pytest_ayon.plugin import empty_project  # noqa: F401
 
-from ayon_shotgrid_hub import AyonShotgridHub
-import constants
 import validate
 import utils
 
@@ -219,7 +216,7 @@ def test_match_heavy_hierarchy(empty_project, mockgun_project):    # noqa: F811
     entity_hub = hub.entity_hub
 
     for idx in range(20):
-        ay_asset = entity_hub.add_new_folder(
+        entity_hub.add_new_folder(
             folder_type="Asset",
             name=f"my_asset_{idx}",
             parent_id=entity_hub.project_entity.id,

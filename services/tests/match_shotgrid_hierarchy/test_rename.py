@@ -29,7 +29,7 @@ def test_label_renamed(empty_project, mockgun_project):    # noqa: F811
             "sg_ayon_auto_sync": False,
         }
     )
-    sg_asset = mg.create(
+    mg.create(
         "Asset",
         {
             "project": sg_project,

@@ -1,13 +1,10 @@
 """ Test update AYON hierarchy to SG.
 """
 import mock
-import os
 import pytest
-import datetime
 
 from pytest_ayon.plugin import empty_project  # noqa: F401
 
-from ayon_shotgrid_hub import AyonShotgridHub
 import constants
 import validate
 import utils
