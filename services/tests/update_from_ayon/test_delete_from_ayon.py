@@ -13,7 +13,7 @@ def test_delete_folder(hub_and_project):
     all_sequences = mg.find("Sequence", [["project", "is", project]])
     assert len(all_sequences) == 1
 
-    # Événement AYON simulant la suppression d'une séquence
+    # AYON event to fake the sequence delete
     ay_event = {
         'createdAt': '2025-04-29T17:02:17.951175+00:00',
         'dependsOn': None,

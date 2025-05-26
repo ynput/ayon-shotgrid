@@ -2083,10 +2083,10 @@ def create_new_sg_entity(
             data["sg_version_type"] = product_data["productType"]
 
         # sync first/last frames
-        frame_start = ay_entity.attribs.get("frameStart", 0)
-        frame_end = ay_entity.attribs.get("frameEnd", 0)
-        handle_start = ay_entity.attribs.get("handleStart", 0)
-        handle_end = ay_entity.attribs.get("handleEnd", 0)
+        frame_start = ay_entity.attribs.get("frameStart") or 0
+        frame_end = ay_entity.attribs.get("frameEnd") or 0
+        handle_start = ay_entity.attribs.get("handleStart") or 0
+        handle_end = ay_entity.attribs.get("handleEnd") or 0
 
         data["sg_first_frame"]  = frame_start - handle_start
         data["sg_last_frame"] = frame_end + handle_end
