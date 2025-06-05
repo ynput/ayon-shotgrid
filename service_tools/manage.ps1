@@ -80,7 +80,7 @@ function Install-And-Run-Tests {
   # Make sure venv_test is created
   $venv_path = "$($script_dir)\.venv_test"
   if (-not(Test-Path $venv_path)) {
-    & C:\Python\Python310\python.exe -m venv $venv_path
+    & python -m venv $venv_path
   }
 
   # Active venv_test and install test requirements
