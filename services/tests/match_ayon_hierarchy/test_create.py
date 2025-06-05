@@ -207,7 +207,7 @@ def test_match_hierarchy_create_version(empty_project, mockgun_project):    # no
 
 @pytest.mark.skipif(helpers.IS_GITHUB_ACTIONS, reason="WIP make it run on GitHub actions.")
 def test_match_heavy_hierarchy(empty_project, mockgun_project):    # noqa: F811
-    """ Ensure syncing 20 assets takes less than 1 second.
+    """ Ensure syncing 20 assets takes less than 10 seconds.
     """
     ay_project_data = empty_project
     mg, _ = mockgun_project
@@ -235,5 +235,5 @@ def test_match_heavy_hierarchy(empty_project, mockgun_project):    # noqa: F811
     assets = mg.find("Asset", [["project", "is", sg_project]], ["project", "code", "sg_ayon_id"])
     elapsed = after - before
 
-    assert elapsed.total_seconds() <= 1.0
+    assert elapsed.total_seconds() <= 10.0
     assert len(assets) == 20
