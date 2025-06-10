@@ -77,6 +77,11 @@ class ShotgridTransmitter:
                     "the Addon System settings."
                 )
 
+            # SSL validation
+            if self.settings.get("shotgrid_no_ssl_validation", False):
+                shotgun_api3.NO_SSL_VALIDATION = True
+                self.log.info("SSL validation is disabled.")
+
             # Compatibility settings
             custom_attribs_map = self.settings["compatibility_settings"][
                 "custom_attribs_map"]
