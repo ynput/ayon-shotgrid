@@ -8,6 +8,7 @@ import ayon_api
 from pytest_ayon.plugin import empty_project  # noqa: F401
 
 from ayon_shotgrid_hub import AyonShotgridHub
+import constants
 import validate
 import utils
 
@@ -114,7 +115,11 @@ def test_label_version_renamed(empty_project, mockgun_project):    # noqa: F811
         25,
         product_id=ay_product.id,
         task_id=edit_task.id,
-        data={}
+        data={},
+        attribs={
+            constants.SHOTGRID_ID_ATTRIB: "1",
+            constants.SHOTGRID_TYPE_ATTRIB: "Version"
+        }
     )
     entity_hub.commit_changes()
 
@@ -132,18 +137,9 @@ def test_label_version_renamed(empty_project, mockgun_project):    # noqa: F811
         {
             "project": sg_project,
             "code": "my_version",
-            "sg_ayon_id": ay_version.id,
+            "sg_ayon_id": ay_version.id,  # set as already synced
         }
     )
-
-    # Launch hierarchy sync
-    with (
-        mock.patch.object(validate, "get_sg_project_enabled_entities", return_value=helpers.ENABLED_ENTITIES.items()),
-        mock.patch.object(utils, "get_sg_project_enabled_entities", return_value=helpers.ENABLED_ENTITIES.items()),
-    ):
-        hub.synchronize_projects(source="shotgrid")
-
-    mg.update("Version", 1, {"code": "my_version (renamed)"})
 
     # React to sg event.
     with (
@@ -152,8 +148,9 @@ def test_label_version_renamed(empty_project, mockgun_project):    # noqa: F811
     ):
         hub.synchronize_projects(source="shotgrid")
 
-    asset_folder = ayon_api.get_folder_by_name(ay_project_data.project_name, "my_asset")
+    versions = tuple(ayon_api.get_versions(ay_project_data.project_name))
+    version = versions[0]
 
-    assert asset_folder["name"] == "my_asset"
-    assert asset_folder["label"] == "my_asset (renamed)"
+    assert len(versions) == 1
+    assert version["name"] == "v025"  # ensure not update from SG
 
