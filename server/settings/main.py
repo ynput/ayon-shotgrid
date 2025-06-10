@@ -297,6 +297,11 @@ class ShotgridSettings(BaseSettingsModel):
 
         return value
 
+    shotgrid_no_ssl_validation: bool = SettingsField(
+        False,
+        title="No SSL validation",
+        description="Turns off hostname matching validation for SSL certificates.",
+    )
     shotgrid_project_code_field: str = SettingsField(
         default="code",
         title="ShotGrid Project Code field name",

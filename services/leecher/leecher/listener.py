@@ -114,6 +114,11 @@ class ShotgridListener:
                 "Unable to get Addon settings from the server.")
             raise e
 
+        # SSL validation
+        if self.settings.get("shotgrid_no_ssl_validation", False):
+            shotgun_api3.NO_SSL_VALIDATION = True
+            self.log.info("SSL validation is disabled.")
+
         try:
             self.sg_session = shotgun_api3.Shotgun(
                 self.sg_url,

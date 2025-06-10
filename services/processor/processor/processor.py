@@ -88,6 +88,11 @@ class ShotgridProcessor:
             except Exception:
                 self.sg_polling_frequency = 10
 
+            # SSL validation
+            if self.settings.get("shotgrid_no_ssl_validation", False):
+                shotgun_api3.NO_SSL_VALIDATION = True
+                self.log.info("SSL validation is disabled.")
+
             sg_connection = self.get_sg_connection()
 
             self.custom_attribs_map = {
