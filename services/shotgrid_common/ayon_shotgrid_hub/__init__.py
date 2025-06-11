@@ -201,25 +201,24 @@ class AyonShotgridHub:
 
         if self._sg_project is None:
             self.log.info(f"Creating Shotgrid project {self.project_name} (self.project_code).")
-            self._sg_project = self._sg.create(
-                "Project",
-                {
-                    "name": self.project_name,
-                    self.sg_project_code_field: self.project_code,
-                    CUST_FIELD_CODE_ID: self.project_name,
-                    CUST_FIELD_CODE_CODE: self.project_code,
-                    CUST_FIELD_CODE_URL: ayon_api.get_base_url(),
-                }
-            )
-            self._ay_project.project_entity.attribs.set(
-                SHOTGRID_ID_ATTRIB,
-                self._sg_project["id"]
-            )
+            sg_proj_data = {
+                "name": self.project_name,
+                self.sg_project_code_field: self.project_code,
+                CUST_FIELD_CODE_ID: self.project_name,
+                CUST_FIELD_CODE_CODE: self.project_code,
+                CUST_FIELD_CODE_URL: ayon_api.get_base_url(),
+            }
+            ay_proj_attribs = self._ay_project.project_entity.attribs
 
-            self._ay_project.project_entity.attribs.set(
-                SHOTGRID_TYPE_ATTRIB,
-                "Project"
-            )
+            if "sgProjectTemplateId" in ay_proj_attribs.keys():
+                if sg_proj_tmpl_id := ay_proj_attribs.get("sgProjectTemplateId"):
+                    sg_proj_data.update(
+                        {"layout_project": {"type": "Project", "id": int(sg_proj_tmpl_id)}})
+
+            self._sg_project = self._sg.create("Project", sg_proj_data)
+
+            ay_proj_attribs.set(SHOTGRID_ID_ATTRIB, self._sg_project["id"])
+            ay_proj_attribs.set(SHOTGRID_TYPE_ATTRIB, "Project")
             self._ay_project.commit_changes()
 
         self.create_sg_attributes()
