@@ -1342,6 +1342,16 @@ def update_ay_entity_custom_attributes(
     ay_project: ProjectEntity = None,
 ):
     """Update AYON entity custom attributes from ShotGrid dictionary"""
+
+    # Check renaming through label
+    if (
+        sg_ay_dict["type"].lower() != "version"
+        and sg_ay_dict["label"]
+        and (ay_entity.label or ay_entity.get_name()) != sg_ay_dict["label"]
+    ):
+        ay_entity.label = sg_ay_dict["label"]
+
+    # Loop over custom attributes and detect changes.
     for ay_attrib, _ in custom_attribs_map.items():
         if values_to_update and ay_attrib not in values_to_update:
             continue
