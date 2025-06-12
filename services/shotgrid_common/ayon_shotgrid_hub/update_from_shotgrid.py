@@ -436,7 +436,6 @@ def update_ayon_entity_from_sg_event(
 
     # Update entity label.
     if ay_entity.entity_type != "version":
-        ay_entity.label = sg_ay_dict["label"]
         log.debug(f"Updating AYON Entity: {ay_entity.name}")
     else:
         log.debug(f"Updating AYON Entity: {ay_entity}")
