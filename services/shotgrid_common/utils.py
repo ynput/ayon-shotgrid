@@ -1400,18 +1400,31 @@ def update_ay_entity_custom_attributes(
                 value_as_date = None
 
             # Field value matches a valid date,
-            # confirm target AYON attribute is of type datetime.
             if value_as_date:
                 all_attrib_schemas = ayon_api.get_attributes_schema()
                 attrib_schemas = [
                     attr for attr in all_attrib_schemas["attributes"]
                     if attr["name"] == ay_attrib
                 ]
-                if (
+                # confirm target AYON attribute is of type datetime.
+                if not (
                     attrib_schemas
                     and attrib_schemas[0]["data"]["type"] == "datetime"
                 ):
-                    attrib_value = value_as_date
+                    continue
+
+                # Check is a different date
+                current_set_date = ay_entity.attribs.get("startDate")
+                value_as_utc = value_as_date.replace(
+                    tzinfo=datetime.timezone.utc).date()
+                if (
+                    current_set_date
+                    and datetime.datetime.fromisoformat(current_set_date).date()
+                    == value_as_utc
+                ):
+                    continue
+
+                attrib_value = value_as_date
 
             ay_entity.attribs.set(ay_attrib, attrib_value)
 
