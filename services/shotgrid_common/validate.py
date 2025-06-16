@@ -129,7 +129,7 @@ def validate_sg_url(sg_url):
         resp = requests.get(sg_url)
         if not resp.ok:
             raise RuntimeError(
-                f"Issue reaching {sg_url}: {resp.text}"
+                f"Issue reaching {sg_url}: {resp.reason}"
             )
 
     except Exception as error:
