@@ -183,6 +183,7 @@ class ShotgridProcessor:
 
         if self._sg is None:
             try:
+                validate.validate_sg_url(self.sg_url)
                 self._sg = shotgun_api3.Shotgun(
                     self.sg_url,
                     script_name=self.sg_script_name,

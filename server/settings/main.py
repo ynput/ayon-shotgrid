@@ -1,4 +1,3 @@
-import requests
 from pydantic import validator
 
 from ayon_server.exceptions import BadRequestException
@@ -285,17 +284,6 @@ class ShotgridSettings(BaseSettingsModel):
         example="https://my-site.shotgrid.autodesk.com",
         scope=["studio"]
     )
-
-    @validator("shotgrid_server")
-    def ensure_requests(cls, value):
-        """ Ensure provided shotgrid_server URL is valid.
-        """
-        if value:
-            resp = requests.get(value)
-            if not resp.ok:
-                raise BadRequestException(f"Unreachable URL: {value}")
-
-        return value
 
     shotgrid_no_ssl_validation: bool = SettingsField(
         False,
