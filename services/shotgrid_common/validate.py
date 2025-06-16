@@ -1,6 +1,7 @@
 """ Validation
 """
 import collections
+import requests
 
 import ayon_api
 from ayon_api.entity_hub import EntityHub
@@ -119,6 +120,20 @@ def _validate_project_statuses_mapping(
             )
 
     return report
+
+
+def validate_sg_url(sg_url):
+    """ Ensure provided shotgrid_server URL is valid.
+    """
+    try:
+        resp = requests.get(sg_url)
+        if not resp.ok:
+            raise RuntimeError(
+                f"Issue reaching {sg_url}: {resp.reason}"
+            )
+
+    except Exception as error:
+        raise ValueError(f"Unreachable URL: {sg_url}") from error
 
 
 def validate_projects_sync(
