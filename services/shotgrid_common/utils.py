@@ -1419,7 +1419,8 @@ def update_ay_entity_custom_attributes(
                     tzinfo=datetime.timezone.utc).date()
                 if (
                     current_set_date
-                    and current_set_date.date() == value_as_utc
+                    and datetime.datetime.fromisoformat(current_set_date).date()
+                    == value_as_utc
                 ):
                     continue
 
