@@ -1414,13 +1414,12 @@ def update_ay_entity_custom_attributes(
                     continue
 
                 # Check is a different date
-                current_set_date = ay_entity.attribs.get("startDate")
+                current_set_date = ay_entity.attribs.get(ay_attrib)
                 value_as_utc = value_as_date.replace(
                     tzinfo=datetime.timezone.utc).date()
                 if (
                     current_set_date
-                    and datetime.datetime.fromisoformat(current_set_date).date()
-                    == value_as_utc
+                    and current_set_date.date() == value_as_utc
                 ):
                     continue
 
