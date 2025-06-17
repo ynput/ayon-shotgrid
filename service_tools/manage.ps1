@@ -30,6 +30,7 @@ function Default-Func {
   Write-Host "  processor     Main processing logic"
   Write-Host "  transmitter   Transmit AYON events to shotgrid"
   Write-Host "  services      Start both leecher and processor (experimental)"
+  Write-Host "  run-tests     Install test environement and run the tests."
   Write-Host ""
 }
 
@@ -75,6 +76,21 @@ function Activate-Venv {
   & "$($venv_path)\Scripts\activate.ps1"
 }
 
+function Install-And-Run-Tests {
+  # Make sure venv_test is created
+  $venv_path = "$($script_dir)\.venv_test"
+  if (-not(Test-Path $venv_path)) {
+    & python -m venv $venv_path
+  }
+
+  # Active venv_test and install test requirements
+  & "$($venv_path)\Scripts\activate.ps1"
+  & python -m pip install -e "$($script_dir)\.[test]"
+
+  # Run the tests
+  & python -m pytest "$($script_dir)\..\services\tests"
+}
+
 function main {
   if ($null -eq $FunctionName) {
     Default-Func
@@ -97,6 +113,8 @@ function main {
       Start-Transmitter
     } elseif ($FunctionName -eq "services") {
       Start-All
+    } elseif ($FunctionName -eq "runtests") {
+      Install-And-Run-Tests
     } else {
       Write-Host "Unknown function ""$FunctionName"""
       Default-Func
