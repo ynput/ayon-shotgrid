@@ -186,20 +186,6 @@ def match_shotgrid_hierarchy_in_ayon(
 
     _sync_project_attributes(entity_hub, custom_attribs_map, sg_project)
 
-    # Troubleshoot log data (DO NOT MERGE)
-    log.info(f"Project changes: {entity_hub.project_entity.changes}")
-    created_entity_ids, other_entity_ids, removed_entity_ids = (
-        entity_hub._split_entities()
-    )
-
-    log.info(f"Create new Entity {len(created_entity_ids)}")
-    log.info(f"Remove existing Entity {len(removed_entity_ids)}")
-
-    for entity_id in other_entity_ids:
-        entity = entity_hub._entities_by_id[entity_id]
-        if entity.changes:
-            log.info(f"Entity {entity_id} changes: {entity.changes}")
-
     try:
         entity_hub.commit_changes()
     except Exception:
