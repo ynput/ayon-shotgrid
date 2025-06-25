@@ -1349,6 +1349,16 @@ def update_ay_entity_custom_attributes(
     ay_project: ProjectEntity = None,
 ):
     """Update AYON entity custom attributes from ShotGrid dictionary"""
+
+    # Check renaming through label
+    if (
+        sg_ay_dict["type"].lower() != "version"
+        and sg_ay_dict["label"]
+        and (ay_entity.label or ay_entity.get_name()) != sg_ay_dict["label"]
+    ):
+        ay_entity.label = sg_ay_dict["label"]
+
+    # Loop over custom attributes and detect changes.
     for ay_attrib, _ in custom_attribs_map.items():
         if values_to_update and ay_attrib not in values_to_update:
             continue
@@ -1385,30 +1395,43 @@ def update_ay_entity_custom_attributes(
                 )
         else:
 
-            # Flow API return date as string, need to convert
-            # them back as datetime in order to update AYON.
+            # SG API returns date values as string.
+            # Attempt to detect date field values.
             try:
                 value_as_date = datetime.datetime.strptime(
-                    attrib_value,
+                    str(attrib_value),
                     "%Y-%m-%d",
                 )
 
-            except ValueError:
+            except (ValueError, TypeError):
                 value_as_date = None
 
-            # Input match a date.
-            # Confirm attrib has datetime type
-            else:
+            # Field value matches a valid date,
+            if value_as_date:
                 all_attrib_schemas = ayon_api.get_attributes_schema()
                 attrib_schemas = [
                     attr for attr in all_attrib_schemas["attributes"]
                     if attr["name"] == ay_attrib
                 ]
-                if (
+                # confirm target AYON attribute is of type datetime.
+                if not (
                     attrib_schemas
                     and attrib_schemas[0]["data"]["type"] == "datetime"
                 ):
-                    attrib_value = value_as_date
+                    continue
+
+                # Check is a different date
+                current_set_date = ay_entity.attribs.get(ay_attrib)
+                value_as_utc = value_as_date.replace(
+                    tzinfo=datetime.timezone.utc).date()
+                if (
+                    current_set_date
+                    and datetime.datetime.fromisoformat(current_set_date).date()
+                    == value_as_utc
+                ):
+                    continue
+
+                attrib_value = value_as_date
 
             ay_entity.attribs.set(ay_attrib, attrib_value)
 

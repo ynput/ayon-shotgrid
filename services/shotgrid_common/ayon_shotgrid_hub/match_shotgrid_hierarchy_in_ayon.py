@@ -153,12 +153,6 @@ def match_shotgrid_hierarchy_in_ayon(
             )
         else:
 
-            # Update entity label when possible.
-            try:
-                ay_entity.label = sg_ay_dict["label"]
-            except NotImplementedError:
-                log.debug("Label is not supported for entity %r", ay_entity)
-
             if not _update_ay_entity(
                 ay_entity,
                 custom_attribs_map,
