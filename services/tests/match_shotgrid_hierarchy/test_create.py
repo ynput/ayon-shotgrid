@@ -1,0 +1,152 @@
+""" Test match an AYON hierarchy to SG.
+"""
+import mock
+import pytest
+
+import ayon_api
+
+from pytest_ayon.plugin import empty_project  # noqa: F401
+
+from ayon_shotgrid_hub import AyonShotgridHub
+import validate
+import utils
+
+from .. import helpers
+
+
+@pytest.mark.skipif(helpers.IS_GITHUB_ACTIONS, reason="WIP make it run on GitHub actions.")
+@pytest.mark.parametrize("empty_project", [{"task_types": ("edit")}], indirect=True)
+def test_match_hierarchy(empty_project, mockgun_project):    # noqa: F811
+
+    ay_project_data = empty_project
+    mg, _ = mockgun_project
+
+    # create SG project and step in Mockgun
+    sg_project = mg.create(
+        "Project",
+        {
+            "code": ay_project_data.project_code,
+            "name": ay_project_data.project_name,
+            "sg_ayon_auto_sync": False,
+        }
+    )
+
+    sg_asset = mg.create(
+        "Asset",
+        {
+            "project": sg_project,
+            "code": "my_asset",
+        }
+    )
+    sg_episode = mg.create(
+        "Episode",
+        {
+            "project": sg_project,
+            "code": "my_episode",
+        }
+    )
+    sg_sequence = mg.create(
+        "Sequence",
+        {
+            "project": sg_project,
+            "episode": sg_episode,
+            "code": "my_sequence",
+        }
+    )
+
+    sg_shot =  mg.create(
+        "Shot",
+        {
+            "project": sg_project,
+            "sg_sequence": sg_sequence,
+            "code": "my_shot",
+        }
+    )
+
+    # create some data in AYON
+    hub = AyonShotgridHub(
+        mg,
+        ay_project_data.project_name,
+        ay_project_data.project_code,
+        sg_project_code_field="code",
+        sg_enabled_entities=helpers.ENABLED_ENTITIES.keys(),
+    )
+
+    # Launch hierarchy sync
+    with (
+        mock.patch.object(validate, "get_sg_project_enabled_entities", return_value=helpers.ENABLED_ENTITIES.items()),
+        mock.patch.object(utils, "get_sg_project_enabled_entities", return_value=helpers.ENABLED_ENTITIES.items()),
+    ):
+        hub.synchronize_projects(source="shotgrid")
+
+    # Query values
+    project_name = ay_project_data.project_name
+    asset_folder = ayon_api.get_folder_by_name(project_name, "my_asset")
+    episode_folder = ayon_api.get_folder_by_name(project_name, "my_episode")
+    sequence_folder = ayon_api.get_folder_by_name(project_name, "my_sequence")
+    shot_folder = ayon_api.get_folder_by_name(project_name, "my_shot")
+
+    # Check asset
+    asset_attribs = asset_folder["attrib"]
+    assert (
+        (str(sg_asset["id"]), "Asset")
+        == (asset_attribs["shotgridId"], asset_attribs["shotgridType"])
+    )
+
+    # Check episode
+    ep_attribs = episode_folder["attrib"]
+    assert (
+        (str(sg_episode["id"]), "Episode")
+        == (ep_attribs["shotgridId"], ep_attribs["shotgridType"])
+    )
+
+    # Check sequence
+    seq_attribs = sequence_folder["attrib"]
+    assert (
+        (str(sg_sequence["id"]), "Sequence")
+        == (seq_attribs["shotgridId"], seq_attribs["shotgridType"])
+    )
+
+    # Check shot
+    shot_attribs = shot_folder["attrib"]
+    assert (
+        (str(sg_shot["id"]), "Shot")
+        == (shot_attribs["shotgridId"], shot_attribs["shotgridType"])
+    )
+
+    # Check hierarchy
+    hierarchy = ayon_api.get_folders_hierarchy(project_name)
+    expected = {
+        'hierarchy': [
+            {
+                'children': None,
+                'folderType': 'Asset',
+                'name': 'my_asset',
+                'label': 'my_asset',
+            },
+            {
+                'children': [
+                    {
+                        'children': [
+                            {
+                                'children': None,
+                                'folderType': 'Shot',
+                                'name': 'my_shot',
+                                'label': 'my_shot',
+                            }
+                        ],
+                        'folderType': 'Sequence',
+                        'name': 'my_sequence',
+                        'label': 'my_sequence',
+                    }
+                ],
+                'folderType': 'Episode',
+                'name': 'my_episode',
+                'label': 'my_episode',
+            }
+        ],
+        'projectName': project_name
+    }
+
+    hierarchy_ok = helpers.recursive_partial_assert(expected, hierarchy)
+    assert hierarchy_ok is True

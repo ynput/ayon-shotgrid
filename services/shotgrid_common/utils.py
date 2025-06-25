@@ -135,7 +135,7 @@ def _sg_to_ay_dict(
             )
             task_type = default_task_type
         else:
-            task_type = sg_entity["step"]["name"]
+            task_type = sg_entity["step.Step.code"]
 
         label = sg_entity["content"]
 
@@ -639,19 +639,21 @@ def _get_parenting_transfer_type(addon_settings):
             "root_relocate" - keep SG hierachy, put in additional AYON folder
             "type_grouping" - separate SG objects into AYON folders
     """
-    folder_parenting = (addon_settings["compatibility_settings"]
-                                      ["folder_parenting"])
+    compatibility_settings = addon_settings.get("compatibility_settings", {})
+    folder_parenting = compatibility_settings.get("folder_parenting", {})
 
     folder_parenting_options = ("root_relocate", "type_grouping")
 
 
     enabled_transfer_type = None
     for transfer_type in folder_parenting_options:
-        transfer_type_info = folder_parenting[transfer_type]
-        if transfer_type_info["enabled"]:
+        transfer_type_info = folder_parenting.get(transfer_type, {})
+        if transfer_type_info.get("enabled", False):
             if enabled_transfer_type:
-                raise RuntimeError("Both types cannot be enabled. Please "
-                                   "disable one.")
+                raise RuntimeError(
+                    "Both types cannot be enabled. Please disable one."
+                )
+
             enabled_transfer_type = transfer_type
 
     return enabled_transfer_type
@@ -774,8 +776,8 @@ def get_sg_entities(
         )
 
     """
-    default_task_type = addon_settings[
-        "compatibility_settings"]["default_task_type"]
+    compatibility_settings = addon_settings.get("compatibility_settings", {})
+    default_task_type = compatibility_settings.get("default_task_type")
 
     query_fields = list(SG_COMMON_ENTITY_FIELDS)
 
@@ -832,6 +834,8 @@ def get_sg_entities(
                 # Set parent id only if defined parent is a valid entity.
                 if isinstance(sg_parent, dict) and sg_parent.get("id"):
                     parent_id = sg_parent["id"]
+                    parent_type = sg_parent["type"]
+                    parent_id = f'{parent_type}_{parent_id}'
 
             # Reparent the current SG Asset under an AssetCategory ?
             elif (
@@ -875,7 +879,10 @@ def get_sg_entities(
                 default_task_type
             )
 
-            sg_id = sg_ay_dict["attribs"][SHOTGRID_ID_ATTRIB]
+            sg_id = (
+                f'{sg_ay_dict["attribs"][SHOTGRID_TYPE_ATTRIB]}_'
+                f'{sg_ay_dict["attribs"][SHOTGRID_ID_ATTRIB]}'
+            )
             sg_ay_dicts[sg_id] = sg_ay_dict
             sg_ay_dicts_parents[parent_id].add(sg_id)
 
@@ -2013,6 +2020,7 @@ def create_new_sg_entity(
         task_step = sg_session.find_one(
             "Step",
             filters=step_query_filters,
+            fields=["code", "name"],
         )
         if not task_step:
             raise ValueError(
@@ -2059,9 +2067,8 @@ def create_new_sg_entity(
         if not ayon_asset:
             raise ValueError(f"Not found '{folder_id}'")
 
-        # sync version author
-        ay_username = ay_entity.data["author"]
-        sg_user_id = get_sg_user_id(ay_username)
+        ay_username = ay_entity.data.get("author")
+        sg_user_id = get_sg_user_id(ay_username) if ay_username else -1
         if sg_user_id < 0:
             log.warning(
                 f"{ay_username} is not synchronized, "
@@ -2099,10 +2106,10 @@ def create_new_sg_entity(
             data["sg_version_type"] = product_data["productType"]
 
         # sync first/last frames
-        frame_start = ay_entity.attribs.get("frameStart", 0)
-        frame_end = ay_entity.attribs.get("frameEnd", 0)
-        handle_start = ay_entity.attribs.get("handleStart", 0)
-        handle_end = ay_entity.attribs.get("handleEnd", 0)
+        frame_start = ay_entity.attribs.get("frameStart") or 0
+        frame_end = ay_entity.attribs.get("frameEnd") or 0
+        handle_start = ay_entity.attribs.get("handleStart") or 0
+        handle_end = ay_entity.attribs.get("handleEnd") or 0
 
         data["sg_first_frame"]  = frame_start - handle_start
         data["sg_last_frame"] = frame_end + handle_end
@@ -2131,6 +2138,25 @@ def create_new_sg_entity(
             data[sg_parent_field] = sg_parent_entity
         data["code"] = ay_entity.name
 
+    # Set status
+    if ay_entity.status:
+        entity = ay_entity
+        project_entity = None
+        while entity.parent:
+            entity = entity.parent
+            if entity.entity_type == "project":
+                project_entity = entity
+                break
+
+        if project_entity:
+            ay_statuses = {
+                status.name: status.short_name
+                for status in project_entity.statuses
+            }
+            ay_status = ay_statuses.get(ay_entity.status)
+            if ay_status and ay_status in get_sg_statuses(sg_session, sg_type):
+                data["sg_status_list"] = ay_status
+
     # Fill up data with any extra attributes from AYON we want to sync to SG
     data |= get_sg_custom_attributes_data(
         sg_session,
@@ -2146,8 +2172,8 @@ def create_new_sg_entity(
             f"Unable to create SG entity {sg_type} with data: {data}")
         raise e
 
-    default_task_type = addon_settings[
-        "compatibility_settings"]["default_task_type"]
+    compatibility_settings = addon_settings.get("compatibility_settings", {})
+    default_task_type = compatibility_settings.get("default_task_type")
 
     return get_sg_entity_as_ay_dict(
         sg_session,
