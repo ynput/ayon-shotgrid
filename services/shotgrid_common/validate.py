@@ -329,7 +329,7 @@ def validate_custom_attribs_map(
                             f"Attempt to sync a non-standard AYON attribute {scope}."
                             f'{entry["ayon"]}[type={entry["type"]}] to {scope}.{field_attempt} '
                             f"[type={conformed_field_type}]."
-                            "This might lead to issues and/or inconsistent results."
+                            "This may lead to issues and/or inconsistent results."
                         )
 
                     # The AYON attribute is fine. Its counterpart exists in Flow, but not in
