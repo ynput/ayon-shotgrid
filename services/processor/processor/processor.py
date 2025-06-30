@@ -125,16 +125,25 @@ class ShotgridProcessor:
             raise e
 
         # Validation
-        validate.validate_projects_sync(
-            sg_connection,
-            self.sg_enabled_entities,
-            log=self.log
-        )
-        validate.validate_custom_attribs_map(
-            sg_connection,
-            self.settings["compatibility_settings"]["custom_attribs_map"],
-            log=self.log,
-        )
+        try:
+            validate.validate_projects_sync(
+                sg_connection,
+                self.sg_enabled_entities,
+                log=self.log
+            )
+            validate.validate_custom_attribs_map(
+                sg_connection,
+                self.settings["compatibility_settings"]["custom_attribs_map"],
+                log=self.log,
+            )
+
+        except ValueError as error:
+            self.log.error(
+                "The sync service cannot start properly due to invalid "
+                "configuration. Adjust it and restart the services."
+            )
+            self.log.error(error)
+            raise SystemExit from error
 
         self.handlers_map = self._get_handlers()
         if not self.handlers_map:
