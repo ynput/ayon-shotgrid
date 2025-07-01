@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "shotgrid-transmitter"
-version = "0.6.3"
+version = "0.6.3+dev"
 description = "Shotgrid Integration for AYON"
 authors = ["Oscar Domingo <oscar.domingo@ynput.com>"]
 package-mode = false
