@@ -238,7 +238,7 @@ def test_create_new_version(hub_and_project):
     with mock.patch.object(EntityHub, "get_or_query_entity_by_id", return_value=version_entity), \
          mock.patch.object(VersionEntity, "parent", new_callable=mock.PropertyMock) as mock_parent, \
          mock.patch.object(ProductEntity, "parent", new_callable=mock.PropertyMock) as mock_parent_2, \
-         mock.patch.object(ayon_api, "get_folder_by_id", return_value=sequence_entity), \
+         mock.patch.object(ayon_api, "get_folder_by_id", return_value=sequence_entity.to_create_body_data()), \
          mock.patch.object(ayon_api, "get_product_by_id", return_value={"productType": "render"}), \
          mock.patch.object(utils, "get_sg_entity_parent_field", return_value="entity"), \
          mock.patch.object(utils, "_add_paths", return_value=None):
