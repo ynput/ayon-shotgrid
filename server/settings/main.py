@@ -255,11 +255,17 @@ class ShotgridCompatibilitySettings(BaseSettingsModel):
         """ Ensure custom attribs map does not contain duplicated SG fields.
         """
         all_sg_fields = []
+        all_ayon_attributes = []
         for entry in value:
             if entry.sg and entry.sg in all_sg_fields:
                 raise BadRequestException(f"Duplicate mapped SG field: {entry.sg}")
-            elif entry.sg:
+            if entry.ayon and entry.ayon in all_ayon_attributes:
+                raise BadRequestException(f"Duplicate mapped AYON attribute: {entry.ayon}")
+
+            if entry.sg:
                 all_sg_fields.append(entry.sg)
+            if entry.ayon:
+                all_ayon_attributes.append(entry.ayon)
 
         return value
 
