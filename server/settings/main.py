@@ -254,8 +254,8 @@ class ShotgridCompatibilitySettings(BaseSettingsModel):
     def ensure_requests(cls, value):
         """ Ensure custom attribs map does not contain duplicated SG fields.
         """
-        all_sg_fields = []
-        all_ayon_attributes = []
+        all_sg_fields = set()
+        all_ayon_attributes = set()
         for entry in value:
             if entry.sg and entry.sg in all_sg_fields:
                 raise BadRequestException(f"Duplicate mapped SG field: {entry.sg}")
@@ -263,9 +263,9 @@ class ShotgridCompatibilitySettings(BaseSettingsModel):
                 raise BadRequestException(f"Duplicate mapped AYON attribute: {entry.ayon}")
 
             if entry.sg:
-                all_sg_fields.append(entry.sg)
+                all_sg_fields.add(entry.sg)
             if entry.ayon:
-                all_ayon_attributes.append(entry.ayon)
+                all_ayon_attributes.add(entry.ayon)
 
         return value
 
