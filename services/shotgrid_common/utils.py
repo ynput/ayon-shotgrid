@@ -2111,8 +2111,14 @@ def create_new_sg_entity(
         handle_start = ay_entity.attribs.get("handleStart") or 0
         handle_end = ay_entity.attribs.get("handleEnd") or 0
 
-        data["sg_first_frame"]  = frame_start - handle_start
-        data["sg_last_frame"] = frame_end + handle_end
+        frame_in = frame_start - handle_start
+        frame_out = frame_end + handle_end
+
+        data["sg_first_frame"]  = frame_in
+        data["sg_last_frame"] = frame_out
+
+        data["frame_count"] = frame_out - frame_in + 1
+        data["frame_range"] = '-'.join([str(frame_in), str(frame_out)])
 
         product_name = ay_entity.parent.name
         version_str = str(ay_entity.version).zfill(3)
