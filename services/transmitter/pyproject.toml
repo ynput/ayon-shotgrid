@@ -9,7 +9,7 @@ package-mode = false
 python = ">=3.10,<4.0"
 arrow = "*"
 ayon-python-api = "^1.0.0"
-shotgun-api3 = { git = "https://github.com/shotgunsoftware/python-api.git", tag = "v3.4.0" }
+shotgun-api3 = "*"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"
