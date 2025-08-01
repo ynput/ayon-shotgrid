@@ -275,6 +275,46 @@ class ShotgridCompatibilitySettings(BaseSettingsModel):
     )
 
 
+class MoviePathProfile(BaseSettingsModel):
+    """Profile to select representation to use in Version.sg_movie_path"""
+    _layout = "expanded"
+    host_names: list[str] = SettingsField(
+        default_factory=list, title="Host names"
+    )
+    product_types: list[str] = SettingsField(
+        default_factory=list,
+        title="Product types"
+    )
+    task_types: list[str] = SettingsField(
+        default_factory=list,
+        title="Task types",
+        enum_resolver=task_types_enum
+    )
+    task_names: list[str] = SettingsField(
+        default_factory=list,
+        title="Task names")
+    repre_names: list[str] = SettingsField(
+        default_factory=list,
+        title="Selected representation names",
+        description="Representation names used for Version.sg_movie_path"
+    )
+
+
+class ExtractMoviePathModel(BaseSettingsModel):
+    profiles: list[MoviePathProfile] =  SettingsField(
+        default_factory=list,
+        title="Profiles for selected representations for movie path"
+    )
+
+
+class ShotgridPublishPlugins(BaseSettingsModel):
+    ExtractMoviePath: ExtractMoviePathModel = SettingsField(
+        default_factory=ExtractMoviePathModel,
+        title="Extract trait for representation for sg_movie_path",
+        scope=["studio", "project"],
+    )
+
+
 class ShotgridSettings(BaseSettingsModel):
     """ShotGrid integration settings.
 
@@ -346,4 +386,7 @@ class ShotgridSettings(BaseSettingsModel):
         default_factory=ShotgridServiceSettings,
         title="Service settings",
         scope=["studio"],
+    )
+    publish: ShotgridPublishPlugins = SettingsField(
+        default_factory=ShotgridPublishPlugins, title="Publish plugins"
     )
