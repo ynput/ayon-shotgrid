@@ -96,7 +96,6 @@ class ShotgridServiceSettings(BaseSettingsModel):
     polling_frequency: int = SettingsField(
         default=10,
         title="How often (in seconds) to process ShotGrid related events.",
-        validate_default=False,
     )
 
     script_key: str = SettingsField(
