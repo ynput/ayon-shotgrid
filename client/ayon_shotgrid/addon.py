@@ -3,8 +3,10 @@ import os
 from ayon_core.addon import (
     AYONAddon,
     IPluginPaths,
+    ITraits,
 )
 from ayon_core.lib import Logger
+from ayon_core.pipeline.traits import TraitBase
 
 from .version import __version__
 
@@ -13,7 +15,7 @@ log = Logger.get_logger(__name__)
 SHOTGRID_ADDON_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
-class ShotgridAddon(AYONAddon, IPluginPaths):
+class ShotgridAddon(AYONAddon, IPluginPaths, ITraits):
     name = "shotgrid"
     version = __version__
 
@@ -59,3 +61,17 @@ class ShotgridAddon(AYONAddon, IPluginPaths):
     def get_local_storage_key(self):
         return self._local_storage_key or None
 
+    def get_addon_traits(self):
+        return [
+            MoviePathTrait,
+        ]
+
+
+class MoviePathTrait(TraitBase):
+    id = "shotgrid.moviepath.v1"
+    name = "Use as sg_movie_path"
+    description = (
+        "This marks representation which publish path should be used"
+        "in sg_movie_path"
+    )
+    persistent = True
