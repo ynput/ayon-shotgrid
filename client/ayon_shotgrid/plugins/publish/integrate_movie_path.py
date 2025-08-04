@@ -9,7 +9,7 @@ class IntegrateMoviePath(pyblish.api.InstancePlugin):
     """Persists MoviePath trait to selected representation.
 
     Marks if there is specific representation that should be used to fill
-    Version.sg_movie_path instead of review|thumbnail by default.
+    Version.sg_path_to_movie instead of review|thumbnail by default.
     """
     order = pyblish.api.IntegratorOrder + 0.45
     label = "Integrate trait for SG"

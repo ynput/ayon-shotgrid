@@ -276,7 +276,7 @@ class ShotgridCompatibilitySettings(BaseSettingsModel):
 
 
 class MoviePathProfile(BaseSettingsModel):
-    """Profile to select representation to use in Version.sg_movie_path"""
+    """Profile to select representation to use in Version.sg_path_to_movie"""
     _layout = "expanded"
     host_names: list[str] = SettingsField(
         default_factory=list, title="Host names"
@@ -296,7 +296,7 @@ class MoviePathProfile(BaseSettingsModel):
     repre_names: list[str] = SettingsField(
         default_factory=list,
         title="Selected representation names",
-        description="Representation names used for Version.sg_movie_path"
+        description="Representation names used for Version.sg_path_to_movie"
     )
 
 
@@ -310,7 +310,7 @@ class ExtractMoviePathModel(BaseSettingsModel):
 class ShotgridPublishPlugins(BaseSettingsModel):
     ExtractMoviePath: ExtractMoviePathModel = SettingsField(
         default_factory=ExtractMoviePathModel,
-        title="Extract trait for representation for sg_movie_path",
+        title="Extract trait for representation for sg_path_to_movie",
         scope=["studio", "project"],
     )
 

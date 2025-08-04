@@ -69,9 +69,9 @@ class ShotgridAddon(AYONAddon, IPluginPaths, ITraits):
 
 class MoviePathTrait(TraitBase):
     id = "shotgrid.moviepath.v1"
-    name = "Use as sg_movie_path"
+    name = "Use as sg_path_to_movie"
     description = (
         "This marks representation which publish path should be used"
-        "in sg_movie_path"
+        "in sg_path_to_movie"
     )
     persistent = True

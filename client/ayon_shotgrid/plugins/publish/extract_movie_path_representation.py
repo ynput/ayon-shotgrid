@@ -5,9 +5,9 @@ from ayon_shotgrid import MoviePathTrait
 
 
 class ExtractMoviePath(pyblish.api.InstancePlugin):
-    """Looks for representation to be marked for source of sg_movie_path"""
+    """Looks for representation to be marked for source of sg_path_to_movie"""
     order = pyblish.api.ExtractorOrder + 0.45
-    label = "Extract trait for representation for sg_movie_path"
+    label = "Extract trait for representation for sg_path_to_movie"
     targets = ["local"]
     settings_category = "shotgrid"
 
