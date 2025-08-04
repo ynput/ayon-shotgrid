@@ -2197,29 +2197,35 @@ def _add_paths(ay_project_name: str, ay_entity: Dict, data_to_update: Dict):
      have tools to handle review files in another processes.
      """
     thumbnail_path = None
-    found_reviewable = False
+    found_representation = False
 
     representations = ayon_api.get_representations(
         ay_project_name, version_ids=[ay_entity.id])
 
     ay_version = ayon_api.get_version_by_id(ay_project_name, ay_entity.id)
-
     for representation in representations:
 
         local_path = representation["attrib"]["path"]
         representation_name = representation["name"]
+
+        traits = json.loads(representation.get("traits", "{}"))
+        if (traits and
+                any("shotgrid.moviepath" in key for key in traits.keys())):
+            found_representation = representation
+            break
 
         if representation_name == "thumbnail":
             thumbnail_path = local_path
             continue
 
         if not representation_name.startswith("review"):
+            found_representation = representation
             continue
 
-        found_reviewable = True
+    if found_representation:
         has_slate = "slate" in ay_version["attrib"]["families"]
         # clunky guess, not having access to ayon_core.VIDEO_EXTENSIONS
-        if len(representation["files"]) == 1:
+        if len(found_representation["files"]) == 1:
             data_to_update["sg_path_to_movie"] = local_path
             if has_slate:
                 data_to_update["sg_movie_has_slate"] = True
@@ -2235,7 +2241,7 @@ def _add_paths(ay_project_name: str, ay_entity: Dict, data_to_update: Dict):
             if has_slate:
                 data_to_update["sg_frames_have_slate"] = True
 
-    if not found_reviewable and thumbnail_path:
+    elif thumbnail_path:
         data_to_update.update({
             "sg_path_to_movie": thumbnail_path,
             "sg_path_to_frames": thumbnail_path,
