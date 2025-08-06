@@ -2208,7 +2208,9 @@ def _add_paths(ay_project_name: str, ay_entity: Dict, data_to_update: Dict):
         local_path = representation["attrib"]["path"]
         representation_name = representation["name"]
 
-        traits = json.loads(representation.get("traits", "{}"))
+        traits = representation.get("traits")
+        if traits:
+            traits = json.loads(traits)
         if (traits and
                 any("shotgrid.moviepath" in key for key in traits.keys())):
             found_representation = representation
