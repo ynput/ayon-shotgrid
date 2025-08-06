@@ -238,7 +238,8 @@ class ShotgridListener:
                 fields=["id", "project"],
                 order=[{"column": "id", "direction": "desc"}],
             )
-            last_event_id = last_event["id"]
+            if last_event:
+                last_event_id = last_event["id"]
 
         return last_event_id
 
