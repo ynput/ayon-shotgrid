@@ -16,9 +16,11 @@ class ExtractMoviePath(pyblish.api.InstancePlugin):
     def process(self, instance):
         profile = self._get_representation_profile(instance)
         if not profile:
+            family = instance.data["family"]
             self.log.debug(
                 (
-                    "Skipped instance. None of profiles matched in presets."
+                    f"Skipped instance `{family}`. None of profiles "
+                    f"matched in presets."
                 )
             )
             return

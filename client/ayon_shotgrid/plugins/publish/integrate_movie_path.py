@@ -16,9 +16,10 @@ class IntegrateMoviePath(pyblish.api.InstancePlugin):
     targets = ["local"]
 
     def process(self, instance):
+        family = instance.data["family"]
         traits = instance.data.get("traits")
         if not traits:
-            self.log.debug("Instance does not have traits")
+            self.log.debug(f"Instance `{family}` does not have traits")
             return
 
         project_name = instance.context.data["projectName"]
@@ -27,13 +28,16 @@ class IntegrateMoviePath(pyblish.api.InstancePlugin):
             "published_representations", []
         )
         for repre_id, repre_info in published_representations.items():
-            trait = traits.get(repre_info["representation"]["name"])
+            repre_name = repre_info["representation"]["name"]
+            trait = traits.get(repre_name)
             if not trait:
                 continue
 
             if trait.id != MoviePathTrait.id:
                 continue
 
+            self.log.debug(f"Adding trait for product type `{family}` - "
+                           f"representation`{repre_name}`")
             update_representation(
                 project_name,
                 repre_id,
