@@ -2221,7 +2221,6 @@ def _add_paths(ay_project_name: str, ay_entity: Dict, data_to_update: Dict):
             continue
 
         if not representation_name.startswith("review"):
-            found_representation = representation
             continue
 
     if found_representation:
