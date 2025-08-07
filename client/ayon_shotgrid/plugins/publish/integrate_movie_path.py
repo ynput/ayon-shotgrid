@@ -36,8 +36,10 @@ class IntegrateMoviePath(pyblish.api.InstancePlugin):
             if trait.id != MoviePathTrait.id:
                 continue
 
-            self.log.debug(f"Adding trait for product type `{family}` - "
-                           f"representation`{repre_name}`")
+            self.log.debug(
+                f"Adding trait for product type `{family}` - "
+                f"representation`{repre_name}`"
+            )
             update_representation(
                 project_name,
                 repre_id,
