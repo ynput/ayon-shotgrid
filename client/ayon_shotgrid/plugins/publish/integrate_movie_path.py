@@ -13,7 +13,6 @@ class IntegrateMoviePath(pyblish.api.InstancePlugin):
     """
     order = pyblish.api.IntegratorOrder + 0.45
     label = "Integrate trait for SG"
-    targets = ["local"]
 
     def process(self, instance):
         family = instance.data["family"]
