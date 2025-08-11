@@ -32,12 +32,18 @@ class ExtractMoviePath(pyblish.api.InstancePlugin):
             return
 
         traits = {}
-        for representation in instance.data.get("representations", []):
-            repre_name = representation["name"]
-            self.log.debug(f"Checking representation `{repre_name}`")
-            if repre_name in profile["repre_names"]:
-                self.log.debug(f"Adding MoviePathTrait for `{repre_name}`")
-                traits[representation["name"]] = MoviePathTrait()
+        repre_names = [
+            repre["name"]
+            for repre in instance.data.get("representations", [])
+        ]
+        for profile_repre_name in profile["repre_names"]:
+            self.log.debug(
+                f"Looking for representation `{profile_repre_name}`")
+            if profile_repre_name in repre_names:
+                self.log.debug(
+                    f"Adding MoviePathTrait for `{profile_repre_name}`")
+                traits[profile_repre_name] = MoviePathTrait()
+                break
 
         if traits:
             instance.data["traits"] = traits
