@@ -8,30 +8,42 @@ class ExtractMoviePath(pyblish.api.InstancePlugin):
     """Looks for representation to be marked for source of sg_path_to_movie"""
     order = pyblish.api.ExtractorOrder + 0.45
     label = "Extract trait for representation for sg_path_to_movie"
-    targets = ["local"]
     settings_category = "shotgrid"
 
     profiles = []
 
     def process(self, instance):
+        product_type = instance.data["productType"]
+
+        if instance.data.get("farm"):
+            self.log.debug(
+                f"`{product_type}` should be processed on farm, skipping."
+            )
+            return
+
         profile = self._get_representation_profile(instance)
         if not profile:
-            family = instance.data["family"]
             self.log.debug(
                 (
-                    f"Skipped instance `{family}`. None of profiles "
+                    f"Skipped instance `{product_type}`. None of profiles "
                     f"matched in presets."
                 )
             )
             return
 
         traits = {}
-        for representation in instance.data.get("representations", []):
-            repre_name = representation["name"]
-            self.log.debug(f"Checking representation `{repre_name}`")
-            if repre_name in profile["repre_names"]:
-                self.log.debug(f"Adding MoviePathTrait for `{repre_name}`")
-                traits[representation["name"]] = MoviePathTrait()
+        repre_names = [
+            repre["name"]
+            for repre in instance.data.get("representations", [])
+        ]
+        for profile_repre_name in profile["repre_names"]:
+            self.log.debug(
+                f"Looking for representation `{profile_repre_name}`")
+            if profile_repre_name in repre_names:
+                self.log.debug(
+                    f"Adding MoviePathTrait for `{profile_repre_name}`")
+                traits[profile_repre_name] = MoviePathTrait()
+                break
 
         if traits:
             instance.data["traits"] = traits
