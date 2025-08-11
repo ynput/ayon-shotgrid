@@ -15,10 +15,10 @@ class IntegrateMoviePath(pyblish.api.InstancePlugin):
     label = "Integrate trait for SG"
 
     def process(self, instance):
-        family = instance.data["family"]
+        product_type = instance.data["productType"]
         traits = instance.data.get("traits")
         if not traits:
-            self.log.debug(f"Instance `{family}` does not have traits")
+            self.log.debug(f"Instance `{product_type}` does not have traits")
             return
 
         project_name = instance.context.data["projectName"]
@@ -36,7 +36,7 @@ class IntegrateMoviePath(pyblish.api.InstancePlugin):
                 continue
 
             self.log.debug(
-                f"Adding trait for product type `{family}` - "
+                f"Adding trait for product type `{product_type}` - "
                 f"representation`{repre_name}`"
             )
             update_representation(
