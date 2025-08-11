@@ -13,9 +13,16 @@ class ExtractMoviePath(pyblish.api.InstancePlugin):
     profiles = []
 
     def process(self, instance):
+        product_type = instance.data["productType"]
+
+        if instance.data.get("farm"):
+            self.log.debug(
+                f"`{product_type}` should be processed on farm, skipping."
+            )
+            return
+
         profile = self._get_representation_profile(instance)
         if not profile:
-            product_type = instance.data["productType"]
             self.log.debug(
                 (
                     f"Skipped instance `{product_type}`. None of profiles "

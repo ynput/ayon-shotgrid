@@ -16,6 +16,11 @@ class IntegrateMoviePath(pyblish.api.InstancePlugin):
 
     def process(self, instance):
         product_type = instance.data["productType"]
+        if instance.data.get("farm"):
+            self.log.debug(f"`{product_type}` should be processed on "
+                           f"farm, skipping.")
+            return
+
         traits = instance.data.get("traits")
         if not traits:
             self.log.debug(f"Instance `{product_type}` does not have traits")
