@@ -12,7 +12,7 @@ class IntegrateMoviePath(pyblish.api.InstancePlugin):
     Version.sg_path_to_movie instead of review|thumbnail by default.
     """
     # must be before IntegrateAYONReview
-    order = pyblish.api.IntegratorOrder + 0.12
+    order = pyblish.api.IntegratorOrder + 0.001
     label = "Integrate trait for SG"
 
     def process(self, instance):
