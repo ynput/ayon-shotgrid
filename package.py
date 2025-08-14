@@ -1,6 +1,6 @@
 name = "shotgrid"
 title = "Shotgrid"
-version = "0.6.7+dev"
+version = "0.6.8"
 client_dir = "ayon_shotgrid"
 
 services = {
