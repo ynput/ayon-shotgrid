@@ -2206,13 +2206,16 @@ def _add_paths(ay_project_name: str, ay_entity: Dict, data_to_update: Dict):
     for representation in representations:
 
         local_path = representation["attrib"]["path"]
+        is_windows_path = not local_path.startswith("/")
+        if is_windows_path:
+            local_path = local_path.replace("/", "\\")  # enforce backslashes
+
         representation_name = representation["name"]
 
-        traits = representation.get("traits")
-        if traits:
-            traits = json.loads(traits)
-        if (traits and
-                any("shotgrid.moviepath" in key for key in traits.keys())):
+        use_as_movie_path = (
+            representation.get("data", {}).get("flow",{}).get("use_as_movie_path"))
+        log.debug(f"{representation_name} use as path::{use_as_movie_path}")
+        if use_as_movie_path:
             found_representation = representation
             break
 
