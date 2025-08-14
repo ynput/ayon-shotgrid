@@ -2213,7 +2213,7 @@ def _add_paths(ay_project_name: str, ay_entity: Dict, data_to_update: Dict):
         representation_name = representation["name"]
 
         use_as_movie_path = (
-            representation.get("data", {}).get("SG_use_as_movie_path"))
+            representation.get("data", {}).get("flow",{}).get("use_as_movie_path"))
         log.debug(f"{representation_name} use as path::{use_as_movie_path}")
         if use_as_movie_path:
             found_representation = representation
