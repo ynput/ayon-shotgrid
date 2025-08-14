@@ -2209,6 +2209,7 @@ def _add_paths(ay_project_name: str, ay_entity: Dict, data_to_update: Dict):
         representation_name = representation["name"]
 
         traits = representation.get("traits")
+        log.debug(f"`{representation_name}` traits:{traits}")
         if traits:
             traits = json.loads(traits)
         if (traits and
