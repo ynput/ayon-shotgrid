@@ -1,13 +1,18 @@
 import pyblish.api
 
 from ayon_core.lib import filter_profiles
-from ayon_shotgrid import MoviePathTrait
 
 
 class ExtractMoviePath(pyblish.api.InstancePlugin):
-    """Looks for representation to be marked for source of sg_path_to_movie"""
+    """Looks for representation to be marked for source of sg_path_to_movie
+
+    Uses representation["data"] instead of Traits as generic `Integrate` causes
+    race condition.
+
+    Todo: Should be refactored to traits when everything is moved to traits.
+    """
     order = pyblish.api.ExtractorOrder + 0.45
-    label = "Extract trait for representation for sg_path_to_movie"
+    label = "Extract mark for representation for sg_path_to_movie"
     settings_category = "shotgrid"
 
     profiles = []
@@ -31,22 +36,22 @@ class ExtractMoviePath(pyblish.api.InstancePlugin):
             )
             return
 
-        traits = {}
-        repre_names = [
-            repre["name"]
+        repre_dict = {
+            repre["name"]: repre
             for repre in instance.data.get("representations", [])
-        ]
+        }
         for profile_repre_name in profile["repre_names"]:
             self.log.debug(
                 f"Looking for representation `{profile_repre_name}`")
-            if profile_repre_name in repre_names:
+            found_repre = repre_dict.get(profile_repre_name)
+            if found_repre:
                 self.log.debug(
-                    f"Adding MoviePathTrait for `{profile_repre_name}`")
-                traits[profile_repre_name] = MoviePathTrait()
-                break
-
-        if traits:
-            instance.data["traits"] = traits
+                    f"Adding SG_use_as_movie_path for `{profile_repre_name}`")
+                if "data" not in found_repre:
+                    found_repre["data"] = {}
+                self.log.info(
+                    f"Set SG_use_as_movie_path for {profile_repre_name}")
+                found_repre["data"]["SG_use_as_movie_path"] = True
 
     def _get_representation_profile(self, instance):
         host_name = instance.context.data["hostName"]

@@ -2212,12 +2212,10 @@ def _add_paths(ay_project_name: str, ay_entity: Dict, data_to_update: Dict):
 
         representation_name = representation["name"]
 
-        traits = representation.get("traits")
-        log.debug(f"`{representation_name}` traits:{traits}")
-        if traits:
-            traits = json.loads(traits)
-        if (traits and
-                any("shotgrid.moviepath" in key for key in traits.keys())):
+        use_as_movie_path = (
+            representation.get("data", {}).get("SG_use_as_movie_path"))
+        log.debug(f"{representation_name} use as path::{use_as_movie_path}")
+        if use_as_movie_path:
             found_representation = representation
             break
 
