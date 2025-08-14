@@ -2206,6 +2206,10 @@ def _add_paths(ay_project_name: str, ay_entity: Dict, data_to_update: Dict):
     for representation in representations:
 
         local_path = representation["attrib"]["path"]
+        is_windows_path = not local_path.startswith("/")
+        if is_windows_path:
+            local_path = local_path.replace("/", "\\")  # enforce backslashes
+
         representation_name = representation["name"]
 
         traits = representation.get("traits")
