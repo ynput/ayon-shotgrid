@@ -168,7 +168,7 @@ class ShotgridTransmitter:
             "entity.version.created",
             "entity.version.status_changed",
             "reviewable.created",
-            "flow.version.moviepath"
+            "flow.version.mediapath"
         ]
 
         last_comments_sync = datetime.min.replace(tzinfo=timezone.utc)

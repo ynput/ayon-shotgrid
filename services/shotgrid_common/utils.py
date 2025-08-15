@@ -2189,46 +2189,34 @@ def create_new_sg_entity(
     )
 
 
-        representation_name = representation["name"]
+def update_movie_paths(
+    sg_session: shotgun_api3.Shotgun,
+    ayon_entity_hub: ayon_api.entity_hub.EntityHub,
+    summary: dict
+):
+    """Uses prepare sg_* field to store sg_path_to_* to particular Version"""
+    ay_version_id = summary.pop("versionId")
+    log.info(f"Updating paths '{ay_version_id}'")
 
-        use_as_movie_path = (
-            representation.get("data", {}).get("flow",{}).get("use_as_movie_path"))
-        log.debug(f"{representation_name} use as path::{use_as_movie_path}")
-        if use_as_movie_path:
-            found_representation = representation
-            break
+    ay_version_entity = ayon_entity_hub.get_version_by_id(ay_version_id)
+    if not ay_version_entity:
+        raise ValueError(
+            "Event has a non existent version entity "
+            f"'{ay_version_id}'"
+        )
 
-        if representation_name == "thumbnail":
-            thumbnail_path = local_path
-            continue
+    sg_version_id = ay_version_entity.attribs.get(SHOTGRID_ID_ATTRIB)
+    sg_version_type = ay_version_entity.attribs.get(SHOTGRID_TYPE_ATTRIB)
 
-        if not representation_name.startswith("review"):
-            continue
+    if not sg_version_id:
+        raise ValueError(f"Version '{ay_version_id} not yet synched to SG.")
 
-    if found_representation:
-        has_slate = "slate" in ay_version["attrib"]["families"]
-        # clunky guess, not having access to ayon_core.VIDEO_EXTENSIONS
-        if len(found_representation["files"]) == 1:
-            data_to_update["sg_path_to_movie"] = local_path
-            if has_slate:
-                data_to_update["sg_movie_has_slate"] = True
-        else:
-            # Replace the frame number with '%04d'
-            path_to_frame = re.sub(r"\.\d+\.", ".%04d.", local_path)
+    sg_session.update(
+        sg_version_type,
+        sg_version_id,
+        summary
+    )
 
-            data_to_update.update({
-                "sg_path_to_movie": path_to_frame,
-                "sg_path_to_frames": path_to_frame,
-            })
-
-            if has_slate:
-                data_to_update["sg_frames_have_slate"] = True
-
-    elif thumbnail_path:
-        data_to_update.update({
-            "sg_path_to_movie": thumbnail_path,
-            "sg_path_to_frames": thumbnail_path,
-        })
 
 def upload_ay_reviewable_to_sg(
     sg_session: shotgun_api3.Shotgun,
