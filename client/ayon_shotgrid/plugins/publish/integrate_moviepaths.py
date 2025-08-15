@@ -52,7 +52,7 @@ class IntegrateMoviePath(pyblish.api.InstancePlugin):
         version_id = instance.data["versionEntity"]["id"]
         flow_data["versionId"] = version_id
         self.log.debug(f"Sending event for {version_id} with {flow_data}")
-        response = ayon_api.dispatch_event(
+        ayon_api.dispatch_event(
             "flow.version.mediapath",
             description="Update media paths on synchronized Version",
             summary=flow_data,
@@ -60,7 +60,6 @@ class IntegrateMoviePath(pyblish.api.InstancePlugin):
             finished=False,
             store=True,
         )
-        self.log.info(f"response::{response}")
 
     def _get_representation_profile(self, instance):
         host_name = instance.context.data["hostName"]
