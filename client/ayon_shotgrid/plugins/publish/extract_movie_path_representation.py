@@ -47,10 +47,9 @@ class ExtractMoviePath(pyblish.api.InstancePlugin):
             if found_repre:
                 self.log.debug(
                     f"Adding SG_use_as_movie_path for `{profile_repre_name}`")
-                self.log.info(
-                    f"Set SG_use_as_movie_path for {profile_repre_name}")
                 flow_data = found_repre.setdefault("data", {}).setdefault("flow", {})
                 flow_data["use_as_movie_path"] = True
+                break
 
     def _get_representation_profile(self, instance):
         host_name = instance.context.data["hostName"]
