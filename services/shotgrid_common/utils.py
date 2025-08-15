@@ -2127,8 +2127,6 @@ def create_new_sg_entity(
         data[sg_parent_field] = sg_parent_entity
         data["code"] = version_name
 
-        _add_paths(ay_project_name, ay_entity, data)
-
     # Folder creation
     else:
         sg_type = ay_entity.folder_type
@@ -2190,25 +2188,6 @@ def create_new_sg_entity(
         custom_attribs_map=custom_attribs_map
     )
 
-def _add_paths(ay_project_name: str, ay_entity: Dict, data_to_update: Dict):
-    """Adds local path to review file to `sg_path_to_*` as metadata.
-
-     We are storing local paths for external processing, some studios might
-     have tools to handle review files in another processes.
-     """
-    thumbnail_path = None
-    found_representation = False
-
-    representations = ayon_api.get_representations(
-        ay_project_name, version_ids=[ay_entity.id])
-
-    ay_version = ayon_api.get_version_by_id(ay_project_name, ay_entity.id)
-    for representation in representations:
-
-        local_path = representation["attrib"]["path"]
-        is_windows_path = not local_path.startswith("/")
-        if is_windows_path:
-            local_path = local_path.replace("/", "\\")  # enforce backslashes
 
         representation_name = representation["name"]
 
