@@ -4,6 +4,7 @@ import ayon_api
 import pyblish.api
 
 from ayon_core.lib import filter_profiles
+from ayon_core.addon import AddonsManager
 
 
 class IntegrateMoviePath(pyblish.api.InstancePlugin):
@@ -48,18 +49,7 @@ class IntegrateMoviePath(pyblish.api.InstancePlugin):
         if not flow_data:
             return
 
-        project_name = instance.context.data["projectName"]
-        version_id = instance.data["versionEntity"]["id"]
-        flow_data["versionId"] = version_id
-        self.log.debug(f"Sending event for {version_id} with {flow_data}")
-        ayon_api.dispatch_event(
-            "flow.version.mediapath",
-            description="Update media paths on synchronized Version",
-            summary=flow_data,
-            project_name=project_name,
-            finished=False,
-            store=True,
-        )
+        self._trigger_event(instance, flow_data)
 
     def _get_representation_profile(self, instance):
         host_name = instance.context.data["hostName"]
@@ -176,3 +166,35 @@ class IntegrateMoviePath(pyblish.api.InstancePlugin):
             })
 
         return flow_data
+
+    def _trigger_event(
+        self,
+        instance: pyblish.api.Instance,
+        flow_data: Dict[str, Any]
+    ):
+        """Triggers event to update media path on Flow(SG) Version
+
+        Temporarily via addon server endpoint to mitigate bug in
+        enroll_event_job.ignore_sender_types. When resolved could be changed
+        to simple dispatch_event.
+        """
+
+        project_name = instance.context.data["projectName"]
+        version_id = instance.data["versionEntity"]["id"]
+        flow_data["versionId"] = version_id
+
+        self.log.debug(f"Sending event for {version_id} with {flow_data}")
+
+        addon = AddonsManager().get("shotgrid")
+        if not addon:
+            self.log.warning("No addon found, couldn't send event")
+            return
+
+        endpoint = f"{addon.endpoint_prefix}/{project_name}/trigger_mediapath"
+        response = ayon_api.post(
+            endpoint,
+            **flow_data,
+        )
+        if response.status_code not in [200, 204]:
+            self.log.info(response.text)
+            raise RuntimeError("Cannot trigger update of media paths.")
