@@ -1,4 +1,5 @@
 import re
+from typing import Dict, Any
 
 import ayon_api
 import pyblish.api
@@ -20,7 +21,7 @@ class IntegrateMoviePath(pyblish.api.InstancePlugin):
 
     profiles = []
 
-    def process(self, instance):
+    def process(self, instance: pyblish.api.Instance):
         product_type = instance.data["productType"]
 
         if instance.data.get("farm"):
@@ -51,7 +52,7 @@ class IntegrateMoviePath(pyblish.api.InstancePlugin):
 
         self._trigger_event(instance, flow_data)
 
-    def _get_representation_profile(self, instance):
+    def _get_representation_profile(self, instance: pyblish.api.Instance):
         host_name = instance.context.data["hostName"]
         product_type = instance.data["productType"]
         task_name = None
@@ -75,8 +76,8 @@ class IntegrateMoviePath(pyblish.api.InstancePlugin):
 
     def _get_preferred_representation(
         self,
-        instance,
-        published_representations
+        instance: pyblish.api.Instance,
+        published_representations: Dict[str, Any]
     ):
         profile = self._get_representation_profile(instance)
         if not profile:
@@ -100,9 +101,9 @@ class IntegrateMoviePath(pyblish.api.InstancePlugin):
 
     def _add_paths(
         self,
-        published_representations,
-        preferred_representation,
-        has_slate
+        published_representations: Dict[str, Any],
+        preferred_representation: Dict[str, Any],
+        has_slate: bool
     ):
         """Adds local path to review file to `sg_path_to_*` as metadata.
 
