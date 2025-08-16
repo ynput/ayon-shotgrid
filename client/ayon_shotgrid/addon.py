@@ -66,6 +66,10 @@ class ShotgridAddon(AYONAddon, IPluginPaths, ITraits):
             MoviePathTrait,
         ]
 
+    @property
+    def endpoint_prefix(self):
+        return "addons/{}/{}".format(self.name, self.version)
+
 
 class MoviePathTrait(TraitBase):
     id = "shotgrid.moviepath.v1"
