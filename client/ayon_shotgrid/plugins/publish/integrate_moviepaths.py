@@ -125,11 +125,12 @@ class IntegrateMoviePath(pyblish.api.InstancePlugin):
                     "/", "\\"
                 )  # enforce backslashes
 
-            if preferred_representation:
+            representation_name = representation["name"]
+            if (preferred_representation and
+                    representation_name == preferred_representation["name"]):
                 found_representation = preferred_representation
                 break
 
-            representation_name = representation["name"]
             if representation_name == "thumbnail":
                 thumbnail_path = local_path
                 continue
