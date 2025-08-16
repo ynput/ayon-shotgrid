@@ -13,6 +13,9 @@ class IntegrateMoviePath(pyblish.api.InstancePlugin):
 
     Dispatches event to update synchronized Version paths to limit race
     conditions.
+
+    Must be called after full `Integrate` when both Version and Representations
+    are present in DB.
     """
 
     order = pyblish.api.IntegratorOrder + 0.45
