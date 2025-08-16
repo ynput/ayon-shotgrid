@@ -300,7 +300,7 @@ class MoviePathProfile(BaseSettingsModel):
     )
 
 
-class ExtractMoviePathModel(BaseSettingsModel):
+class IntegrateMoviePathModel(BaseSettingsModel):
     profiles: list[MoviePathProfile] =  SettingsField(
         default_factory=list,
         title="Profiles for selected representations for movie path"
@@ -308,9 +308,9 @@ class ExtractMoviePathModel(BaseSettingsModel):
 
 
 class ShotgridPublishPlugins(BaseSettingsModel):
-    ExtractMoviePath: ExtractMoviePathModel = SettingsField(
-        default_factory=ExtractMoviePathModel,
-        title="Extract trait for representation for sg_path_to_movie",
+    IntegrateMoviePath: IntegrateMoviePathModel = SettingsField(
+        default_factory=IntegrateMoviePathModel,
+        title="Synchronize movie path information to Flow(SG)",
         scope=["studio", "project"],
     )
 

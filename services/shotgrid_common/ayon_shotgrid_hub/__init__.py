@@ -39,7 +39,8 @@ from utils import (
     create_sg_entities_in_ay,
     get_sg_project_by_name,
     get_sg_user_id,
-    upload_ay_reviewable_to_sg
+    upload_ay_reviewable_to_sg,
+    update_movie_paths,
 )
 
 import ayon_api
@@ -488,6 +489,12 @@ class AyonShotgridHub:
                     self._sg,
                     self._ay_project,  # EntityHub
                     ay_version_id
+                )
+            case ("flow.version.mediapath"):
+                update_movie_paths(
+                    self._sg,
+                    self._ay_project,  # EntityHub
+                    ayon_event["summary"]
                 )
             case _:
                 raise ValueError(
