@@ -18,7 +18,7 @@ class IntegrateMoviePath(pyblish.api.InstancePlugin):
     label = "Integrate event for Flow movie paths"
     settings_category = "shotgrid"
 
-    profiles = []  #TODO
+    profiles = []
 
     def process(self, instance):
         product_type = instance.data["productType"]
