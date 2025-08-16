@@ -141,11 +141,9 @@ class IntegrateMoviePath(pyblish.api.InstancePlugin):
         if found_representation:
             # clunky guess, not having access to ayon_core.VIDEO_EXTENSIONS
             if len(found_representation["files"]) == 1:
-                self.log.info("single file")
                 flow_data["sg_path_to_movie"] = local_path
             else:
                 # Replace the frame number with '###'
-                self.log.info("multi file")
                 n = 0
                 match = re.search(r"\.(\d+)\.", local_path)
                 if match:
