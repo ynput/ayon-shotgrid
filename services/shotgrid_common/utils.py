@@ -6,7 +6,6 @@ import hashlib
 import logging
 import collections
 import math
-import re
 import tempfile
 from typing import Dict, Optional, Union, Any, List
 
@@ -2127,8 +2126,6 @@ def create_new_sg_entity(
         data[sg_parent_field] = sg_parent_entity
         data["code"] = version_name
 
-        _add_paths(ay_project_name, ay_entity, data)
-
     # Folder creation
     else:
         sg_type = ay_entity.folder_type
@@ -2190,66 +2187,35 @@ def create_new_sg_entity(
         custom_attribs_map=custom_attribs_map
     )
 
-def _add_paths(ay_project_name: str, ay_entity: Dict, data_to_update: Dict):
-    """Adds local path to review file to `sg_path_to_*` as metadata.
 
-     We are storing local paths for external processing, some studios might
-     have tools to handle review files in another processes.
-     """
-    thumbnail_path = None
-    found_representation = False
+def update_movie_paths(
+    sg_session: shotgun_api3.Shotgun,
+    ayon_entity_hub: ayon_api.entity_hub.EntityHub,
+    summary: dict
+):
+    """Uses prepare sg_* field to store sg_path_to_* to particular Version"""
+    ay_version_id = summary.pop("versionId")
+    log.info(f"Updating paths '{ay_version_id}'")
 
-    representations = ayon_api.get_representations(
-        ay_project_name, version_ids=[ay_entity.id])
+    ay_version_entity = ayon_entity_hub.get_version_by_id(ay_version_id)
+    if not ay_version_entity:
+        raise ValueError(
+            "Event has a non existent version entity "
+            f"'{ay_version_id}'"
+        )
 
-    ay_version = ayon_api.get_version_by_id(ay_project_name, ay_entity.id)
-    for representation in representations:
+    sg_version_id = ay_version_entity.attribs.get(SHOTGRID_ID_ATTRIB)
+    sg_version_type = ay_version_entity.attribs.get(SHOTGRID_TYPE_ATTRIB)
 
-        local_path = representation["attrib"]["path"]
-        is_windows_path = not local_path.startswith("/")
-        if is_windows_path:
-            local_path = local_path.replace("/", "\\")  # enforce backslashes
+    if not sg_version_id:
+        raise ValueError(f"Version '{ay_version_id} not yet synched to SG.")
 
-        representation_name = representation["name"]
+    sg_session.update(
+        sg_version_type,
+        sg_version_id,
+        summary
+    )
 
-        use_as_movie_path = (
-            representation.get("data", {}).get("flow",{}).get("use_as_movie_path"))
-        log.debug(f"{representation_name} use as path::{use_as_movie_path}")
-        if use_as_movie_path:
-            found_representation = representation
-            break
-
-        if representation_name == "thumbnail":
-            thumbnail_path = local_path
-            continue
-
-        if not representation_name.startswith("review"):
-            continue
-
-    if found_representation:
-        has_slate = "slate" in ay_version["attrib"]["families"]
-        # clunky guess, not having access to ayon_core.VIDEO_EXTENSIONS
-        if len(found_representation["files"]) == 1:
-            data_to_update["sg_path_to_movie"] = local_path
-            if has_slate:
-                data_to_update["sg_movie_has_slate"] = True
-        else:
-            # Replace the frame number with '%04d'
-            path_to_frame = re.sub(r"\.\d+\.", ".%04d.", local_path)
-
-            data_to_update.update({
-                "sg_path_to_movie": path_to_frame,
-                "sg_path_to_frames": path_to_frame,
-            })
-
-            if has_slate:
-                data_to_update["sg_frames_have_slate"] = True
-
-    elif thumbnail_path:
-        data_to_update.update({
-            "sg_path_to_movie": thumbnail_path,
-            "sg_path_to_frames": thumbnail_path,
-        })
 
 def upload_ay_reviewable_to_sg(
     sg_session: shotgun_api3.Shotgun,
