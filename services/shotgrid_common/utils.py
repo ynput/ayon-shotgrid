@@ -6,7 +6,6 @@ import hashlib
 import logging
 import collections
 import math
-import re
 import tempfile
 from typing import Dict, Optional, Union, Any, List
 

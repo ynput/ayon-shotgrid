@@ -1,7 +1,6 @@
-from typing import Any, Type, Optional
+from typing import Any, Type, Optional, Dict
 from nxtools import logging
-from fastapi import Path, Body, Query, Response
-from typing import Any, Dict
+from fastapi import Path, Body, Response
 
 from ayon_server.api.dependencies import (
     CurrentUser,
