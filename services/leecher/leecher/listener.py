@@ -383,9 +383,8 @@ class ShotgridListener:
             event.get("user", {}).get("type") == "ApiUser"
             and event.get("user", {}).get("id") == self.sg_current_api_user["id"]
         ):
-            self.log.warning(
+            self.log.debug(
                 "Ignore event from the AYON<->SG service ApiUser. "
-                f"Better turn off events generation for {self.sg_script_name} in Flow."
             )
             return True
 
