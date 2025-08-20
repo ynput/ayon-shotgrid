@@ -1,6 +1,7 @@
 """ Validation
 """
 import collections
+import requests
 
 import ayon_api
 from ayon_api.entity_hub import EntityHub
@@ -121,6 +122,20 @@ def _validate_project_statuses_mapping(
     return report
 
 
+def validate_sg_url(sg_url):
+    """ Ensure provided shotgrid_server URL is valid.
+    """
+    try:
+        resp = requests.get(sg_url)
+        if not resp.ok:
+            raise RuntimeError(
+                f"Issue reaching {sg_url}: {resp.reason}"
+            )
+
+    except Exception as error:
+        raise ValueError(f"Unreachable URL: {sg_url}") from error
+
+
 def validate_projects_sync(
     sg_session,
     enabled_entities,
@@ -237,6 +252,10 @@ def validate_custom_attribs_map(
         "date": "datetime",
     }
 
+    reversed_type_mapping = collections.defaultdict(list)
+    for key, value in AY_SG_TYPE_MAPPING.items():
+        reversed_type_mapping[value].append(key)
+
     all_mapped_sgs = [entry["sg"] for entry in custom_attribs_map]
     all_mapped_ays = [entry["ayon"] for entry in custom_attribs_map]
 
@@ -250,10 +269,18 @@ def validate_custom_attribs_map(
     ]
 
     if duplicate_ays:
-        errors.append(f"Found duplicate settings for AYON attribute(s): {duplicate_ays}.")
+        errors.append(
+            f"Found duplicate settings for AYON attribute(s): {duplicate_ays}. "
+            "Cannot sync 2 different Flow fields to the same AYON attribute.\n"
+            "Adjust your custom attribute mapping."
+        )
 
     if duplicate_sgs:
-        errors.append(f"Found duplicate settings for SG field(s): {duplicate_sgs}.")
+        errors.append(
+            f"Found duplicate settings for SG field(s): {duplicate_sgs}. "
+            "Cannot sync 2 different AYON attribute to the same Flow field.\n"
+            "Adjust your custom attribute mapping."
+        )
 
     for entry in custom_attribs_map:
 
@@ -294,10 +321,37 @@ def validate_custom_attribs_map(
                         "unknown"
                     )
 
-                    if conformed_field_type != entry["type"]:
+                    # Configuration is trying to sync an AYON attribute type we
+                    # do not expect to be synced over Flow. Flag it to the user
+                    # as consequences are pretty unpredictable.
+                    if entry["type"] not in AY_SG_TYPE_MAPPING.values():
+                        report.append(
+                            f"Attempt to sync a non-standard AYON attribute {scope}."
+                            f'{entry["ayon"]}[type={entry["type"]}] to {scope}.{field_attempt} '
+                            f"[type={conformed_field_type}]."
+                            "This may lead to issues and/or inconsistent results."
+                        )
+
+                    # The AYON attribute is fine. Its counterpart exists in Flow, but not in
+                    # a data type we anticipated, this is likely something wrong with the Flow
+                    # field configuration.
+                    # E.g. syncing AYON attribute to a custom multi_entity Flow field.
+                    elif conformed_field_type == "unknown":
+                        expected_types = reversed_type_mapping[entry["type"]]
                         errors.append(
-                            f"SG field {scope}.{field_attempt} is of invalid type. "
-                            f'Expected "{entry["type"]}"" got "{conformed_field_type}".'
+                            f'Cannot sync AYON {scope}.{entry["ayon"]} to Flow {scope}.{field_attempt}. '
+                            f"Flow field is not of data type: {expected_types}.\n"
+                            "Adjust either Flow field configuration or the AYON mapping settings."
+                        )
+
+                    # Both AYON attribute and Flow field data types are standard,
+                    # but they do not match (e.g. syncing a number to a string).
+                    elif conformed_field_type != entry["type"]:
+                        errors.append(
+                            f'Cannot sync AYON {scope}.{entry["ayon"]} to '
+                            f"Flow field {scope}.{field_attempt} (invalid type). "
+                            f'Expected Flow data type "{entry["type"]}" got "{conformed_field_type}".\n'
+                            "Adjust either Flow field configuration or the AYON mapping settings."
                         )
 
                     break
@@ -314,4 +368,4 @@ def validate_custom_attribs_map(
 
     if errors:
         errors.insert(0, "Settings validation failed:")
-        raise ValueError("\n".join(errors))
+        raise ValueError("\n - ".join(errors))

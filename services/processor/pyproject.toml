@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "shotgrid-processor"
-version = "0.6.0"
+version = "0.6.10"
 description = "Shotgrid Integration for AYON"
 authors = ["Oscar Domingo <oscar.domingo@ynput.com>"]
 package-mode = false
@@ -8,7 +8,7 @@ package-mode = false
 [tool.poetry.dependencies]
 python = ">=3.10,<4.0"
 ayon-python-api = { git = "https://github.com/tweak-wtf/ayon-python-api", branch = "fix/sg-recursion" }
-shotgun-api3 = { git = "https://github.com/shotgunsoftware/python-api.git", tag = "v3.4.0" }
+shotgun-api3 = "*"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"

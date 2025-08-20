@@ -1,4 +1,3 @@
-import requests
 from pydantic import validator
 
 from ayon_server.exceptions import BadRequestException
@@ -97,7 +96,6 @@ class ShotgridServiceSettings(BaseSettingsModel):
     polling_frequency: int = SettingsField(
         default=10,
         title="How often (in seconds) to process ShotGrid related events.",
-        validate_default=False,
     )
 
     script_key: str = SettingsField(
@@ -255,12 +253,18 @@ class ShotgridCompatibilitySettings(BaseSettingsModel):
     def ensure_requests(cls, value):
         """ Ensure custom attribs map does not contain duplicated SG fields.
         """
-        all_sg_fields = []
+        all_sg_fields = set()
+        all_ayon_attributes = set()
         for entry in value:
             if entry.sg and entry.sg in all_sg_fields:
                 raise BadRequestException(f"Duplicate mapped SG field: {entry.sg}")
-            elif entry.sg:
-                all_sg_fields.append(entry.sg)
+            if entry.ayon and entry.ayon in all_ayon_attributes:
+                raise BadRequestException(f"Duplicate mapped AYON attribute: {entry.ayon}")
+
+            if entry.sg:
+                all_sg_fields.add(entry.sg)
+            if entry.ayon:
+                all_ayon_attributes.add(entry.ayon)
 
         return value
 
@@ -268,6 +272,46 @@ class ShotgridCompatibilitySettings(BaseSettingsModel):
         title="Folder re-parenting",
         default_factory=FolderReparentingModel,
         description=("Parent folders for AYON folders matching to SG types."),
+    )
+
+
+class MoviePathProfile(BaseSettingsModel):
+    """Profile to select representation to use in Version.sg_path_to_movie"""
+    _layout = "expanded"
+    host_names: list[str] = SettingsField(
+        default_factory=list, title="Host names"
+    )
+    product_types: list[str] = SettingsField(
+        default_factory=list,
+        title="Product types"
+    )
+    task_types: list[str] = SettingsField(
+        default_factory=list,
+        title="Task types",
+        enum_resolver=task_types_enum
+    )
+    task_names: list[str] = SettingsField(
+        default_factory=list,
+        title="Task names")
+    repre_names: list[str] = SettingsField(
+        default_factory=list,
+        title="Selected representation names",
+        description="Representation names used for Version.sg_path_to_movie"
+    )
+
+
+class IntegrateMoviePathModel(BaseSettingsModel):
+    profiles: list[MoviePathProfile] =  SettingsField(
+        default_factory=list,
+        title="Profiles for selected representations for movie path"
+    )
+
+
+class ShotgridPublishPlugins(BaseSettingsModel):
+    IntegrateMoviePath: IntegrateMoviePathModel = SettingsField(
+        default_factory=IntegrateMoviePathModel,
+        title="Synchronize movie path information to Flow(SG)",
+        scope=["studio", "project"],
     )
 
 
@@ -286,17 +330,11 @@ class ShotgridSettings(BaseSettingsModel):
         scope=["studio"]
     )
 
-    @validator("shotgrid_server")
-    def ensure_requests(cls, value):
-        """ Ensure provided shotgrid_server URL is valid.
-        """
-        if value:
-            resp = requests.get(value)
-            if not resp.ok:
-                raise BadRequestException(f"Unreachable URL: {value}")
-
-        return value
-
+    shotgrid_no_ssl_validation: bool = SettingsField(
+        False,
+        title="No SSL validation",
+        description="Turns off hostname matching validation for SSL certificates.",
+    )
     shotgrid_project_code_field: str = SettingsField(
         default="code",
         title="ShotGrid Project Code field name",
@@ -348,4 +386,7 @@ class ShotgridSettings(BaseSettingsModel):
         default_factory=ShotgridServiceSettings,
         title="Service settings",
         scope=["studio"],
+    )
+    publish: ShotgridPublishPlugins = SettingsField(
+        default_factory=ShotgridPublishPlugins, title="Publish plugins"
     )

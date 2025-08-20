@@ -6,7 +6,6 @@ import hashlib
 import logging
 import collections
 import math
-import re
 import tempfile
 from typing import Dict, Optional, Union, Any, List
 
@@ -135,7 +134,7 @@ def _sg_to_ay_dict(
             )
             task_type = default_task_type
         else:
-            task_type = sg_entity["step"]["name"]
+            task_type = sg_entity["step.Step.code"]
 
         label = sg_entity["content"]
 
@@ -639,19 +638,21 @@ def _get_parenting_transfer_type(addon_settings):
             "root_relocate" - keep SG hierachy, put in additional AYON folder
             "type_grouping" - separate SG objects into AYON folders
     """
-    folder_parenting = (addon_settings["compatibility_settings"]
-                                      ["folder_parenting"])
+    compatibility_settings = addon_settings.get("compatibility_settings", {})
+    folder_parenting = compatibility_settings.get("folder_parenting", {})
 
     folder_parenting_options = ("root_relocate", "type_grouping")
 
 
     enabled_transfer_type = None
     for transfer_type in folder_parenting_options:
-        transfer_type_info = folder_parenting[transfer_type]
-        if transfer_type_info["enabled"]:
+        transfer_type_info = folder_parenting.get(transfer_type, {})
+        if transfer_type_info.get("enabled", False):
             if enabled_transfer_type:
-                raise RuntimeError("Both types cannot be enabled. Please "
-                                   "disable one.")
+                raise RuntimeError(
+                    "Both types cannot be enabled. Please disable one."
+                )
+
             enabled_transfer_type = transfer_type
 
     return enabled_transfer_type
@@ -774,8 +775,8 @@ def get_sg_entities(
         )
 
     """
-    default_task_type = addon_settings[
-        "compatibility_settings"]["default_task_type"]
+    compatibility_settings = addon_settings.get("compatibility_settings", {})
+    default_task_type = compatibility_settings.get("default_task_type")
 
     query_fields = list(SG_COMMON_ENTITY_FIELDS)
 
@@ -832,6 +833,8 @@ def get_sg_entities(
                 # Set parent id only if defined parent is a valid entity.
                 if isinstance(sg_parent, dict) and sg_parent.get("id"):
                     parent_id = sg_parent["id"]
+                    parent_type = sg_parent["type"]
+                    parent_id = f'{parent_type}_{parent_id}'
 
             # Reparent the current SG Asset under an AssetCategory ?
             elif (
@@ -875,7 +878,10 @@ def get_sg_entities(
                 default_task_type
             )
 
-            sg_id = sg_ay_dict["attribs"][SHOTGRID_ID_ATTRIB]
+            sg_id = (
+                f'{sg_ay_dict["attribs"][SHOTGRID_TYPE_ATTRIB]}_'
+                f'{sg_ay_dict["attribs"][SHOTGRID_ID_ATTRIB]}'
+            )
             sg_ay_dicts[sg_id] = sg_ay_dict
             sg_ay_dicts_parents[parent_id].add(sg_id)
 
@@ -1342,6 +1348,16 @@ def update_ay_entity_custom_attributes(
     ay_project: ProjectEntity = None,
 ):
     """Update AYON entity custom attributes from ShotGrid dictionary"""
+
+    # Check renaming through label
+    if (
+        sg_ay_dict["type"].lower() != "version"
+        and sg_ay_dict["label"]
+        and (ay_entity.label or ay_entity.get_name()) != sg_ay_dict["label"]
+    ):
+        ay_entity.label = sg_ay_dict["label"]
+
+    # Loop over custom attributes and detect changes.
     for ay_attrib, _ in custom_attribs_map.items():
         if values_to_update and ay_attrib not in values_to_update:
             continue
@@ -1390,18 +1406,31 @@ def update_ay_entity_custom_attributes(
                 value_as_date = None
 
             # Field value matches a valid date,
-            # confirm target AYON attribute is of type datetime.
             if value_as_date:
                 all_attrib_schemas = ayon_api.get_attributes_schema()
                 attrib_schemas = [
                     attr for attr in all_attrib_schemas["attributes"]
                     if attr["name"] == ay_attrib
                 ]
-                if (
+                # confirm target AYON attribute is of type datetime.
+                if not (
                     attrib_schemas
                     and attrib_schemas[0]["data"]["type"] == "datetime"
                 ):
-                    attrib_value = value_as_date
+                    continue
+
+                # Check is a different date
+                current_set_date = ay_entity.attribs.get(ay_attrib)
+                value_as_utc = value_as_date.replace(
+                    tzinfo=datetime.timezone.utc).date()
+                if (
+                    current_set_date
+                    and datetime.datetime.fromisoformat(current_set_date).date()
+                    == value_as_utc
+                ):
+                    continue
+
+                attrib_value = value_as_date
 
             ay_entity.attribs.set(ay_attrib, attrib_value)
 
@@ -1990,6 +2019,7 @@ def create_new_sg_entity(
         task_step = sg_session.find_one(
             "Step",
             filters=step_query_filters,
+            fields=["code", "name"],
         )
         if not task_step:
             raise ValueError(
@@ -2036,9 +2066,8 @@ def create_new_sg_entity(
         if not ayon_asset:
             raise ValueError(f"Not found '{folder_id}'")
 
-        # sync version author
-        ay_username = ay_entity.data["author"]
-        sg_user_id = get_sg_user_id(ay_username)
+        ay_username = ay_entity.data.get("author")
+        sg_user_id = get_sg_user_id(ay_username) if ay_username else -1
         if sg_user_id < 0:
             log.warning(
                 f"{ay_username} is not synchronized, "
@@ -2076,13 +2105,19 @@ def create_new_sg_entity(
             data["sg_version_type"] = product_data["productType"]
 
         # sync first/last frames
-        frame_start = ay_entity.attribs.get("frameStart", 0)
-        frame_end = ay_entity.attribs.get("frameEnd", 0)
-        handle_start = ay_entity.attribs.get("handleStart", 0)
-        handle_end = ay_entity.attribs.get("handleEnd", 0)
+        frame_start = ay_entity.attribs.get("frameStart") or 0
+        frame_end = ay_entity.attribs.get("frameEnd") or 0
+        handle_start = ay_entity.attribs.get("handleStart") or 0
+        handle_end = ay_entity.attribs.get("handleEnd") or 0
 
-        data["sg_first_frame"]  = frame_start - handle_start
-        data["sg_last_frame"] = frame_end + handle_end
+        frame_in = frame_start - handle_start
+        frame_out = frame_end + handle_end
+
+        data["sg_first_frame"]  = frame_in
+        data["sg_last_frame"] = frame_out
+
+        data["frame_count"] = frame_out - frame_in + 1
+        data["frame_range"] = '-'.join([str(frame_in), str(frame_out)])
 
         product_name = ay_entity.parent.name
         version_str = str(ay_entity.version).zfill(3)
@@ -2090,8 +2125,6 @@ def create_new_sg_entity(
 
         data[sg_parent_field] = sg_parent_entity
         data["code"] = version_name
-
-        _add_paths(ay_project_name, ay_entity, data)
 
     # Folder creation
     else:
@@ -2108,6 +2141,25 @@ def create_new_sg_entity(
             data[sg_parent_field] = sg_parent_entity
         data["code"] = ay_entity.name
 
+    # Set status
+    if ay_entity.status:
+        entity = ay_entity
+        project_entity = None
+        while entity.parent:
+            entity = entity.parent
+            if entity.entity_type == "project":
+                project_entity = entity
+                break
+
+        if project_entity:
+            ay_statuses = {
+                status.name: status.short_name
+                for status in project_entity.statuses
+            }
+            ay_status = ay_statuses.get(ay_entity.status)
+            if ay_status and ay_status in get_sg_statuses(sg_session, sg_type):
+                data["sg_status_list"] = ay_status
+
     # Fill up data with any extra attributes from AYON we want to sync to SG
     data |= get_sg_custom_attributes_data(
         sg_session,
@@ -2123,8 +2175,8 @@ def create_new_sg_entity(
             f"Unable to create SG entity {sg_type} with data: {data}")
         raise e
 
-    default_task_type = addon_settings[
-        "compatibility_settings"]["default_task_type"]
+    compatibility_settings = addon_settings.get("compatibility_settings", {})
+    default_task_type = compatibility_settings.get("default_task_type")
 
     return get_sg_entity_as_ay_dict(
         sg_session,
@@ -2135,56 +2187,35 @@ def create_new_sg_entity(
         custom_attribs_map=custom_attribs_map
     )
 
-def _add_paths(ay_project_name: str, ay_entity: Dict, data_to_update: Dict):
-    """Adds local path to review file to `sg_path_to_*` as metadata.
 
-     We are storing local paths for external processing, some studios might
-     have tools to handle review files in another processes.
-     """
-    thumbnail_path = None
-    found_reviewable = False
+def update_movie_paths(
+    sg_session: shotgun_api3.Shotgun,
+    ayon_entity_hub: ayon_api.entity_hub.EntityHub,
+    summary: dict
+):
+    """Uses prepare sg_* field to store sg_path_to_* to particular Version"""
+    ay_version_id = summary.pop("versionId")
+    log.info(f"Updating paths '{ay_version_id}'")
 
-    representations = ayon_api.get_representations(
-        ay_project_name, version_ids=[ay_entity.id])
+    ay_version_entity = ayon_entity_hub.get_version_by_id(ay_version_id)
+    if not ay_version_entity:
+        raise ValueError(
+            "Event has a non existent version entity "
+            f"'{ay_version_id}'"
+        )
 
-    ay_version = ayon_api.get_version_by_id(ay_project_name, ay_entity.id)
+    sg_version_id = ay_version_entity.attribs.get(SHOTGRID_ID_ATTRIB)
+    sg_version_type = ay_version_entity.attribs.get(SHOTGRID_TYPE_ATTRIB)
 
-    for representation in representations:
+    if not sg_version_id:
+        raise ValueError(f"Version '{ay_version_id} not yet synched to SG.")
 
-        local_path = representation["attrib"]["path"]
-        representation_name = representation["name"]
+    sg_session.update(
+        sg_version_type,
+        sg_version_id,
+        summary
+    )
 
-        if representation_name == "thumbnail":
-            thumbnail_path = local_path
-            continue
-
-        if not representation_name.startswith("review"):
-            continue
-
-        found_reviewable = True
-        has_slate = "slate" in ay_version["attrib"]["families"]
-        # clunky guess, not having access to ayon_core.VIDEO_EXTENSIONS
-        if len(representation["files"]) == 1:
-            data_to_update["sg_path_to_movie"] = local_path
-            if has_slate:
-                data_to_update["sg_movie_has_slate"] = True
-        else:
-            # Replace the frame number with '%04d'
-            path_to_frame = re.sub(r"\.\d+\.", ".%04d.", local_path)
-
-            data_to_update.update({
-                "sg_path_to_movie": path_to_frame,
-                "sg_path_to_frames": path_to_frame,
-            })
-
-            if has_slate:
-                data_to_update["sg_frames_have_slate"] = True
-
-    if not found_reviewable and thumbnail_path:
-        data_to_update.update({
-            "sg_path_to_movie": thumbnail_path,
-            "sg_path_to_frames": thumbnail_path,
-        })
 
 def upload_ay_reviewable_to_sg(
     sg_session: shotgun_api3.Shotgun,
