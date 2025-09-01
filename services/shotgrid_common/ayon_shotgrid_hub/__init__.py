@@ -494,7 +494,7 @@ class AyonShotgridHub:
                 update_movie_paths(
                     self._sg,
                     self._ay_project,  # EntityHub
-                    ayon_event["summary"]
+                    ayon_event["payload"]
                 )
             case _:
                 raise ValueError(

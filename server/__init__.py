@@ -180,7 +180,7 @@ class ShotgridAddon(BaseServerAddon):
             project=project_name,
             sender_type="publish",
             description="Update media paths on synchronized Version",
-            summary=data,
+            payload=data,
         )
 
         return Response(status_code=200, content=str(response))

@@ -2191,10 +2191,10 @@ def create_new_sg_entity(
 def update_movie_paths(
     sg_session: shotgun_api3.Shotgun,
     ayon_entity_hub: ayon_api.entity_hub.EntityHub,
-    summary: dict
+    payload: dict
 ):
     """Uses prepare sg_* field to store sg_path_to_* to particular Version"""
-    ay_version_id = summary.pop("versionId")
+    ay_version_id = payload.pop("versionId")
     log.info(f"Updating paths '{ay_version_id}'")
 
     ay_version_entity = ayon_entity_hub.get_version_by_id(ay_version_id)
@@ -2213,7 +2213,7 @@ def update_movie_paths(
     sg_session.update(
         sg_version_type,
         sg_version_id,
-        summary
+        payload
     )
 
 
