@@ -68,7 +68,7 @@ class IntegrateMoviePath(pyblish.api.InstancePlugin):
         profile = filter_profiles(
             self.profiles,
             {
-                "hosts": host_name,
+                "host_names": host_name,
                 "product_types": product_type,
                 "task_names": task_name,
                 "task_types": task_type,
