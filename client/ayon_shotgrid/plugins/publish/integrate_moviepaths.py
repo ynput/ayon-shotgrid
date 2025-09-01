@@ -198,6 +198,4 @@ class IntegrateMoviePath(pyblish.api.InstancePlugin):
             endpoint,
             **flow_data,
         )
-        if response.status_code not in [200, 204]:
-            self.log.info(response.text)
-            raise RuntimeError("Cannot trigger update of media paths.")
+        response.raise_for_status("Cannot trigger update of media paths.")
