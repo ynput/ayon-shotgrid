@@ -130,10 +130,6 @@ class IntegrateMoviePath(pyblish.api.InstancePlugin):
 
             if representation_name == "thumbnail":
                 thumbnail_path = local_path
-                continue
-
-            if not representation_name.startswith("review"):
-                continue
 
         flow_data = {}
         if found_representation:
