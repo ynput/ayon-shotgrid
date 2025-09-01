@@ -1,3 +1,4 @@
+import os
 import re
 from typing import Dict, Any
 
@@ -119,11 +120,7 @@ class IntegrateMoviePath(pyblish.api.InstancePlugin):
         for repre_info in published_representations.values():
             representation = repre_info["representation"]
             local_path = representation["attrib"]["path"]
-            is_windows_path = not local_path.startswith("/")
-            if is_windows_path:
-                local_path = local_path.replace(
-                    "/", "\\"
-                )  # enforce backslashes
+            local_path = os.path.normpath(local_path)
 
             representation_name = representation["name"]
             if (preferred_representation and
