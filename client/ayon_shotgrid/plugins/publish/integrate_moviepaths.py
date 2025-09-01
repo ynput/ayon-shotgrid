@@ -193,7 +193,7 @@ class IntegrateMoviePath(pyblish.api.InstancePlugin):
             self.log.warning("No addon found, couldn't send event")
             return
 
-        endpoint = f"{addon.endpoint_prefix}/{project_name}/trigger_mediapath"
+        endpoint = f"{addon.get_server_addon_endpoint}/{project_name}/trigger_mediapath"  # noqa: E501
         response = ayon_api.post(
             endpoint,
             **flow_data,
