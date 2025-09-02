@@ -330,7 +330,7 @@ def _update_sg_id(ay_entity, custom_attribs_map, sg_ay_dict, project_entity):
             sg_ay_dict["type"]
         )
     update_ay_entity_custom_attributes(
-        ay_entity, sg_ay_dict, custom_attribs_map, project_entity
+        ay_entity, sg_ay_dict, custom_attribs_map, ay_project=project_entity
     )
 
     return ay_entity
