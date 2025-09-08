@@ -6,7 +6,6 @@ import ayon_api
 import pyblish.api
 
 from ayon_core.lib import filter_profiles
-from ayon_core.addon import AddonsManager
 
 
 class IntegrateMoviePath(pyblish.api.InstancePlugin):
@@ -183,7 +182,9 @@ class IntegrateMoviePath(pyblish.api.InstancePlugin):
 
         addon = instance.context.data["ayonAddonsManager"]["shotgrid"]
 
-        endpoint = f"{addon.get_server_addon_endpoint}/{project_name}/trigger_mediapath"  # noqa: E501
+        endpoint = addon.get_server_addon_endpoint(
+            project_name, "trigger_mediapath"
+        )
         response = ayon_api.post(
             endpoint,
             **flow_data,
