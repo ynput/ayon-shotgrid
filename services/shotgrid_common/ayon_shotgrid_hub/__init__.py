@@ -491,10 +491,15 @@ class AyonShotgridHub:
                     ay_version_id
                 )
             case ("flow.version.mediapath"):
+                payload = ayon_event["payload"]
+                # Backwards compatibility for older events without 'payload' filled.
+                # TODO remove in 0.6.12
+                if not payload:
+                    payload = ayon_event["summary"]
                 update_movie_paths(
                     self._sg,
                     self._ay_project,  # EntityHub
-                    ayon_event["payload"]
+                    payload
                 )
             case _:
                 raise ValueError(
