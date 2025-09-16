@@ -7,6 +7,8 @@ import collections
 import re
 import tempfile
 
+from shotgun_api3.lib import mockgun
+
 from constants import (
     AYON_SHOTGRID_ENTITY_TYPE_MAP,
     CUST_FIELD_CODE_AUTO_SYNC,
@@ -37,7 +39,8 @@ from utils import (
     create_sg_entities_in_ay,
     get_sg_project_by_name,
     get_sg_user_id,
-    upload_ay_reviewable_to_sg
+    upload_ay_reviewable_to_sg,
+    update_movie_paths,
 )
 
 import ayon_api
@@ -90,9 +93,17 @@ class AyonShotgridHub:
     ):
         try:
             self.settings = ayon_api.get_service_addon_settings(project_name)
+
         except ayon_api.exceptions.HTTPRequestError:
             self.log.warning(f"Project {project_name} does not exist in AYON.")
             self.settings = ayon_api.get_service_addon_settings()
+
+        except ValueError:
+            # automated tests (service not initialized)
+            if isinstance(sg_connection, mockgun.Shotgun):
+                self.settings = {}
+            else:
+                raise
 
         self._sg = sg_connection
 
@@ -133,6 +144,10 @@ class AyonShotgridHub:
     @property
     def sg_project(self):
         return self._sg_project
+
+    @property
+    def entity_hub(self):
+        return self._ay_project
 
     @property
     def project_name(self):
@@ -473,6 +488,12 @@ class AyonShotgridHub:
                     self._sg,
                     self._ay_project,  # EntityHub
                     ay_version_id
+                )
+            case ("flow.version.mediapath"):
+                update_movie_paths(
+                    self._sg,
+                    self._ay_project,  # EntityHub
+                    ayon_event["summary"]
                 )
             case _:
                 raise ValueError(

@@ -28,6 +28,8 @@ from constants import (
 import ayon_api
 import shotgun_api3
 
+import validate
+
 # TODO: remove hash in future since it is only used as backward compatibility
 LAST_EVENT_QUERY = """query LastShotgridEvent($eventTopic: String!) {
   events(last: 20, topics: [$eventTopic]) {
@@ -114,7 +116,13 @@ class ShotgridListener:
                 "Unable to get Addon settings from the server.")
             raise e
 
+        # SSL validation
+        if self.settings.get("shotgrid_no_ssl_validation", False):
+            shotgun_api3.NO_SSL_VALIDATION = True
+            self.log.info("SSL validation is disabled.")
+
         try:
+            validate.validate_sg_url(self.sg_url)
             self.sg_session = shotgun_api3.Shotgun(
                 self.sg_url,
                 script_name=self.sg_script_name,
@@ -230,7 +238,8 @@ class ShotgridListener:
                 fields=["id", "project"],
                 order=[{"column": "id", "direction": "desc"}],
             )
-            last_event_id = last_event["id"]
+            if last_event:
+                last_event_id = last_event["id"]
 
         return last_event_id
 

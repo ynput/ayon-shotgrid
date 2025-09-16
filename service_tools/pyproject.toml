@@ -8,3 +8,10 @@ dependencies = [
     "ayon-python-api>=1.0.0",
     "shotgun-api3==3.5.1",
 ]
+
+[project.optional-dependencies]
+test = [
+    "pytest",
+    "mock",
+    "pytest-ayon @ git+https://github.com/ynput/pytest-ayon.git@develop",
+]

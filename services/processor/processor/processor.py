@@ -88,6 +88,11 @@ class ShotgridProcessor:
             except Exception:
                 self.sg_polling_frequency = 10
 
+            # SSL validation
+            if self.settings.get("shotgrid_no_ssl_validation", False):
+                shotgun_api3.NO_SSL_VALIDATION = True
+                self.log.info("SSL validation is disabled.")
+
             sg_connection = self.get_sg_connection()
 
             self.custom_attribs_map = {
@@ -120,16 +125,25 @@ class ShotgridProcessor:
             raise e
 
         # Validation
-        validate.validate_projects_sync(
-            sg_connection,
-            self.sg_enabled_entities,
-            log=self.log
-        )
-        validate.validate_custom_attribs_map(
-            sg_connection,
-            self.settings["compatibility_settings"]["custom_attribs_map"],
-            log=self.log,
-        )
+        try:
+            validate.validate_projects_sync(
+                sg_connection,
+                self.sg_enabled_entities,
+                log=self.log
+            )
+            validate.validate_custom_attribs_map(
+                sg_connection,
+                self.settings["compatibility_settings"]["custom_attribs_map"],
+                log=self.log,
+            )
+
+        except ValueError as error:
+            self.log.error(
+                "The sync service cannot start properly due to invalid "
+                "configuration. Adjust it and restart the services."
+            )
+            self.log.error(error)
+            raise SystemExit from error
 
         self.handlers_map = self._get_handlers()
         if not self.handlers_map:
@@ -178,6 +192,7 @@ class ShotgridProcessor:
 
         if self._sg is None:
             try:
+                validate.validate_sg_url(self.sg_url)
                 self._sg = shotgun_api3.Shotgun(
                     self.sg_url,
                     script_name=self.sg_script_name,

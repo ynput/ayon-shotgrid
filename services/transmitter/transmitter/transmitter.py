@@ -77,6 +77,11 @@ class ShotgridTransmitter:
                     "the Addon System settings."
                 )
 
+            # SSL validation
+            if self.settings.get("shotgrid_no_ssl_validation", False):
+                shotgun_api3.NO_SSL_VALIDATION = True
+                self.log.info("SSL validation is disabled.")
+
             # Compatibility settings
             custom_attribs_map = self.settings["compatibility_settings"][
                 "custom_attribs_map"]
@@ -162,7 +167,8 @@ class ShotgridTransmitter:
             "entity.folder.tags_changed",
             "entity.version.created",
             "entity.version.status_changed",
-            "reviewable.created"
+            "reviewable.created",
+            "flow.version.mediapath"
         ]
 
         last_comments_sync = datetime.min.replace(tzinfo=timezone.utc)

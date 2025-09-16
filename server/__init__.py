@@ -1,9 +1,15 @@
-from typing import Any, Type, Optional
+from typing import Any, Type, Optional, Dict
 from nxtools import logging
-from fastapi import Path
+from fastapi import Path, Body, Response
+
+from ayon_server.api.dependencies import (
+    CurrentUser,
+    ProjectName,
+)
 
 from ayon_server.addons import BaseServerAddon
 from ayon_server.lib.postgres import Postgres
+from ayon_server.events import dispatch_event
 
 from .settings import ShotgridSettings
 
@@ -24,6 +30,11 @@ class ShotgridAddon(BaseServerAddon):
             "/get_ayon_name_by_sg_id/{sg_user_id}",
             self.get_ayon_name_by_sg_id,
             method="GET",
+        )
+        self.add_endpoint(
+            "/{project_name}/trigger_mediapath",
+            self.trigger_mediapath_event,
+            method="POST",
         )
 
     async def setup(self):
@@ -156,3 +167,20 @@ class ShotgridAddon(BaseServerAddon):
         res = await Postgres.fetch(query)
         if res:
             return res[0]["name"]
+
+    async def trigger_mediapath_event(
+        self,
+        user: CurrentUser,
+        project_name: ProjectName,
+        data: Dict[str, Any] = Body(...),
+    ) -> Response:
+        """Temporary endpoint to trigger event with explicit sender_type"""
+        response = await dispatch_event(
+            "flow.version.mediapath",
+            project=project_name,
+            sender_type="publish",
+            description="Update media paths on synchronized Version",
+            summary=data,
+        )
+
+        return Response(status_code=200, content=str(response))
