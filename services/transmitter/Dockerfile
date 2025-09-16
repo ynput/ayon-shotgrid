@@ -5,7 +5,7 @@ ENV PYTHONUNBUFFERED=1
 # Install python/pip
 RUN apk add --update --no-cache git curl build-base libffi-dev
 RUN python -m ensurepip
-RUN python -m pip install --no-cache --upgrade pip setuptools poetry pip-autoremove && ln -sf pip3 /usr/bin/pip
+RUN python -m pip install --no-cache --upgrade pip setuptools poetry pkginfo pip-autoremove && ln -sf pip3 /usr/bin/pip
 
 # Create Working directory `/service` and copy `transmitter`
 RUN mkdir /service
