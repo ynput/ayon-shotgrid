@@ -45,6 +45,7 @@ def get_logger(name: str) -> logging.Logger:
 
     # get environment variable DEBUG level
     log_level = os.environ.get("LOGLEVEL", "INFO").upper()
+    log_level = "DEBUG"
 
     logger = logging.Logger(name)
     _loggers[name] = logger
