@@ -93,7 +93,6 @@ def create_ay_entity_from_sg_event(
 
     extra_fields = [sg_parent_field]
 
-
     sg_ay_dict = get_sg_entity_as_ay_dict(
         sg_session,
         sg_event["entity_type"],
