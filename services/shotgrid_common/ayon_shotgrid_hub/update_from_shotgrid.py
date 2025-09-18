@@ -393,7 +393,14 @@ def update_ayon_entity_from_sg_event(
         return
 
     if sg_ay_dict["type"].lower() == "comment":
-        handle_comment(sg_ay_dict, sg_session, ayon_entity_hub)
+        if sg_ay_dict["attribs"]["shotgridType"] == "Note":
+            handle_comment(
+                sg_ay_dict,
+                sg_session,
+                ayon_entity_hub,
+            )
+        else:
+            log.debug("Updating Replies is not yet implemented.")
         return
 
     # if the entity does not have an AYON ID, try to create it
