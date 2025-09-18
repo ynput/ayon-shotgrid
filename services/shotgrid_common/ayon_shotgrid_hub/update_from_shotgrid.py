@@ -103,12 +103,13 @@ def create_ay_entity_from_sg_event(
         extra_fields=extra_fields,
     )
 
+    log.debug(f"ShotGrid Entity as AYON dict: {sg_ay_dict}")
+
     if sg_ay_dict["type"].lower() == "comment":
         # SG note as AYON comment creation is
         # handled by update_ayon_entity_from_sg_event
         return
 
-    log.debug(f"ShotGrid Entity as AYON dict: {sg_ay_dict}")
     if not sg_ay_dict:
         log.warning(
             f"Entity {sg_event['entity_type']} <{sg_event['entity_id']}> "
