@@ -154,7 +154,7 @@ def _sg_to_ay_dict(
         ay_entity_type = "version"
         name = slugify_string(sg_entity["code"], min_length=0)
         label = sg_entity["code"]
-    elif sg_entity["type"] == "Note":
+    elif sg_entity["type"] in ["Note", "Reply"]:
         ay_entity_type = "comment"
         content = sg_entity["content"] or ""
         name = slugify_string(content, min_length=0)
