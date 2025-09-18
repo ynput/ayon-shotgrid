@@ -1715,6 +1715,53 @@ def handle_comment(sg_ay_dict, sg_session, entity_hub):
         }
     )
 
+def handle_reply(sg_ay_dict, sg_session, entity_hub):
+    sg_note_id = sg_ay_dict["attribs"][SHOTGRID_ID_ATTRIB]
+    sg_reply, sg_reply_id = _get_sg_note(sg_note_id, sg_session, "Reply")
+    parent_note, parent_note_id = _get_sg_note(sg_reply["entity"]["id"], sg_session, "Note")
+    ay_parent_entity = _get_sg_note_parent_entity(entity_hub, parent_note, sg_session)
+
+    log.debug(f"{sg_reply = }")
+    log.debug(f"{parent_note = }")
+
+    # build the content citing the parent note
+    content = f"> {parent_note['content']}\n\n{sg_reply['content']}"
+
+    project_name = entity_hub.project_name
+    ayon_user_name = _get_ayon_user_name(sg_reply["user"])
+
+    sg_ayon_id = sg_reply["cached_display_name"].replace(" ", "") # reverse logic, search sgid in ayon and not the other way round
+    ayon_comment = None
+    if sg_ayon_id:
+        try:
+            ayon_comment = ayon_api.get_activity_by_id(project_name, sg_ayon_id)
+        except Exception:
+            log.warning(f"Couldn't find AYON comment with id '{sg_ayon_id}'")
+    if not ayon_comment:
+        ay_activity_id = _add_comment(
+            sg_session,
+            project_name,
+            ay_parent_entity["id"],
+            ay_parent_entity["entity_type"],
+            ayon_user_name,
+            content,
+            sg_reply,
+        )
+    else:
+        # i'll never end up here if i can't persist ayon_id on the sg_reply
+        log.debug("Updating reply isn't implemented yet")
+
+    # update SG with AYON comment id
+    sg_session.update(
+        "Reply",
+        int(sg_reply_id),
+        {
+            "cached_display_name": ay_activity_id
+        }
+    )
+    sg_reply, sg_reply_id = _get_sg_note(sg_note_id, sg_session, "Reply")
+    log.debug(f"AFTER UPDATE: {sg_reply = }")
+
 
 def _update_comment(
     sg_session,
