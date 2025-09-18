@@ -1665,7 +1665,7 @@ def get_sg_user_id(ayon_username: str) -> [int]:
 def handle_comment(sg_ay_dict, sg_session, entity_hub):
     """Transforms content and links from SG to matching AYON structures."""
     sg_note_id = sg_ay_dict["attribs"][SHOTGRID_ID_ATTRIB]
-    sg_note, sg_note_id = _get_sg_note(sg_note_id, sg_session)
+    sg_note, sg_note_id = _get_sg_note(sg_note_id, sg_session, "Note")
 
     if not sg_note:
         log.warning(f"Couldn't find note '{sg_note_id}'")
