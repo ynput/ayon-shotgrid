@@ -1874,7 +1874,7 @@ def _get_sg_note_parent_entity(entity_hub, sg_note, sg_session):
 def _get_content_with_notifications(sg_note):
     """Translates SG 'addressings_to' to AYON @ mentions."""
     content = sg_note["content"]
-    for sg_user in sg_note["addressings_to"]:
+    for sg_user in sg_note.get("addressings_to", []):
         if sg_user["type"] != "HumanUser":
             log.warning(f"Cannot create notes for non humans "
                         f"- {sg_user['type']}")
