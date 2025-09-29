@@ -155,6 +155,9 @@ class ShotgridListener:
             1) Events of Projects with "AYON Auto Sync" enabled.
             2) Events on entities and type for entities we track.
 
+        Further we need to handle Replies differently as they don't have
+        a project field, but inherit the project from their parent Note.
+
         Args:
             sg_projects (list): List of Shotgrid Project IDs.
 
@@ -166,10 +169,40 @@ class ShotgridListener:
         if not sg_projects:
             return []
 
-        filters.append(["project", "in", sg_projects])
+        # Get supported event types first
+        sg_event_types = self._get_supported_event_types()
+        if not sg_event_types:
+            return []
 
-        if sg_event_types := self._get_supported_event_types():
-            filters.append(["event_type", "in", sg_event_types])
+        # Split Reply events from other events
+        reply_events = [et for et in sg_event_types if et.startswith("Shotgun_Reply_")]
+        other_events = [et for et in sg_event_types if not et.startswith("Shotgun_Reply_")]
+
+        project_filter = ["project", "in", sg_projects]
+
+        if reply_events and other_events:
+            filters.append({
+                "filter_operator": "any",
+                "filters": [
+                    # Regular events with project filter
+                    {
+                        "filter_operator": "all",
+                        "filters": [
+                            project_filter,
+                            ["event_type", "in", other_events]
+                        ]
+                    },
+                    # Reply events without project filter (they inherit from parent)
+                    ["event_type", "in", reply_events]
+                ]
+            })
+        elif reply_events:
+            # Only Reply events
+            filters.append(["event_type", "in", reply_events])
+        elif other_events:
+            # Only regular events
+            filters.append(project_filter)
+            filters.append(["event_type", "in", other_events])
 
         return filters
 
