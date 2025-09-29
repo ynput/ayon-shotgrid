@@ -1665,7 +1665,7 @@ def get_sg_user_id(ayon_username: str) -> [int]:
 def handle_comment(sg_ay_dict, sg_session, entity_hub):
     """Transforms content and links from SG to matching AYON structures."""
     sg_note_id = sg_ay_dict["attribs"][SHOTGRID_ID_ATTRIB]
-    sg_note, sg_note_id = _get_sg_note(sg_note_id, sg_session, "Note")
+    sg_note, sg_note_id = _get_sg_chat_msg(sg_note_id, sg_session, "Note")
 
     if not sg_note:
         log.warning(f"Couldn't find note '{sg_note_id}'")
@@ -1717,8 +1717,8 @@ def handle_comment(sg_ay_dict, sg_session, entity_hub):
 
 def handle_reply(sg_ay_dict, sg_session, entity_hub):
     sg_note_id = sg_ay_dict["attribs"][SHOTGRID_ID_ATTRIB]
-    sg_reply, sg_reply_id = _get_sg_note(sg_note_id, sg_session, "Reply")
-    parent_note, parent_note_id = _get_sg_note(sg_reply["entity"]["id"], sg_session, "Note")
+    sg_reply, sg_reply_id = _get_sg_chat_msg(sg_note_id, sg_session, "Reply")
+    parent_note, parent_note_id = _get_sg_chat_msg(sg_reply["entity"]["id"], sg_session, "Note")
     ay_parent_entity = _get_sg_note_parent_entity(entity_hub, parent_note, sg_session)
 
     log.debug(f"{sg_reply = }")
@@ -1835,13 +1835,13 @@ def _update_comment(
     return ay_activity_id
 
 
-def _get_sg_note(sg_note_id, sg_session, sg_comment_type):
+def _get_sg_chat_msg(sg_note_id, sg_session, sg_msg_type):
     """Gets detail information about SG note/reply wih SG id."""
-    schema = sg_session.schema_field_read(sg_comment_type)
+    schema = sg_session.schema_field_read(sg_msg_type)
     all_fields = list(schema.keys())
     log.debug(f"{all_fields = }")
     sg_note = sg_session.find_one(
-        sg_comment_type,
+        sg_msg_type,
         [["id", "is", int(sg_note_id)]],
         fields=all_fields
     )
