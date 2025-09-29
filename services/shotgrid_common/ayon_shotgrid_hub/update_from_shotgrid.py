@@ -399,7 +399,11 @@ def update_ayon_entity_from_sg_event(
                 ayon_entity_hub,
             )
         else:
-            log.debug("Updating Replies is not yet implemented.")
+            handle_reply(
+                sg_ay_dict,
+                sg_session,
+                ayon_entity_hub,
+            )
         return
 
     # if the entity does not have an AYON ID, try to create it
