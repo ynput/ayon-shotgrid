@@ -39,6 +39,7 @@ from utils import (
     get_reparenting_from_settings,
     update_ay_entity_custom_attributes,
     handle_comment,
+    handle_reply,
 )
 from constants import (
     CUST_FIELD_CODE_ID,  # ShotGrid Field for the AYON ID.
@@ -92,7 +93,6 @@ def create_ay_entity_from_sg_event(
 
     extra_fields = [sg_parent_field]
 
-
     sg_ay_dict = get_sg_entity_as_ay_dict(
         sg_session,
         sg_event["entity_type"],
@@ -103,12 +103,21 @@ def create_ay_entity_from_sg_event(
         extra_fields=extra_fields,
     )
 
+    log.debug(f"ShotGrid Entity as AYON dict: {sg_ay_dict}")
+
     if sg_ay_dict["type"].lower() == "comment":
         # SG note as AYON comment creation is
         # handled by update_ayon_entity_from_sg_event
-        return
+        if sg_ay_dict["attribs"]["shotgridType"] == "Note":
+            return
+        if sg_ay_dict["attribs"]["shotgridType"] == "Reply":
+            handle_reply(
+                sg_ay_dict,
+                sg_session,
+                ayon_entity_hub,
+            )
+            return
 
-    log.debug(f"ShotGrid Entity as AYON dict: {sg_ay_dict}")
     if not sg_ay_dict:
         log.warning(
             f"Entity {sg_event['entity_type']} <{sg_event['entity_id']}> "
@@ -383,7 +392,18 @@ def update_ayon_entity_from_sg_event(
         return
 
     if sg_ay_dict["type"].lower() == "comment":
-        handle_comment(sg_ay_dict, sg_session, ayon_entity_hub)
+        if sg_ay_dict["attribs"]["shotgridType"] == "Note":
+            handle_comment(
+                sg_ay_dict,
+                sg_session,
+                ayon_entity_hub,
+            )
+        else:
+            handle_reply(
+                sg_ay_dict,
+                sg_session,
+                ayon_entity_hub,
+            )
         return
 
     # if the entity does not have an AYON ID, try to create it
