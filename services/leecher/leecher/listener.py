@@ -209,9 +209,15 @@ class ShotgridListener:
     def _get_supported_event_types(self) -> list[str]:
         sg_event_types = []
         for entity_type in self.sg_enabled_entities:
-            sg_event_types.extend(
-                event_name.format(entity_type) for event_name in SG_EVENT_TYPES
-            )
+            if entity_type == "Reply":
+                sg_event_types.extend(
+                    event_name.format(entity_type) for event_name in SG_EVENT_TYPES
+                    if not event_name.endswith("Retirement")
+                )
+            else:
+                sg_event_types.extend(
+                    event_name.format(entity_type) for event_name in SG_EVENT_TYPES
+                )
         return sg_event_types
 
     def _find_last_event_id(self):
@@ -445,11 +451,14 @@ class ShotgridListener:
         payload["created_at"] = payload["created_at"].isoformat()
 
         payload_meta = payload.get("meta", {})
+        self.log.debug(f"{payload_meta = }")
         if payload_meta.get("entity_type", "Undefined") == "Project":
             project_name = payload.get("entity", {}).get("name", "Undefined")
             project_id = payload.get("entity", {}).get("id", "Undefined")
         elif payload_meta.get("entity_type", "Undefined") == "Reply":
-            self.log.debug(f"{payload_meta = }")
+            if payload_meta.get("attribute_name") == "retirement_date":
+                self.log.warning("Deleting Replies in AYON is not yet supported.")
+                return
             reply_id = payload_meta.get("entity_id")
             reply = self.sg_session.find_one(
                 "Reply",
