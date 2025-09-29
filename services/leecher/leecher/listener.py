@@ -448,6 +448,23 @@ class ShotgridListener:
         if payload_meta.get("entity_type", "Undefined") == "Project":
             project_name = payload.get("entity", {}).get("name", "Undefined")
             project_id = payload.get("entity", {}).get("id", "Undefined")
+        elif payload_meta.get("entity_type", "Undefined") == "Reply":
+            self.log.debug(f"{payload_meta = }")
+            reply_id = payload_meta.get("entity_id")
+            reply = self.sg_session.find_one(
+                "Reply",
+                [["id", "is", reply_id]],
+                ["entity"]
+            )
+            schema = self.sg_session.schema_field_read("Note")
+            note = self.sg_session.find_one(
+                "Note",
+                [["id", "is", reply.get("entity", {}).get("id")]],
+                list(schema.keys())
+            )
+            self.log.debug(f"{note = }")
+            project_id = note.get("project", {}).get("id", None)
+            project_name = note.get("project", {}).get("name", None)
         else:
             project_name = payload.get("project", {}).get("name", "Undefined")
             project_id = payload.get("project", {}).get("id", "Undefined")
