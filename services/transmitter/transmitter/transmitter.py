@@ -177,7 +177,7 @@ class ShotgridTransmitter:
                 # Run comments sync
                 now_time = arrow.utcnow()
                 sec_diff = (now_time - last_comments_sync).total_seconds()
-                if sec_diff > COMMENTS_SYNC_INTERVAL:
+                if sec_diff > COMMENTS_SYNC_INTERVAL and "Note" in self.sg_enabled_entities:
                     self._sync_comments()
 
                 # enrolling only events which were not created by any
