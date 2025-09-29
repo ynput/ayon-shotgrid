@@ -1730,15 +1730,24 @@ def handle_reply(sg_ay_dict, sg_session, entity_hub):
     project_name = entity_hub.project_name
     ayon_user_name = _get_ayon_user_name(sg_reply["user"])
 
-    sg_ayon_id = sg_reply["cached_display_name"].replace(" ", "") # reverse logic, search sgid in ayon and not the other way round
+    # get sg reply id from sg
     ayon_comment = None
-    if sg_ayon_id:
-        try:
-            ayon_comment = ayon_api.get_activity_by_id(project_name, sg_ayon_id)
-        except Exception:
-            log.warning(f"Couldn't find AYON comment with id '{sg_ayon_id}'")
+    ay_comment_activities = ayon_api.get_activities(
+        project_name,
+        activity_types=["comment"],
+        entity_ids=[ay_parent_entity["id"]],
+        fields=["body", "activityId", "activityData"]
+    )
+    # iterate all comments in AYON on the sg_parent_note parent entity
+    # and find the one with matching sg_reply id in the content
+    for ay_cmt in list(ay_comment_activities):
+        log.debug(f"{ay_cmt = }")
+        if int(ay_cmt["activityData"].get("sg_note_id", -1)) == int(sg_reply_id):
+            ayon_comment = ay_cmt
+            break
+
     if not ayon_comment:
-        ay_activity_id = _add_comment(
+        _ = _add_comment(
             sg_session,
             project_name,
             ay_parent_entity["id"],
@@ -1748,19 +1757,12 @@ def handle_reply(sg_ay_dict, sg_session, entity_hub):
             sg_reply,
         )
     else:
-        # i'll never end up here if i can't persist ayon_id on the sg_reply
-        log.debug("Updating reply isn't implemented yet")
-
-    # update SG with AYON comment id
-    sg_session.update(
-        "Reply",
-        int(sg_reply_id),
-        {
-            "cached_display_name": ay_activity_id
-        }
-    )
-    sg_reply, sg_reply_id = _get_sg_note(sg_note_id, sg_session, "Reply")
-    log.debug(f"AFTER UPDATE: {sg_reply = }")
+        ayon_api.update_activity(
+            project_name,
+            ayon_comment["activityId"],
+            body=content,
+            data=ayon_comment["activityData"],
+        )
 
 
 def _update_comment(
