@@ -177,7 +177,7 @@ class ShotgridTransmitter:
                 # Run comments sync
                 now_time = arrow.utcnow()
                 sec_diff = (now_time - last_comments_sync).total_seconds()
-                if sec_diff > COMMENTS_SYNC_INTERVAL and "Note" in self.sg_enabled_entities:
+                if sec_diff > COMMENTS_SYNC_INTERVAL:
                     self._sync_comments()
 
                 # enrolling only events which were not created by any
@@ -297,6 +297,10 @@ class ShotgridTransmitter:
 
         if activities_after_date is None:
             activities_after_date = now - timedelta(days=5)
+
+        if "Note" not in self.sg_enabled_entities:
+            self.log.warning("Skipping comments sync, 'Note' entity is not enabled.")
+            return
 
         response = ayon_api.dispatch_event(
             SHOTGRID_COMMENTS_TOPIC,
