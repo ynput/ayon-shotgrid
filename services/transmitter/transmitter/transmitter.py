@@ -10,6 +10,7 @@ import time
 from datetime import datetime, timezone, timedelta
 import socket
 import traceback
+from typing import AnyStr
 
 import arrow
 
@@ -375,7 +376,11 @@ class ShotgridTransmitter:
             return event
         return None
 
-    def _prepare_custom_attribs_map(self, custom_attribs_map):
+    def _prepare_custom_attribs_map(
+        self,
+        custom_attribs_map: dict[str, str]
+    ) -> dict[str, str]:
+        """Returns dict of synced AYON attributes to SG attribute."""
         custom_attribs = {
             attr["ayon"]: attr["sg"]
             for attr in custom_attribs_map
@@ -389,7 +394,11 @@ class ShotgridTransmitter:
 
         return custom_attribs
 
-    def _prepare_custom_attribs_types(self, custom_attribs_map):
+    def _prepare_custom_attribs_types(
+        self,
+        custom_attribs_map: dict[str, str]
+    ) -> dict[str, tuple[str, str]]:
+        """Returns dict of tuples with data types of synced attributes."""
         return {
             attr["sg"]: (attr["type"], attr["scope"])
             for attr in custom_attribs_map
