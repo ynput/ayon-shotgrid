@@ -274,6 +274,10 @@ class ShotgridTransmitter:
         if any_in_progress:
             return
 
+        hubs_for_comment_syncing = self._hubs_for_comment_syncing()
+        if not hubs_for_comment_syncing:
+            return
+
         now = arrow.utcnow()
         activities_after_date = None
 
@@ -311,9 +315,7 @@ class ShotgridTransmitter:
 
         try:
             synced_comments = 0
-            project_names = self._get_sync_project_names()
-            for project_name in project_names:
-                hub = self._get_hub(project_name)
+            for hub in hubs_for_comment_syncing:
                 synced_comments += hub.sync_comments(activities_after_date)
             success = True
         except Exception:
@@ -327,6 +329,17 @@ class ShotgridTransmitter:
                 status="finished" if success else "failed",
                 payload={"synced_comments": synced_comments},
             )
+
+    def _hubs_for_comment_syncing(self) -> list[AyonShotgridHub]:
+        """Checks which projects has Notes sync enabled"""
+        project_names = self._get_sync_project_names()
+        hubs_for_comment_syncing = []
+        for project_name in project_names:
+            hub = self._get_hub(project_name)
+            if "Note" in hub.sg_enabled_entities:
+                hubs_for_comment_syncing.append(hub)
+
+        return hubs_for_comment_syncing
 
     def _cleanup_in_progress_comment_events(self) -> bool:
         """Clean stuck or hard failed synchronizations"""
