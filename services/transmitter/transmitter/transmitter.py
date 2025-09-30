@@ -45,11 +45,11 @@ class ShotgridTransmitter:
         self._cached_hubs = {}
         try:
             ayon_api.init_service()
-            self.settings = ayon_api.get_service_addon_settings()
-            service_settings = self.settings["service_settings"]
+            settings = ayon_api.get_service_addon_settings()
+            service_settings = settings["service_settings"]
 
-            self.sg_url = self.settings["shotgrid_server"]
-            self.sg_project_code_field = self.settings[
+            self.sg_url = settings["shotgrid_server"]
+            self.sg_project_code_field = settings[
                 "shotgrid_project_code_field"]
 
             # get server op related ShotGrid script api properties
@@ -78,32 +78,10 @@ class ShotgridTransmitter:
                 )
 
             # SSL validation
-            if self.settings.get("shotgrid_no_ssl_validation", False):
+            if settings.get("shotgrid_no_ssl_validation", False):
                 shotgun_api3.NO_SSL_VALIDATION = True
                 self.log.info("SSL validation is disabled.")
 
-            # Compatibility settings
-            custom_attribs_map = self.settings["compatibility_settings"][
-                "custom_attribs_map"]
-            self.custom_attribs_map = {
-                attr["ayon"]: attr["sg"]
-                for attr in custom_attribs_map
-                if attr["sg"]
-            }
-            self.custom_attribs_map.update({
-                "status": "status_list",
-                "tags": "tags",
-                "assignees": "task_assignees"
-            })
-
-            self.custom_attribs_types = {
-                attr["sg"]: (attr["type"], attr["scope"])
-                for attr in custom_attribs_map
-                if attr["sg"]
-            }
-            self.sg_enabled_entities = (
-                self.settings["compatibility_settings"]
-                             ["shotgrid_enabled_entities"])
             try:
                 self.sg_polling_frequency = int(
                     service_settings["polling_frequency"]
@@ -258,14 +236,28 @@ class ShotgridTransmitter:
         if not hub:
             ay_project = ayon_api.get_project(project_name)
             project_code = ay_project["code"]
+
+            settings = ayon_api.get_service_addon_settings(project_name)
+            sett_custom_attribs_map = (settings["compatibility_settings"]
+                                               ["custom_attribs_map"])
+            custom_attribs_map = (
+                self._prepare_custom_attribs_map(sett_custom_attribs_map)
+            )
+            custom_attribs_types = (
+                self._prepare_custom_attribs_types(sett_custom_attribs_map)
+            )
+            sg_enabled_entities = (
+                settings["compatibility_settings"]["shotgrid_enabled_entities"]
+            )
+
             hub = AyonShotgridHub(
                 self.get_sg_connection(),
                 project_name,
                 project_code,
                 sg_project_code_field=self.sg_project_code_field,
-                custom_attribs_map=self.custom_attribs_map,
-                custom_attribs_types=self.custom_attribs_types,
-                sg_enabled_entities=self.sg_enabled_entities,
+                custom_attribs_map=custom_attribs_map,
+                custom_attribs_types=custom_attribs_types,
+                sg_enabled_entities=sg_enabled_entities,
             )
 
             # Do not cache the hub object
@@ -369,6 +361,27 @@ class ShotgridTransmitter:
         for event in finished_events:
             return event
         return None
+
+    def _prepare_custom_attribs_map(self, custom_attribs_map):
+        custom_attribs = {
+            attr["ayon"]: attr["sg"]
+            for attr in custom_attribs_map
+            if attr["sg"]
+        }
+        custom_attribs.update({
+            "status": "status_list",
+            "tags": "tags",
+            "assignees": "task_assignees"
+        })
+
+        return custom_attribs
+
+    def _prepare_custom_attribs_types(self, custom_attribs_map):
+        return {
+            attr["sg"]: (attr["type"], attr["scope"])
+            for attr in custom_attribs_map
+            if attr["sg"]
+        }
 
 
 def service_main():
