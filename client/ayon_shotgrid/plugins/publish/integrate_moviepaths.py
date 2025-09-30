@@ -1,3 +1,4 @@
+import os
 import re
 from typing import Dict, Any
 
@@ -5,7 +6,6 @@ import ayon_api
 import pyblish.api
 
 from ayon_core.lib import filter_profiles
-from ayon_core.addon import AddonsManager
 
 
 class IntegrateMoviePath(pyblish.api.InstancePlugin):
@@ -68,7 +68,7 @@ class IntegrateMoviePath(pyblish.api.InstancePlugin):
         profile = filter_profiles(
             self.profiles,
             {
-                "hosts": host_name,
+                "host_names": host_name,
                 "product_types": product_type,
                 "task_names": task_name,
                 "task_types": task_type,
@@ -119,11 +119,7 @@ class IntegrateMoviePath(pyblish.api.InstancePlugin):
         for repre_info in published_representations.values():
             representation = repre_info["representation"]
             local_path = representation["attrib"]["path"]
-            is_windows_path = not local_path.startswith("/")
-            if is_windows_path:
-                local_path = local_path.replace(
-                    "/", "\\"
-                )  # enforce backslashes
+            local_path = os.path.normpath(local_path)
 
             representation_name = representation["name"]
             if (preferred_representation and
@@ -133,10 +129,6 @@ class IntegrateMoviePath(pyblish.api.InstancePlugin):
 
             if representation_name == "thumbnail":
                 thumbnail_path = local_path
-                continue
-
-            if not representation_name.startswith("review"):
-                continue
 
         flow_data = {}
         if found_representation:
@@ -188,16 +180,13 @@ class IntegrateMoviePath(pyblish.api.InstancePlugin):
 
         self.log.debug(f"Sending event for {version_id} with {flow_data}")
 
-        addon = AddonsManager().get("shotgrid")
-        if not addon:
-            self.log.warning("No addon found, couldn't send event")
-            return
+        addon = instance.context.data["ayonAddonsManager"]["shotgrid"]
 
-        endpoint = f"{addon.endpoint_prefix}/{project_name}/trigger_mediapath"
+        endpoint = addon.get_server_addon_endpoint(
+            project_name, "trigger_mediapath"
+        )
         response = ayon_api.post(
             endpoint,
             **flow_data,
         )
-        if response.status_code not in [200, 204]:
-            self.log.info(response.text)
-            raise RuntimeError("Cannot trigger update of media paths.")
+        response.raise_for_status("Cannot trigger update of media paths.")
