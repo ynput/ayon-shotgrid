@@ -295,10 +295,6 @@ class ShotgridTransmitter:
         if activities_after_date is None:
             activities_after_date = now - timedelta(days=5)
 
-        if "Note" not in self.sg_enabled_entities:
-            self.log.warning("Skipping comments sync, 'Note' entity is not enabled.")
-            return
-
         response = ayon_api.dispatch_event(
             SHOTGRID_COMMENTS_TOPIC,
             description=(
@@ -367,10 +363,10 @@ class ShotgridTransmitter:
     def _get_last_finished_event(self):
         """Finds last successful run of comments synching to SG."""
         finished_events = list(ayon_api.get_events(
-            topics={SHOTGRID_COMMENTS_TOPIC},
-            statuses={"finished"},
-            limit=1,
-            order=ayon_api.SortOrder.descending,
+                topics={SHOTGRID_COMMENTS_TOPIC},
+                statuses={"finished"},
+                limit=1,
+                order=ayon_api.SortOrder.descending,
         ))
         for event in finished_events:
             return event
