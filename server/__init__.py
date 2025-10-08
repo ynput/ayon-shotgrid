@@ -1,4 +1,4 @@
-from typing import Any, Type, Optional, Dict
+from typing import Any, Type, Optional
 from nxtools import logging
 from fastapi import Path, Body, Response
 
@@ -172,7 +172,7 @@ class ShotgridAddon(BaseServerAddon):
         self,
         user: CurrentUser,
         project_name: ProjectName,
-        data: Dict[str, Any] = Body(...),
+        data: dict[str, Any] = Body(...),
     ) -> Response:
         """Temporary endpoint to trigger event with explicit sender_type"""
         response = await dispatch_event(
@@ -180,7 +180,7 @@ class ShotgridAddon(BaseServerAddon):
             project=project_name,
             sender_type="publish",
             description="Update media paths on synchronized Version",
-            summary=data,
+            payload=data,
         )
 
         return Response(status_code=200, content=str(response))
