@@ -381,6 +381,8 @@ class AyonShotgridHub:
                     self.sg_project_code_field,
                     self.settings,
                 )
+            case ("entity_list.created"):
+                pass
 
             case _:
                 raise ValueError(
@@ -500,6 +502,52 @@ class AyonShotgridHub:
                     self._ay_project,  # EntityHub
                     payload
                 )
+            case ("entity_list.created"):
+                # check if it's a list of versions
+                # lists of folders/tasks are not supported by SG
+                list_type = ayon_event["summary"].get("entity_type")
+                self.log.debug(f"{ayon_event = }")
+                if not list_type == "version":
+                    self.log.info("Only EntityLists of type 'version' are supported.")
+                    return
+
+                # get all versions in the list
+                # and their corresponding SG IDs
+                entity_list = ayon_api.get_entity_list_rest(
+                    project_name=self.project_name,
+                    list_id=ayon_event["summary"]["id"],
+                )
+                version_ids = [entity["entityId"] for entity in entity_list["items"]]
+                self.log.debug(f"{entity_list = }")
+                self.log.debug(f"{version_ids = }")
+                ay_versions = ayon_api.get_versions(
+                    project_name=self.project_name,
+                    version_ids=version_ids,
+                    fields=["attrib.shotgridId"]
+                )
+                sg_versions = []
+                for version in ay_versions:
+                    self.log.debug(f"{version = }")
+                    sg_id = version["attrib"].get("shotgridId")
+                    if sg_id:
+                        sg_versions.append({"type": "Version", "id": int(sg_id)})
+                self.log.debug(f"{sg_versions = }")
+
+                # create playlist in SG
+                playlist = self._sg.create(
+                    "Playlist",
+                    {
+                        "project": {
+                            "type": "Project",
+                            "id": self._sg_project["id"]
+                        },
+                        "code": ayon_event["summary"]["label"],
+                        # link versions to sg playlist
+                        "versions": sg_versions,
+                    }
+                )
+                self.log.debug(f"{playlist = }")
+
             case _:
                 raise ValueError(
                     f"Unable to process event {ayon_event['topic']} (unsupported event)."
