@@ -697,7 +697,6 @@ class AyonShotgridHub:
             self.log.info(f"Uploaded AYON attachment {atchmt['filename']} to SG.")
             os.remove(tmp_file)
 
-
     def _get_addressings_to(self, content, sg_user_id_by_user_name):
         """ Extract and generate the list of ShotGrid (SG) `addressings_to`
 
