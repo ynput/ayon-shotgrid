@@ -145,6 +145,58 @@ def create_sg_entity_from_ayon_event(
         return None
 
 
+def create_sg_playlist_from_ayon_event(
+    ayon_event: Dict,
+    sg_session: shotgun_api3.Shotgun,
+    ayon_entity_hub: ayon_api.entity_hub.EntityHub,
+    sg_project: Dict
+):
+    log.debug(f"{ayon_event = }")
+    # check if it's a list of versions
+    # lists of folders/tasks are not supported by SG
+    list_type = ayon_event["summary"].get("entity_type")
+    if not list_type == "version":
+        log.info("Only EntityLists of type 'version' are supported.")
+        return
+
+    # get all versions in the list
+    # and their corresponding SG IDs
+    entity_list = ayon_api.get_entity_list_rest(
+        project_name=sg_project["name"],
+        list_id=ayon_event["summary"]["id"],
+    )
+    version_ids = [entity["entityId"] for entity in entity_list["items"]]
+    log.debug(f"{entity_list = }")
+    log.debug(f"{version_ids = }")
+    ay_versions = ayon_api.get_versions(
+        project_name=sg_project["name"],
+        version_ids=version_ids,
+        fields=["attrib.shotgridId"]
+    )
+    sg_versions = []
+    for version in ay_versions:
+        log.debug(f"{version = }")
+        sg_id = version["attrib"].get("shotgridId")
+        if sg_id:
+            sg_versions.append({"type": "Version", "id": int(sg_id)})
+    log.debug(f"{sg_versions = }")
+
+    # create playlist in SG
+    playlist = sg_session.create(
+        "Playlist",
+        {
+            "project": {
+                "type": "Project",
+                "id": sg_project["id"]
+            },
+            "code": ayon_event["summary"]["label"],
+            # link versions to sg playlist
+            "versions": sg_versions,
+        }
+    )
+    log.debug(f"{playlist = }")
+
+
 def _get_parent_sg_id_type(ay_entity):
     """ Recursively find a parent with a valid Shotgrid ID.
     """
