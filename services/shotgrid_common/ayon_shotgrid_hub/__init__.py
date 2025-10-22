@@ -32,7 +32,7 @@ from .update_from_ayon import (
     create_sg_entity_from_ayon_event,
     update_sg_entity_from_ayon_event,
     remove_sg_entity_from_ayon_event,
-    create_sg_playlist_from_ayon_event
+    sync_sg_playlist_from_ayon_event
 )
 
 from utils import (
@@ -509,14 +509,17 @@ class AyonShotgridHub:
                     self._ay_project,  # EntityHub
                     payload
                 )
-            case ("entity_list.created"):
-                create_sg_playlist_from_ayon_event(
+            case (
+                "entity_list.created" |
+                "entity_list.changed" |
+                "entity_list.deleted"
+            ):
+                sync_sg_playlist_from_ayon_event(
                     ayon_event,
                     self._sg,
                     self._ay_project,
                     self._sg_project,
                 )
-
             case _:
                 raise ValueError(
                     f"Unable to process event {ayon_event['topic']} (unsupported event)."
