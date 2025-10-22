@@ -381,8 +381,6 @@ class AyonShotgridHub:
                     self.sg_project_code_field,
                     self.settings,
                 )
-            case ("entity_list.created"):
-                pass
 
             case _:
                 raise ValueError(
