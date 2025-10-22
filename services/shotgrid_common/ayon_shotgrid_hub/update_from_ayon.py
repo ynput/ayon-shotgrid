@@ -192,6 +192,7 @@ def create_sg_playlist_from_ayon_event(
             "code": ayon_event["summary"]["label"],
             # link versions to sg playlist
             "versions": sg_versions,
+            "sg_ayon_id": entity_list["id"],
         }
     )
     log.debug(f"{playlist = }")
