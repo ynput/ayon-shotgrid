@@ -255,7 +255,7 @@ def create_ay_entity_list_from_sg_event(
     }
     if ay_version_items:
         rest_payload["items"] = ay_version_items
-    ayon_api.raw_post(
+    entity_list = ayon_api.raw_post(
         f"/projects/{sg_project['name']}/lists",
         json={
             "project_name": sg_project["name"],
@@ -263,6 +263,16 @@ def create_ay_entity_list_from_sg_event(
             "label": playlist["code"],
             "attrib": {"sg_id": playlist["id"]},
             "items": ay_version_items,
+        }
+    )
+    log.debug(f"{entity_list = }")
+
+    # save back ayon id on sg playlist
+    sg_session.update(
+        "Playlist",
+        playlist["id"],
+        {
+            "sg_ayon_id": entity_list["id"]
         }
     )
 

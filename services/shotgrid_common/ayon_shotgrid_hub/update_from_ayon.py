@@ -197,6 +197,14 @@ def create_sg_playlist_from_ayon_event(
     )
     log.debug(f"{playlist = }")
 
+    # save back sg id on ayon entity list
+    ayon_api.raw_patch(
+        f"/projects/{sg_project['name']}/lists/{entity_list['id']}",
+        json={
+            "attrib": {"sg_id": playlist["id"]}
+        }
+    )
+
 
 def _get_parent_sg_id_type(ay_entity):
     """ Recursively find a parent with a valid Shotgrid ID.
