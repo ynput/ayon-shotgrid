@@ -216,6 +216,57 @@ def create_ay_entity_from_sg_event(
     return ay_entity
 
 
+def create_ay_entity_list_from_sg_event(
+    sg_event: Dict,
+    sg_project: Dict,
+    sg_session: shotgun_api3.Shotgun,
+    # ayon_entity_hub: ayon_api.entity_hub.EntityHub, # not needed?
+):
+    # get sg playlist and all linked versions
+    playlist = sg_session.find_one(
+        "Playlist",
+        [["id", "is", sg_event["entity_id"]]],
+        ["id", "code", "versions"]
+    )
+    log.debug(f"{playlist = }")
+
+    # get ayon_id for all sg versions
+    ay_version_items = []
+    for idx, version in enumerate(playlist.get("versions", [])):
+        sg_version = sg_session.find_one(
+            "Version",
+            [["id", "is", version["id"]]],
+            ["sg_ayon_id"]
+        )
+        log.debug(f"{sg_version = }")
+        if sg_version.get("sg_ayon_id"):
+            item = {
+                "entityId": sg_version["sg_ayon_id"],
+                # "position": idx, # optional?
+            }
+            ay_version_items.append(item)
+    log.debug(f"{ay_version_items = }")
+
+    # create the AYON EntityList
+    rest_payload = {
+        "project_name": sg_project["name"],
+        "entity_type": "version",
+        "label": playlist["code"],
+    }
+    if ay_version_items:
+        rest_payload["items"] = ay_version_items
+    ayon_api.raw_post(
+        f"/projects/{sg_project['name']}/lists",
+        json={
+            "project_name": sg_project["name"],
+            "entity_type": "version",
+            "label": playlist["code"],
+            "attrib": {"sg_id": playlist["id"]},
+            "items": ay_version_items,
+        }
+    )
+
+
 def _get_ayon_parent_entity(
     ayon_entity_hub,
     project_code_field,

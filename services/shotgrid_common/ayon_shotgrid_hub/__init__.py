@@ -25,7 +25,8 @@ from .match_ayon_hierarchy_in_shotgrid import match_ayon_hierarchy_in_shotgrid
 from .update_from_shotgrid import (
     create_ay_entity_from_sg_event,
     update_ayon_entity_from_sg_event,
-    remove_ayon_entity_from_sg_event
+    remove_ayon_entity_from_sg_event,
+    create_ay_entity_list_from_sg_event
 )
 from .update_from_ayon import (
     create_sg_entity_from_ayon_event,
@@ -340,16 +341,23 @@ class AyonShotgridHub:
                     f"| {sg_event_meta['entity_type']} "
                     f"| {sg_event_meta['entity_id']}"
                 )
-                create_ay_entity_from_sg_event(
-                    sg_event_meta,
-                    self._sg_project,
-                    self._sg,
-                    self._ay_project,
-                    self.sg_enabled_entities,
-                    self.sg_project_code_field,
-                    self.custom_attribs_map,
-                    self.settings
-                )
+                if sg_event_meta["entity_type"] == "Playlist":
+                    create_ay_entity_list_from_sg_event(
+                        sg_event_meta,
+                        self._sg_project,
+                        self._sg,
+                    )
+                else:
+                    create_ay_entity_from_sg_event(
+                        sg_event_meta,
+                        self._sg_project,
+                        self._sg,
+                        self._ay_project,
+                        self.sg_enabled_entities,
+                        self.sg_project_code_field,
+                        self.custom_attribs_map,
+                        self.settings
+                    )
 
             case "attribute_change":
                 self.log.info(
