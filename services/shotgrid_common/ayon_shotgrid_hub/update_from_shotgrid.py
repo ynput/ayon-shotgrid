@@ -23,6 +23,7 @@ And most of the times it fetches the ShotGrid entity as an AYON dict like:
 }
 
 """
+import json
 import collections
 
 import shotgun_api3
@@ -216,65 +217,103 @@ def create_ay_entity_from_sg_event(
     return ay_entity
 
 
-def create_ay_entity_list_from_sg_event(
-    sg_event: Dict,
+def sync_ay_entity_list_from_sg_event(
+    sg_event_meta: Dict,
     sg_project: Dict,
     sg_session: shotgun_api3.Shotgun,
     # ayon_entity_hub: ayon_api.entity_hub.EntityHub, # not needed?
 ):
+    # in sg all playlists are supported
     # get sg playlist and all linked versions
     playlist = sg_session.find_one(
         "Playlist",
-        [["id", "is", sg_event["entity_id"]]],
-        ["id", "code", "versions"]
+        [["id", "is", sg_event_meta["entity_id"]]],
+        ["id", "code", "versions", "sg_ayon_id"]
     )
     log.debug(f"{playlist = }")
 
-    # get ayon_id for all sg versions
-    ay_version_items = []
-    for idx, version in enumerate(playlist.get("versions", [])):
-        sg_version = sg_session.find_one(
-            "Version",
-            [["id", "is", version["id"]]],
-            ["sg_ayon_id"]
-        )
-        log.debug(f"{sg_version = }")
-        if sg_version.get("sg_ayon_id"):
-            item = {
-                "entityId": sg_version["sg_ayon_id"],
-                # "position": idx, # optional?
+    if playlist:
+        # get ayon_id for all sg versions
+        ay_version_items = []
+        for idx, version in enumerate(playlist.get("versions", [])):
+            sg_version = sg_session.find_one(
+                "Version",
+                [["id", "is", version["id"]]],
+                ["sg_ayon_id"]
+            )
+            log.debug(f"{sg_version = }")
+            if sg_version.get("sg_ayon_id"):
+                item = {
+                    "entityId": sg_version["sg_ayon_id"],
+                    # "position": idx, # optional?
+                }
+                ay_version_items.append(item)
+        log.debug(f"{ay_version_items = }")
+
+    match sg_event_meta["type"]:
+        case "new_entity":
+            rest_payload = {
+                "project_name": sg_project["name"],
+                "entity_type": "version",
+                "label": playlist["code"],
             }
-            ay_version_items.append(item)
-    log.debug(f"{ay_version_items = }")
+            if ay_version_items:
+                rest_payload["items"] = ay_version_items
+            entity_list = ayon_api.raw_post(
+                f"/projects/{sg_project['name']}/lists",
+                json={
+                    "project_name": sg_project["name"],
+                    "entity_type": "version",
+                    "label": playlist["code"],
+                    "attrib": {"sg_id": playlist["id"]},
+                    "items": ay_version_items,
+                }
+            )
+            log.debug(f"{entity_list = }")
 
-    # create the AYON EntityList
-    rest_payload = {
-        "project_name": sg_project["name"],
-        "entity_type": "version",
-        "label": playlist["code"],
-    }
-    if ay_version_items:
-        rest_payload["items"] = ay_version_items
-    entity_list = ayon_api.raw_post(
-        f"/projects/{sg_project['name']}/lists",
-        json={
-            "project_name": sg_project["name"],
-            "entity_type": "version",
-            "label": playlist["code"],
-            "attrib": {"sg_id": playlist["id"]},
-            "items": ay_version_items,
-        }
-    )
-    log.debug(f"{entity_list = }")
+            # save back ayon id on sg playlist
+            sg_session.update(
+                "Playlist",
+                playlist["id"],
+                {
+                    "sg_ayon_id": entity_list["id"]
+                }
+            )
+        case "attribute_change":
+            if not playlist:
+                log.info("SG Playlist was deleted. Skipping update.")
+                return
 
-    # save back ayon id on sg playlist
-    sg_session.update(
-        "Playlist",
-        playlist["id"],
-        {
-            "sg_ayon_id": entity_list["id"]
-        }
-    )
+            entity_list = ayon_api.raw_patch(
+                f"/projects/{sg_project['name']}/lists",
+                json={
+                    "project_name": sg_project["name"],
+                    "entity_type": "version",
+                    "label": playlist["code"],
+                    "attrib": {"sg_id": playlist["id"]},
+                    "items": ay_version_items,
+                }
+            )
+        case "entity_retirement":
+            ay_entity_lists = ayon_api.get_entity_lists(
+                sg_project["name"], fields=["id", "label", "allAttrib"])
+            sg_playlist_id = str(sg_event_meta["entity_id"])
+
+            ay_list_id_to_delete = None
+            for ay_entity_list in ay_entity_lists:
+                log.debug(f"{ay_entity_list = }")
+                allAttrib = json.loads(ay_entity_list.get("allAttrib", {}))
+                if int(allAttrib.get("sg_id", -1)) == int(sg_playlist_id):
+                    ay_list_id_to_delete = ay_entity_list["id"]
+
+            if ay_list_id_to_delete:
+                log.info(f"Deleting AYON EntityList: {ay_list_id_to_delete}")
+                ayon_api.delete_entity_list(
+                    sg_project["name"],
+                    ay_list_id_to_delete
+                )
+            else:
+                log.info("No matching AYON EntityList found for deletion.")
 
 
 def _get_ayon_parent_entity(
