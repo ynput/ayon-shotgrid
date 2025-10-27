@@ -161,9 +161,9 @@ def sync_sg_playlist_from_ayon_event(
 
     # get all versions in the list
     # and their corresponding SG IDs
-    # gotta try here since on delete the EntityList doesn't exist anymore
     entity_list = None
-    try:
+    try: # gotta try here since on delete the EntityList doesn't exist anymore
+        # get_entity_list() doesn't return the linked versions, so i use the rest variant here
         entity_list = ayon_api.get_entity_list_rest(
             project_name=sg_project["name"],
             list_id=ayon_event["summary"]["id"],
