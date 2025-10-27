@@ -228,7 +228,7 @@ def sync_ay_entity_list_from_sg_event(
     playlist = sg_session.find_one(
         "Playlist",
         [["id", "is", sg_event_meta["entity_id"]]],
-        ["id", "code", "versions", "sg_ayon_id"]
+        ["id", "code", "versions", "sg_ayon_id", "locked"]
     )
     log.debug(f"{playlist = }")
 
@@ -289,15 +289,23 @@ def sync_ay_entity_list_from_sg_event(
                 )
                 return
 
-            entity_list = ayon_api.raw_patch(
+            payload = {
+                "project_name": sg_project["name"],
+                "entity_type": "version",
+                "label": playlist["code"],
+                "attrib": {"sg_id": playlist["id"]},
+                "items": ay_version_items,
+                # "active": not playlist.get("locked", False),
+            }
+            log.debug(f"{payload = }")
+            ayon_api.raw_patch(    # doesn't respect 'active' attribute
                 f"/projects/{sg_project['name']}/lists",
-                json={
-                    "project_name": sg_project["name"],
-                    "entity_type": "version",
-                    "label": playlist["code"],
-                    "attrib": {"sg_id": playlist["id"]},
-                    "items": ay_version_items,
-                }
+                json=payload
+            )
+            ayon_api.update_entity_list(    # so i have to update it separately
+                project_name=sg_project["name"],
+                list_id=playlist["sg_ayon_id"],
+                active=not playlist.get("locked", False),
             )
         case "entity_retirement":
             ay_entity_lists = ayon_api.get_entity_lists(
