@@ -283,6 +283,11 @@ def sync_ay_entity_list_from_sg_event(
             if not playlist:
                 log.info("SG Playlist was deleted. Skipping update.")
                 return
+            if sg_event_meta["attribute_name"] not in ["versions", "locked"]:
+                log.info(
+                    "SG event not of a supported attribute type. Skipping update."
+                )
+                return
 
             entity_list = ayon_api.raw_patch(
                 f"/projects/{sg_project['name']}/lists",
