@@ -222,7 +222,10 @@ def sync_sg_playlist_from_ayon_event(
             sg_session.update(
                 "Playlist",
                 int(list_sg_id),
-                {"versions": sg_versions}
+                {
+                    "versions": sg_versions,
+                    "locked": not entity_list.get("active", True),
+                }
             )
         case "entity_list.deleted":
             ayon_list_id = ayon_event["summary"]["id"]
