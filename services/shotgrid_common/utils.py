@@ -1863,6 +1863,10 @@ def _get_sg_note_parent_entity(entity_hub, sg_note, sg_session):
             log.warning(f"Couldn't find entity in SG with '{sg_id}")
             continue
 
+        if link["type"] == "Playlist":
+            log.debug("Skipping unsupported Playlist link in SG note.")
+            continue
+
         if not sg_entity.get(CUST_FIELD_CODE_ID):
             log.warning(f"Entity in SG with '{sg_id}' "
                         "not synced to AYON yet.")
