@@ -221,7 +221,6 @@ def sync_ay_entity_list_from_sg_event(
     sg_event_meta: Dict,
     sg_project: Dict,
     sg_session: shotgun_api3.Shotgun,
-    # ayon_entity_hub: ayon_api.entity_hub.EntityHub, # not needed?
 ):
     # in sg all playlists are supported
     # get sg playlist and all linked versions
@@ -243,10 +242,7 @@ def sync_ay_entity_list_from_sg_event(
             )
             log.debug(f"{sg_version = }")
             if sg_version.get("sg_ayon_id"):
-                item = {
-                    "entityId": sg_version["sg_ayon_id"],
-                    # "position": idx, # optional?
-                }
+                item = {"entityId": sg_version["sg_ayon_id"]}
                 ay_version_items.append(item)
         log.debug(f"{ay_version_items = }")
 
