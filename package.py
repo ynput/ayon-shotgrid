@@ -15,3 +15,4 @@ ayon_required_addons = {
     "core": ">=0.3.0",
 }
 ayon_compatible_addons = {}
+ayon_server_version = ">=1.12.5"
