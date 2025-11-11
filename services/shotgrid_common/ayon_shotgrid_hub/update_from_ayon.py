@@ -174,7 +174,7 @@ def _get_sg_parent_entity(sg_session, ay_entity, ayon_event):
         FolderNotFound: if AYON folder parent does not exist.
 
     Returns:
-        Dict[str, str]  {"id": XXXX, "type": "Asset|.."}
+        Optional[Dict[str, str]]  {"id": XXXX, "type": "Asset|.."}
     """
     if ay_entity.entity_type == "version":
         folder_id = ay_entity.parent.parent.id
