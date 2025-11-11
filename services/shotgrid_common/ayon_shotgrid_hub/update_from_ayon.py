@@ -186,8 +186,15 @@ def _get_sg_parent_entity(sg_session, ay_entity, ayon_event):
     else:
         sg_parent_id, sg_parent_type = _get_parent_sg_id_type(ay_entity)
 
-    if not sg_parent_id or not sg_parent_type:
-        raise ValueError(f"Could not find valid parent for {ay_entity}.")
+    if (
+        not sg_parent_id
+        or not sg_parent_type
+        or not isinstance(sg_parent_id, int)
+    ):
+        raise ValueError(
+            f"Could not find valid SG parent for {ay_entity}."
+            f" Looked for ID: '{sg_parent_id}' and Type: '{sg_parent_type}'."
+        )
 
     sg_parent_entity = sg_session.find_one(
         sg_parent_type,
