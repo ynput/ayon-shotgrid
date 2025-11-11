@@ -5,6 +5,7 @@ from typing import Dict, List, Any
 import shotgun_api3
 
 import ayon_api
+from ayon_api.exceptions import FolderNotFound
 
 from utils import (
     get_sg_statuses,
@@ -168,6 +169,10 @@ def _get_parent_sg_id_type(ay_entity):
 def _get_sg_parent_entity(sg_session, ay_entity, ayon_event):
     """Returns SG parent for currently created ay_entity
 
+    Raises:
+        ValueError: If incorrect values for finding SG parent are used.
+        FolderNotFound: if AYON folder parent does not exist.
+
     Returns:
         Dict[str, str]  {"id": XXXX, "type": "Asset|.."}
     """
@@ -177,9 +182,7 @@ def _get_sg_parent_entity(sg_session, ay_entity, ayon_event):
             ayon_event["project"], folder_id)
 
         if not ayon_asset:
-            raise ValueError(
-                f"Could not find Version parent folder from ID: '{folder_id}'."
-            )
+            raise FolderNotFound(ayon_event["project"], folder_id)
 
         sg_parent_id = ayon_asset["attrib"].get(SHOTGRID_ID_ATTRIB)
         sg_parent_type = ayon_asset["attrib"].get(SHOTGRID_TYPE_ATTRIB)
