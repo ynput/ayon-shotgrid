@@ -120,7 +120,7 @@ def create_sg_entity_from_ayon_event(
                     f"Unable to create `{ay_entity.entity_type}` <{ay_id}> "
                     "in Shotgrid!"
                 )
-            return None
+            return ay_entity
 
         sg_id = sg_entity["attribs"]["shotgridId"]
         sg_type = sg_entity["attribs"]["shotgridType"]
