@@ -46,9 +46,12 @@ def create_sg_entity_from_ayon_event(
         custom_attribs_map (dict): Dictionary that maps a list of attribute names from
             AYON to Shotgrid.
 
+    Raises:
+        ValueError: If the AYON entity does not exist.
+
     Returns:
-        ay_entity (ayon_api.entity_hub.EntityHub.Entity): The newly
-            created entity.
+        ay_entity (ayon_api.entity_hub.EntityHub.Entity): source AYON entity
+            with updated Shotgrid ID and Type attributes.
     """
     ay_id = ayon_event["summary"]["entityId"]
     ay_entity = ayon_entity_hub.get_or_query_entity_by_id(
