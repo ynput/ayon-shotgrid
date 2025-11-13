@@ -5,6 +5,7 @@ from typing import Dict, List, Any
 import shotgun_api3
 
 import ayon_api
+from ayon_api.exceptions import FolderNotFound
 
 from utils import (
     get_sg_statuses,
@@ -46,9 +47,12 @@ def create_sg_entity_from_ayon_event(
         custom_attribs_map (dict): Dictionary that maps a list of attribute names from
             AYON to Shotgrid.
 
+    Raises:
+        ValueError: If the AYON entity does not exist.
+
     Returns:
-        ay_entity (ayon_api.entity_hub.EntityHub.Entity): The newly
-            created entity.
+        ay_entity (ayon_api.entity_hub.EntityHub.Entity): source AYON entity
+            with updated Shotgrid ID and Type attributes.
     """
     ay_id = ayon_event["summary"]["entityId"]
     ay_entity = ayon_entity_hub.get_or_query_entity_by_id(
@@ -120,7 +124,7 @@ def create_sg_entity_from_ayon_event(
                     f"Unable to create `{ay_entity.entity_type}` <{ay_id}> "
                     "in Shotgrid!"
                 )
-            return None
+            return ay_entity
 
         sg_id = sg_entity["attribs"]["shotgridId"]
         sg_type = sg_entity["attribs"]["shotgridType"]
@@ -165,8 +169,12 @@ def _get_parent_sg_id_type(ay_entity):
 def _get_sg_parent_entity(sg_session, ay_entity, ayon_event):
     """Returns SG parent for currently created ay_entity
 
+    Raises:
+        ValueError: If incorrect values for finding SG parent are used.
+        FolderNotFound: if AYON folder parent does not exist.
+
     Returns:
-        Dict[str, str]  {"id": XXXX, "type": "Asset|.."}
+        Optional[Dict[str, str]]  {"id": XXXX, "type": "Asset|.."}
     """
     if ay_entity.entity_type == "version":
         folder_id = ay_entity.parent.parent.id
@@ -174,17 +182,22 @@ def _get_sg_parent_entity(sg_session, ay_entity, ayon_event):
             ayon_event["project"], folder_id)
 
         if not ayon_asset:
-            raise ValueError(
-                f"Could not find Version parent folder from ID: '{folder_id}'."
-            )
+            raise FolderNotFound(ayon_event["project"], folder_id)
 
         sg_parent_id = ayon_asset["attrib"].get(SHOTGRID_ID_ATTRIB)
         sg_parent_type = ayon_asset["attrib"].get(SHOTGRID_TYPE_ATTRIB)
     else:
         sg_parent_id, sg_parent_type = _get_parent_sg_id_type(ay_entity)
 
-    if not sg_parent_id or not sg_parent_type:
-        raise ValueError(f"Could not find valid parent for {ay_entity}.")
+    if (
+        not sg_parent_id
+        or not sg_parent_type
+        or not isinstance(sg_parent_id, int)
+    ):
+        raise ValueError(
+            f"Could not find valid SG parent for {ay_entity}."
+            f" Looked for ID: '{sg_parent_id}' and Type: '{sg_parent_type}'."
+        )
 
     sg_parent_entity = sg_session.find_one(
         sg_parent_type,
