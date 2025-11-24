@@ -145,6 +145,108 @@ def create_sg_entity_from_ayon_event(
         return None
 
 
+def sync_sg_playlist_from_ayon_event(
+    ayon_event: Dict,
+    sg_session: shotgun_api3.Shotgun,
+    ayon_entity_hub: ayon_api.entity_hub.EntityHub,
+    sg_project: Dict
+):
+    log.debug(f"{ayon_event = }")
+    # check if it's a list of versions
+    # lists of folders/tasks are not supported by SG
+    list_type = ayon_event["summary"].get("entity_type")
+    if not list_type == "version":
+        log.info("Only EntityLists of type 'version' are supported.")
+        return
+
+    # get all versions in the list
+    # and their corresponding SG IDs
+    entity_list = None
+    try: # gotta try here since on delete the EntityList doesn't exist anymore
+        # get_entity_list() doesn't return the linked versions, so i use the rest variant here
+        entity_list = ayon_api.get_entity_list_rest(
+            project_name=sg_project["name"],
+            list_id=ayon_event["summary"]["id"],
+        )
+    except Exception:
+        log.debug("EntityList couldn't be fetched. We're probably deleting the list.")
+
+    if entity_list:
+        version_ids = [entity["entityId"] for entity in entity_list["items"]]
+        log.debug(f"{entity_list = }")
+        log.debug(f"{version_ids = }")
+        ay_versions = ayon_api.get_versions(
+            project_name=sg_project["name"],
+            version_ids=version_ids,
+            fields=["attrib.shotgridId"]
+        )
+        sg_versions = []
+        for version in ay_versions:
+            log.debug(f"{version = }")
+            sg_id = version["attrib"].get("shotgridId")
+            if sg_id:
+                sg_versions.append({"type": "Version", "id": int(sg_id)})
+        log.debug(f"{sg_versions = }")
+
+    match ayon_event["topic"]:
+        case "entity_list.created":
+            log.info(f"Creating new SG Playlist from AYON EntityList {entity_list['label']}")
+            playlist = sg_session.create(
+                "Playlist",
+                {
+                    "project": {
+                        "type": "Project",
+                        "id": sg_project["id"]
+                    },
+                    "code": ayon_event["summary"]["label"],
+                    "versions": sg_versions,  # link versions to sg playlist
+                    "sg_ayon_id": entity_list["id"],
+                }
+            )
+            log.debug(f"{playlist = }")
+
+            # save back sg id on ayon entity list
+            # this will trigger the update event next!
+            ayon_api.raw_patch(
+                f"/projects/{sg_project['name']}/lists/{entity_list['id']}",
+                json={
+                    "attrib": {"sg_id": playlist["id"]}
+                }
+            )
+        case "entity_list.changed":
+            if not entity_list["attrib"].get("sg_id"):
+                log.error("SG Playlist ID not found on AYON EntityList")
+
+            list_sg_id = entity_list["attrib"]["sg_id"]
+            log.info(f"Updating SG Playlist {list_sg_id}")
+            sg_session.update(
+                "Playlist",
+                int(list_sg_id),
+                {
+                    "versions": sg_versions,
+                    "locked": not entity_list.get("active", True),
+                }
+            )
+        case "entity_list.deleted":
+            ayon_list_id = ayon_event["summary"]["id"]
+            sg_playlist = sg_session.find_one(
+                "Playlist",
+                filters=[["sg_ayon_id", "is", ayon_list_id]]
+            )
+            if not sg_playlist:
+                log.error(
+                    f"Could not find SG Playlist for AYON EntityList ID "
+                    f"{ayon_list_id}"
+                )
+                return
+
+            log.info(f"Deleting SG Playlist {sg_playlist['id']}")
+            sg_session.delete(
+                "Playlist",
+                int(sg_playlist["id"])
+            )
+
+
 def _get_parent_sg_id_type(ay_entity):
     """ Recursively find a parent with a valid Shotgrid ID.
     """
