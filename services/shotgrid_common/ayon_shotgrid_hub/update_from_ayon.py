@@ -77,6 +77,13 @@ def create_sg_entity_from_ayon_event(
 
     sg_entity = None
 
+    if not isinstance(sg_id, int):
+        log.info(
+            f"AYON entity is special type '{ay_entity.folder_type}', "
+            "already synced to SG with non-integer ID, skipping."
+        )
+        return ay_entity
+
     if sg_id and sg_type:
         sg_entity = sg_session.find_one(sg_type, [["id", "is", int(sg_id)]])
 
