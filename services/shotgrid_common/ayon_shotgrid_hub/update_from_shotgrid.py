@@ -275,20 +275,23 @@ def sync_ay_entity_list_from_sg_event(
                 )
                 return
 
-            payload = {
-                "project_name": sg_project["name"],
-                "entity_type": "version",
-                "label": playlist["code"],
-                "attrib": {"sg_id": playlist["id"]},
-                "items": ay_version_items,
-                # "active": not playlist.get("locked", False),
-            }
-            log.debug(f"{payload = }")
-            ayon_api.raw_patch(    # doesn't respect 'active' attribute
+            ayon_api.raw_patch(    # doesn't respect 'active' attribute or support adding versions
                 f"/projects/{sg_project['name']}/lists",
-                json=payload
+                json={
+                    "project_name": sg_project["name"],
+                    "entity_type": "version",
+                    "label": playlist["code"],
+                    "attrib": {"sg_id": playlist["id"]},
+                }
             )
-            ayon_api.update_entity_list(    # so i have to update it separately
+            ayon_api.raw_patch(    # so i add version here
+                f"/projects/{sg_project['name']}/lists/{playlist['sg_ayon_id']}/items",
+                json={
+                    "items": ay_version_items,
+                    "mode": "replace",
+                }
+            )
+            ayon_api.update_entity_list(    # and update active attrib here
                 project_name=sg_project["name"],
                 list_id=playlist["sg_ayon_id"],
                 active=not playlist.get("locked", False),
