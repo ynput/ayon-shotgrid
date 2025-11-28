@@ -225,6 +225,7 @@ def sync_sg_playlist_from_ayon_event(
                 {
                     "versions": sg_versions,
                     "locked": not entity_list.get("active", True),
+                    "code": entity_list["label"],
                 }
             )
         case "entity_list.deleted":
