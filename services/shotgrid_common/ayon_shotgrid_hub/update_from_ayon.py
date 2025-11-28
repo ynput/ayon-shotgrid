@@ -196,10 +196,18 @@ def _get_sg_parent_entity(sg_session, ay_entity, ayon_event):
     else:
         sg_parent_id, sg_parent_type = _get_parent_sg_id_type(ay_entity)
 
+    try:
+        if sg_parent_id is not None:
+            sg_parent_id = int(sg_parent_id)
+    except (ValueError, TypeError):
+        raise ValueError(
+            f"Could not find valid SG parent for {ay_entity}. "
+            f"Invalid format provided for ID: '{sg_parent_id}'."
+        )
+
     if (
         not sg_parent_id
         or not sg_parent_type
-        or not isinstance(sg_parent_id, int)
     ):
         raise ValueError(
             f"Could not find valid SG parent for {ay_entity}."
@@ -211,7 +219,7 @@ def _get_sg_parent_entity(sg_session, ay_entity, ayon_event):
         filters=[[
             "id",
             "is",
-            int(sg_parent_id)
+            sg_parent_id
         ]]
     )
     return sg_parent_entity
