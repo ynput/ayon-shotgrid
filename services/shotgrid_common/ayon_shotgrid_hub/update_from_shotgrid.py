@@ -279,7 +279,7 @@ def sync_ay_entity_list_from_sg_event(
             if not playlist:
                 log.info("SG Playlist was deleted. Skipping update.")
                 return
-            if sg_event_meta["attribute_name"] not in ["versions", "locked"]:
+            if sg_event_meta["attribute_name"] not in ["versions", "locked", "code"]:
                 log.info(
                     "SG event not of a supported attribute type. Skipping update."
                 )
@@ -305,6 +305,7 @@ def sync_ay_entity_list_from_sg_event(
                 project_name=sg_project["name"],
                 list_id=playlist["sg_ayon_id"],
                 active=not playlist.get("locked", False),
+                label=playlist["code"],
             )
         case "entity_retirement":
             ay_entity_lists = ayon_api.get_entity_lists(
