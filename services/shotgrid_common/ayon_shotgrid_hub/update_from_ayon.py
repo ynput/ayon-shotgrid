@@ -77,15 +77,18 @@ def create_sg_entity_from_ayon_event(
 
     sg_entity = None
 
-    if sg_id and not isinstance(sg_id, int):
-        log.warning(
-            f"Skip SG entity processing from AYON '{ay_entity}'. "
-            f"AYON entity defines an invalid non-integer sg_id '{sg_id}'."
-        )
-        return ay_entity
+    if sg_id is not None:
+        try:
+            sg_id = int(sg_id)
+        except (ValueError, TypeError):
+            log.warning(
+                f"Skip SG entity processing from AYON '{ay_entity}'. "
+                f"AYON entity defines an invalid non-integer sg_id '{sg_id}'."
+            )
+            return ay_entity
 
     if sg_id and sg_type:
-        sg_entity = sg_session.find_one(sg_type, [["id", "is", int(sg_id)]])
+        sg_entity = sg_session.find_one(sg_type, [["id", "is", sg_id]])
 
     if sg_entity:
         log.warning(f"Entity {sg_entity} already exists in Shotgrid!")
