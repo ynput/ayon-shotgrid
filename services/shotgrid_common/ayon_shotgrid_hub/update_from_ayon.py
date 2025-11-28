@@ -78,9 +78,9 @@ def create_sg_entity_from_ayon_event(
     sg_entity = None
 
     if sg_id and not isinstance(sg_id, int):
-        log.info(
-            f"AYON entity '{ay_entity}' already synced to SG with "
-            f"non-integer '{sg_id}', skipping."
+        log.warning(
+            f"Skip SG entity processing from AYON '{ay_entity}'. "
+            f"AYON entity defines an invalid non-integer sg_id '{sg_id}'."
         )
         return ay_entity
 
