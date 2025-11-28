@@ -10,7 +10,6 @@ import time
 from datetime import datetime, timezone, timedelta
 import socket
 import traceback
-from typing import AnyStr
 
 import arrow
 
