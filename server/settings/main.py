@@ -22,7 +22,9 @@ def default_shotgrid_entities():
         "Asset",
         "Task",
         "Version",
-        "Note"
+        "Playlist",
+        "Note",
+        "Reply",
     ]
 
 
