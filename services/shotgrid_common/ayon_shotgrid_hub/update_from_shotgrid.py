@@ -219,7 +219,6 @@ def sync_ay_entity_list_from_sg_event(
         [["id", "is", sg_event_meta["entity_id"]]],
         ["id", "code", "versions", "sg_ayon_id", "locked"]
     )
-    log.debug(f"{playlist = }")
 
     if playlist:
         # get ayon_id for all sg versions
@@ -230,11 +229,9 @@ def sync_ay_entity_list_from_sg_event(
                 [["id", "is", version["id"]]],
                 ["sg_ayon_id"]
             )
-            log.debug(f"{sg_version = }")
             if sg_version.get("sg_ayon_id"):
                 item = {"entityId": sg_version["sg_ayon_id"]}
                 ay_version_items.append(item)
-        log.debug(f"{ay_version_items = }")
 
     match sg_event_meta["type"]:
         case "new_entity":
@@ -245,6 +242,8 @@ def sync_ay_entity_list_from_sg_event(
             }
             if ay_version_items:
                 rest_payload["items"] = ay_version_items
+
+            log.info(f"Creating AYON EntityList for SG Playlist: {playlist['id']}")
             entity_list = ayon_api.raw_post(
                 f"/projects/{sg_project['name']}/lists",
                 json={
@@ -255,8 +254,6 @@ def sync_ay_entity_list_from_sg_event(
                     "items": ay_version_items,
                 }
             )
-            log.debug(f"{entity_list = }")
-
             # save back ayon id on sg playlist
             sg_session.update(
                 "Playlist",
@@ -265,6 +262,7 @@ def sync_ay_entity_list_from_sg_event(
                     "sg_ayon_id": entity_list["id"]
                 }
             )
+
         case "attribute_change":
             if not playlist:
                 log.info("SG Playlist was deleted. Skipping update.")
@@ -275,6 +273,10 @@ def sync_ay_entity_list_from_sg_event(
                 )
                 return
 
+            log.info(f"Updating AYON EntityList: {playlist['sg_ayon_id']}")
+            log.info(f"\t- version = {ay_version_items}")
+            log.info(f"\t- label = {playlist['code']}")
+            log.info(f"\t- active = {not playlist.get('locked', False)}")
             ayon_api.raw_patch(    # doesn't respect 'active' attribute or support adding versions
                 f"/projects/{sg_project['name']}/lists",
                 json={

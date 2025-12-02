@@ -183,12 +183,10 @@ def sync_sg_playlist_from_ayon_event(
             list_id=ayon_event["summary"]["id"],
         )
     except Exception:
-        log.debug("EntityList couldn't be fetched. We're probably deleting the list.")
+        log.info("EntityList couldn't be fetched. We're probably deleting the list.")
 
     if entity_list:
         version_ids = [entity["entityId"] for entity in entity_list["items"]]
-        log.debug(f"{entity_list = }")
-        log.debug(f"{version_ids = }")
         ay_versions = ayon_api.get_versions(
             project_name=sg_project["name"],
             version_ids=version_ids,
@@ -196,11 +194,9 @@ def sync_sg_playlist_from_ayon_event(
         )
         sg_versions = []
         for version in ay_versions:
-            log.debug(f"{version = }")
             sg_id = version["attrib"].get("shotgridId")
             if sg_id:
                 sg_versions.append({"type": "Version", "id": int(sg_id)})
-        log.debug(f"{sg_versions = }")
 
     match ayon_event["topic"]:
         case "entity_list.created":
@@ -217,7 +213,7 @@ def sync_sg_playlist_from_ayon_event(
                     "sg_ayon_id": entity_list["id"],
                 }
             )
-            log.debug(f"{playlist = }")
+            log.info(f"Creating SG Playlist: {playlist['id']}")
 
             # save back sg id on ayon entity list
             # this will trigger the update event next!
