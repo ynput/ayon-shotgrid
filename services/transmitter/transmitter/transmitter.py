@@ -145,6 +145,9 @@ class ShotgridTransmitter:
             "entity.folder.tags_changed",
             "entity.version.created",
             "entity.version.status_changed",
+            "entity_list.created",
+            "entity_list.changed",
+            "entity_list.deleted",
             "reviewable.created",
             "flow.version.mediapath"
         ]
