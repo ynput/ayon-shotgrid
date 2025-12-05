@@ -1834,15 +1834,20 @@ def _update_comment(
     return ay_activity_id
 
 
-def _get_sg_chat_msg(sg_note_id, sg_session, sg_msg_type):
-    """Gets detail information about SG note/reply wih SG id."""
-    schema = sg_session.schema_field_read(sg_msg_type)
-    all_fields = list(schema.keys())
-    log.debug(f"{all_fields = }")
+def _get_sg_note(sg_note_id, sg_session):
+    """Gets detail information about SG note wih SG id."""
     sg_note = sg_session.find_one(
-        sg_msg_type,
+        "Note",
         [["id", "is", int(sg_note_id)]],
-        fields=all_fields
+        fields=[
+            "id",
+            "content",
+            "sg_ayon_id",
+            "user",
+            "note_links",
+            "addressings_to",
+            "attachments"
+        ]
     )
     return sg_note, sg_note_id
 
@@ -1860,6 +1865,10 @@ def _get_sg_note_parent_entity(entity_hub, sg_note, sg_session):
         )
         if not sg_entity:
             log.warning(f"Couldn't find entity in SG with '{sg_id}")
+            continue
+
+        if link["type"] == "Playlist":
+            log.debug("Skipping unsupported Playlist link in SG note.")
             continue
 
         if not sg_entity.get(CUST_FIELD_CODE_ID):
