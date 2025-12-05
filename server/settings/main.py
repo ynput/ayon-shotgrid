@@ -24,6 +24,7 @@ def default_shotgrid_entities():
         "Version",
         "Playlist",
         "Note",
+        "Reply",
     ]
 
 

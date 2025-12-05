@@ -546,4 +546,3 @@ def remove_sg_entity_from_ayon_event(
             f"Unable to delete {sg_type} <{sg_id}> in Shotgrid!",
             exc_info=True
         )
-
