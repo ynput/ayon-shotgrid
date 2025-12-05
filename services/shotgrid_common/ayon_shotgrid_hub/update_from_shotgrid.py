@@ -105,25 +105,16 @@ def create_ay_entity_from_sg_event(
     )
 
     log.debug(f"ShotGrid Entity as AYON dict: {sg_ay_dict}")
-
-    if sg_ay_dict["type"].lower() == "comment":
-        # SG note as AYON comment creation is
-        # handled by update_ayon_entity_from_sg_event
-        if sg_ay_dict["attribs"]["shotgridType"] == "Note":
-            return
-        if sg_ay_dict["attribs"]["shotgridType"] == "Reply":
-            handle_reply(
-                sg_ay_dict,
-                sg_session,
-                ayon_entity_hub,
-            )
-            return
-
     if not sg_ay_dict:
         log.warning(
             f"Entity {sg_event['entity_type']} <{sg_event['entity_id']}> "
             "no longer exists in ShotGrid, aborting..."
         )
+        return
+
+    if sg_ay_dict["type"].lower() == "comment":
+        # SG note as AYON comment creation is
+        # handled by update_ayon_entity_from_sg_event
         return
 
     ayon_id_stored_in_sg = sg_ay_dict["data"].get(CUST_FIELD_CODE_ID)
