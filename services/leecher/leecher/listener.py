@@ -155,9 +155,6 @@ class ShotgridListener:
             1) Events of Projects with "AYON Auto Sync" enabled.
             2) Events on entities and type for entities we track.
 
-        Further we need to handle Replies differently as they don't have
-        a project field, but inherit the project from their parent Note.
-
         Args:
             sg_projects (list): List of Shotgrid Project IDs.
 
@@ -169,55 +166,19 @@ class ShotgridListener:
         if not sg_projects:
             return []
 
-        # Get supported event types first
-        sg_event_types = self._get_supported_event_types()
-        if not sg_event_types:
-            return []
+        filters.append(["project", "in", sg_projects])
 
-        # Split Reply events from other events
-        reply_events = [et for et in sg_event_types if et.startswith("Shotgun_Reply_")]
-        other_events = [et for et in sg_event_types if not et.startswith("Shotgun_Reply_")]
-
-        project_filter = ["project", "in", sg_projects]
-
-        if reply_events and other_events:
-            filters.append({
-                "filter_operator": "any",
-                "filters": [
-                    # Regular events with project filter
-                    {
-                        "filter_operator": "all",
-                        "filters": [
-                            project_filter,
-                            ["event_type", "in", other_events]
-                        ]
-                    },
-                    # Reply events without project filter (they inherit from parent)
-                    ["event_type", "in", reply_events]
-                ]
-            })
-        elif reply_events:
-            # Only Reply events
-            filters.append(["event_type", "in", reply_events])
-        elif other_events:
-            # Only regular events
-            filters.append(project_filter)
-            filters.append(["event_type", "in", other_events])
+        if sg_event_types := self._get_supported_event_types():
+            filters.append(["event_type", "in", sg_event_types])
 
         return filters
 
     def _get_supported_event_types(self) -> list[str]:
         sg_event_types = []
         for entity_type in self.sg_enabled_entities:
-            if entity_type == "Reply":
-                sg_event_types.extend(
-                    event_name.format(entity_type) for event_name in SG_EVENT_TYPES
-                    if not event_name.endswith("Retirement")
-                )
-            else:
-                sg_event_types.extend(
-                    event_name.format(entity_type) for event_name in SG_EVENT_TYPES
-                )
+            sg_event_types.extend(
+                event_name.format(entity_type) for event_name in SG_EVENT_TYPES
+            )
         return sg_event_types
 
     def _find_last_event_id(self):
@@ -450,29 +411,9 @@ class ShotgridListener:
         payload["created_at"] = payload["created_at"].isoformat()
 
         payload_meta = payload.get("meta", {})
-        self.log.debug(f"{payload_meta = }")
         if payload_meta.get("entity_type", "Undefined") == "Project":
             project_name = payload.get("entity", {}).get("name", "Undefined")
             project_id = payload.get("entity", {}).get("id", "Undefined")
-        elif payload_meta.get("entity_type", "Undefined") == "Reply":
-            if payload_meta.get("attribute_name") == "retirement_date":
-                self.log.warning("Deleting Replies in AYON is not yet supported.")
-                return
-            reply_id = payload_meta.get("entity_id")
-            reply = self.sg_session.find_one(
-                "Reply",
-                [["id", "is", reply_id]],
-                ["entity"]
-            )
-            schema = self.sg_session.schema_field_read("Note")
-            note = self.sg_session.find_one(
-                "Note",
-                [["id", "is", reply.get("entity", {}).get("id")]],
-                list(schema.keys())
-            )
-            self.log.debug(f"{note = }")
-            project_id = note.get("project", {}).get("id", None)
-            project_name = note.get("project", {}).get("name", None)
         else:
             project_name = payload.get("project", {}).get("name", "Undefined")
             project_id = payload.get("project", {}).get("id", "Undefined")

@@ -45,11 +45,11 @@ class ShotgridTransmitter:
         self._cached_hubs = {}
         try:
             ayon_api.init_service()
-            self.settings = ayon_api.get_service_addon_settings()
-            service_settings = self.settings["service_settings"]
+            settings = ayon_api.get_service_addon_settings()
+            service_settings = settings["service_settings"]
 
-            self.sg_url = self.settings["shotgrid_server"]
-            self.sg_project_code_field = self.settings[
+            self.sg_url = settings["shotgrid_server"]
+            self.sg_project_code_field = settings[
                 "shotgrid_project_code_field"]
 
             # get server op related ShotGrid script api properties
@@ -78,32 +78,10 @@ class ShotgridTransmitter:
                 )
 
             # SSL validation
-            if self.settings.get("shotgrid_no_ssl_validation", False):
+            if settings.get("shotgrid_no_ssl_validation", False):
                 shotgun_api3.NO_SSL_VALIDATION = True
                 self.log.info("SSL validation is disabled.")
 
-            # Compatibility settings
-            custom_attribs_map = self.settings["compatibility_settings"][
-                "custom_attribs_map"]
-            self.custom_attribs_map = {
-                attr["ayon"]: attr["sg"]
-                for attr in custom_attribs_map
-                if attr["sg"]
-            }
-            self.custom_attribs_map.update({
-                "status": "status_list",
-                "tags": "tags",
-                "assignees": "task_assignees"
-            })
-
-            self.custom_attribs_types = {
-                attr["sg"]: (attr["type"], attr["scope"])
-                for attr in custom_attribs_map
-                if attr["sg"]
-            }
-            self.sg_enabled_entities = (
-                self.settings["compatibility_settings"]
-                             ["shotgrid_enabled_entities"])
             try:
                 self.sg_polling_frequency = int(
                     service_settings["polling_frequency"]
@@ -167,6 +145,9 @@ class ShotgridTransmitter:
             "entity.folder.tags_changed",
             "entity.version.created",
             "entity.version.status_changed",
+            "entity_list.created",
+            "entity_list.changed",
+            "entity_list.deleted",
             "reviewable.created",
             "flow.version.mediapath"
         ]
@@ -258,14 +239,28 @@ class ShotgridTransmitter:
         if not hub:
             ay_project = ayon_api.get_project(project_name)
             project_code = ay_project["code"]
+
+            settings = ayon_api.get_service_addon_settings(project_name)
+            sett_custom_attribs_map = (settings["compatibility_settings"]
+                                               ["custom_attribs_map"])
+            custom_attribs_map = (
+                self._prepare_custom_attribs_map(sett_custom_attribs_map)
+            )
+            custom_attribs_types = (
+                self._prepare_custom_attribs_types(sett_custom_attribs_map)
+            )
+            sg_enabled_entities = (
+                settings["compatibility_settings"]["shotgrid_enabled_entities"]
+            )
+
             hub = AyonShotgridHub(
                 self.get_sg_connection(),
                 project_name,
                 project_code,
                 sg_project_code_field=self.sg_project_code_field,
-                custom_attribs_map=self.custom_attribs_map,
-                custom_attribs_types=self.custom_attribs_types,
-                sg_enabled_entities=self.sg_enabled_entities,
+                custom_attribs_map=custom_attribs_map,
+                custom_attribs_types=custom_attribs_types,
+                sg_enabled_entities=sg_enabled_entities,
             )
 
             # Do not cache the hub object
@@ -280,6 +275,10 @@ class ShotgridTransmitter:
         """Checks if no other syncing is runnin or when last successful ran."""
         any_in_progress = self._cleanup_in_progress_comment_events()
         if any_in_progress:
+            return
+
+        hubs_for_comment_syncing = self._hubs_for_comment_syncing()
+        if not hubs_for_comment_syncing:
             return
 
         now = arrow.utcnow()
@@ -315,9 +314,7 @@ class ShotgridTransmitter:
 
         try:
             synced_comments = 0
-            project_names = self._get_sync_project_names()
-            for project_name in project_names:
-                hub = self._get_hub(project_name)
+            for hub in hubs_for_comment_syncing:
                 synced_comments += hub.sync_comments(activities_after_date)
             success = True
         except Exception:
@@ -331,6 +328,17 @@ class ShotgridTransmitter:
                 status="finished" if success else "failed",
                 payload={"synced_comments": synced_comments},
             )
+
+    def _hubs_for_comment_syncing(self) -> list[AyonShotgridHub]:
+        """Checks which projects has Notes sync enabled"""
+        project_names = self._get_sync_project_names()
+        hubs_for_comment_syncing = []
+        for project_name in project_names:
+            hub = self._get_hub(project_name)
+            if "Note" in hub.sg_enabled_entities:
+                hubs_for_comment_syncing.append(hub)
+
+        return hubs_for_comment_syncing
 
     def _cleanup_in_progress_comment_events(self) -> bool:
         """Clean stuck or hard failed synchronizations"""
@@ -365,6 +373,35 @@ class ShotgridTransmitter:
         for event in finished_events:
             return event
         return None
+
+    def _prepare_custom_attribs_map(
+        self,
+        custom_attribs_map: dict[str, str]
+    ) -> dict[str, str]:
+        """Returns dict of synced AYON attributes to SG attribute."""
+        custom_attribs = {
+            attr["ayon"]: attr["sg"]
+            for attr in custom_attribs_map
+            if attr["sg"]
+        }
+        custom_attribs.update({
+            "status": "status_list",
+            "tags": "tags",
+            "assignees": "task_assignees"
+        })
+
+        return custom_attribs
+
+    def _prepare_custom_attribs_types(
+        self,
+        custom_attribs_map: dict[str, str]
+    ) -> dict[str, tuple[str, str]]:
+        """Returns dict of tuples with data types of synced attributes."""
+        return {
+            attr["sg"]: (attr["type"], attr["scope"])
+            for attr in custom_attribs_map
+            if attr["sg"]
+        }
 
 
 def service_main():
