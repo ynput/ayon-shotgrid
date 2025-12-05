@@ -5,7 +5,6 @@ from typing import Dict, List, Any
 import shotgun_api3
 
 import ayon_api
-from ayon_api.exceptions import FolderNotFound
 
 from utils import (
     get_sg_statuses,
@@ -47,12 +46,9 @@ def create_sg_entity_from_ayon_event(
         custom_attribs_map (dict): Dictionary that maps a list of attribute names from
             AYON to Shotgrid.
 
-    Raises:
-        ValueError: If the AYON entity does not exist.
-
     Returns:
-        ay_entity (ayon_api.entity_hub.EntityHub.Entity): source AYON entity
-            with updated Shotgrid ID and Type attributes.
+        ay_entity (ayon_api.entity_hub.EntityHub.Entity): The newly
+            created entity.
     """
     ay_id = ayon_event["summary"]["entityId"]
     ay_entity = ayon_entity_hub.get_or_query_entity_by_id(
@@ -77,18 +73,8 @@ def create_sg_entity_from_ayon_event(
 
     sg_entity = None
 
-    if sg_id is not None:
-        try:
-            sg_id = int(sg_id)
-        except (ValueError, TypeError):
-            log.warning(
-                f"Skip SG entity processing from AYON '{ay_entity}'. "
-                f"AYON entity defines an invalid non-integer sg_id '{sg_id}'."
-            )
-            return ay_entity
-
     if sg_id and sg_type:
-        sg_entity = sg_session.find_one(sg_type, [["id", "is", sg_id]])
+        sg_entity = sg_session.find_one(sg_type, [["id", "is", int(sg_id)]])
 
     if sg_entity:
         log.warning(f"Entity {sg_entity} already exists in Shotgrid!")
@@ -134,7 +120,7 @@ def create_sg_entity_from_ayon_event(
                     f"Unable to create `{ay_entity.entity_type}` <{ay_id}> "
                     "in Shotgrid!"
                 )
-            return ay_entity
+            return None
 
         sg_id = sg_entity["attribs"]["shotgridId"]
         sg_type = sg_entity["attribs"]["shotgridType"]
@@ -159,105 +145,6 @@ def create_sg_entity_from_ayon_event(
         return None
 
 
-def sync_sg_playlist_from_ayon_event(
-    ayon_event: Dict,
-    sg_session: shotgun_api3.Shotgun,
-    ayon_entity_hub: ayon_api.entity_hub.EntityHub,
-    sg_project: Dict
-):
-    log.debug(f"{ayon_event = }")
-    # check if it's a list of versions
-    # lists of folders/tasks are not supported by SG
-    list_type = ayon_event["summary"].get("entity_type")
-    if not list_type == "version":
-        log.info("Only EntityLists of type 'version' are supported.")
-        return
-
-    # get all versions in the list
-    # and their corresponding SG IDs
-    entity_list = None
-    try: # gotta try here since on delete the EntityList doesn't exist anymore
-        # get_entity_list() doesn't return the linked versions, so i use the rest variant here
-        entity_list = ayon_api.get_entity_list_rest(
-            project_name=sg_project["name"],
-            list_id=ayon_event["summary"]["id"],
-        )
-    except Exception:
-        log.info("EntityList couldn't be fetched. We're probably deleting the list.")
-
-    if entity_list:
-        version_ids = [entity["entityId"] for entity in entity_list["items"]]
-        ay_versions = ayon_api.get_versions(
-            project_name=sg_project["name"],
-            version_ids=version_ids,
-            fields=["attrib.shotgridId"]
-        )
-        sg_versions = []
-        for version in ay_versions:
-            sg_id = version["attrib"].get("shotgridId")
-            if sg_id:
-                sg_versions.append({"type": "Version", "id": int(sg_id)})
-
-    match ayon_event["topic"]:
-        case "entity_list.created":
-            log.info(f"Creating new SG Playlist from AYON EntityList {entity_list['label']}")
-            playlist = sg_session.create(
-                "Playlist",
-                {
-                    "project": {
-                        "type": "Project",
-                        "id": sg_project["id"]
-                    },
-                    "code": ayon_event["summary"]["label"],
-                    "versions": sg_versions,  # link versions to sg playlist
-                    "sg_ayon_id": entity_list["id"],
-                }
-            )
-            log.info(f"Creating SG Playlist: {playlist['id']}")
-
-            # save back sg id on ayon entity list
-            # this will trigger the update event next!
-            ayon_api.raw_patch(
-                f"/projects/{sg_project['name']}/lists/{entity_list['id']}",
-                json={
-                    "attrib": {"sg_id": playlist["id"]}
-                }
-            )
-        case "entity_list.changed":
-            if not entity_list["attrib"].get("sg_id"):
-                log.error("SG Playlist ID not found on AYON EntityList")
-
-            list_sg_id = entity_list["attrib"]["sg_id"]
-            log.info(f"Updating SG Playlist {list_sg_id}")
-            sg_session.update(
-                "Playlist",
-                int(list_sg_id),
-                {
-                    "versions": sg_versions,
-                    "locked": not entity_list.get("active", True),
-                    "code": entity_list["label"],
-                }
-            )
-        case "entity_list.deleted":
-            ayon_list_id = ayon_event["summary"]["id"]
-            sg_playlist = sg_session.find_one(
-                "Playlist",
-                filters=[["sg_ayon_id", "is", ayon_list_id]]
-            )
-            if not sg_playlist:
-                log.error(
-                    f"Could not find SG Playlist for AYON EntityList ID "
-                    f"{ayon_list_id}"
-                )
-                return
-
-            log.info(f"Deleting SG Playlist {sg_playlist['id']}")
-            sg_session.delete(
-                "Playlist",
-                int(sg_playlist["id"])
-            )
-
-
 def _get_parent_sg_id_type(ay_entity):
     """ Recursively find a parent with a valid Shotgrid ID.
     """
@@ -278,12 +165,8 @@ def _get_parent_sg_id_type(ay_entity):
 def _get_sg_parent_entity(sg_session, ay_entity, ayon_event):
     """Returns SG parent for currently created ay_entity
 
-    Raises:
-        ValueError: If incorrect values for finding SG parent are used.
-        FolderNotFound: if AYON folder parent does not exist.
-
     Returns:
-        Optional[Dict[str, str]]  {"id": XXXX, "type": "Asset|.."}
+        Dict[str, str]  {"id": XXXX, "type": "Asset|.."}
     """
     if ay_entity.entity_type == "version":
         folder_id = ay_entity.parent.parent.id
@@ -291,37 +174,24 @@ def _get_sg_parent_entity(sg_session, ay_entity, ayon_event):
             ayon_event["project"], folder_id)
 
         if not ayon_asset:
-            raise FolderNotFound(ayon_event["project"], folder_id)
+            raise ValueError(
+                f"Could not find Version parent folder from ID: '{folder_id}'."
+            )
 
         sg_parent_id = ayon_asset["attrib"].get(SHOTGRID_ID_ATTRIB)
         sg_parent_type = ayon_asset["attrib"].get(SHOTGRID_TYPE_ATTRIB)
     else:
         sg_parent_id, sg_parent_type = _get_parent_sg_id_type(ay_entity)
 
-    try:
-        if sg_parent_id is not None:
-            sg_parent_id = int(sg_parent_id)
-    except (ValueError, TypeError):
-        raise ValueError(
-            f"Could not find valid SG parent for {ay_entity}. "
-            f"Invalid format provided for ID: '{sg_parent_id}'."
-        )
-
-    if (
-        not sg_parent_id
-        or not sg_parent_type
-    ):
-        raise ValueError(
-            f"Could not find valid SG parent for {ay_entity}."
-            f" Looked for ID: '{sg_parent_id}' and Type: '{sg_parent_type}'."
-        )
+    if not sg_parent_id or not sg_parent_type:
+        raise ValueError(f"Could not find valid parent for {ay_entity}.")
 
     sg_parent_entity = sg_session.find_one(
         sg_parent_type,
         filters=[[
             "id",
             "is",
-            sg_parent_id
+            int(sg_parent_id)
         ]]
     )
     return sg_parent_entity

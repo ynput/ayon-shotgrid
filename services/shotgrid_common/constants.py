@@ -45,8 +45,7 @@ AYON_SHOTGRID_ENTITY_TYPE_MAP = {
     "Asset": "folder",
     "Task": "task",
     "Version": "version",
-    "Comment": "note",
-    "Playlist": "entity_list",
+    "Comment": "note"
 }
 
 

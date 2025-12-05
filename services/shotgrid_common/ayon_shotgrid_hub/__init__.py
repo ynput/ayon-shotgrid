@@ -25,14 +25,12 @@ from .match_ayon_hierarchy_in_shotgrid import match_ayon_hierarchy_in_shotgrid
 from .update_from_shotgrid import (
     create_ay_entity_from_sg_event,
     update_ayon_entity_from_sg_event,
-    remove_ayon_entity_from_sg_event,
-    sync_ay_entity_list_from_sg_event,
+    remove_ayon_entity_from_sg_event
 )
 from .update_from_ayon import (
     create_sg_entity_from_ayon_event,
     update_sg_entity_from_ayon_event,
     remove_sg_entity_from_ayon_event,
-    sync_sg_playlist_from_ayon_event
 )
 
 from utils import (
@@ -343,23 +341,16 @@ class AyonShotgridHub:
                     f"| {sg_event_meta['entity_type']} "
                     f"| {sg_event_meta['entity_id']}"
                 )
-                if sg_event_meta["entity_type"] == "Playlist":
-                    sync_ay_entity_list_from_sg_event(
-                        sg_event_meta,
-                        self._sg_project,
-                        self._sg,
-                    )
-                else:
-                    create_ay_entity_from_sg_event(
-                        sg_event_meta,
-                        self._sg_project,
-                        self._sg,
-                        self._ay_project,
-                        self.sg_enabled_entities,
-                        self.sg_project_code_field,
-                        self.custom_attribs_map,
-                        self.settings
-                    )
+                create_ay_entity_from_sg_event(
+                    sg_event_meta,
+                    self._sg_project,
+                    self._sg,
+                    self._ay_project,
+                    self.sg_enabled_entities,
+                    self.sg_project_code_field,
+                    self.custom_attribs_map,
+                    self.settings
+                )
 
             case "attribute_change":
                 self.log.info(
@@ -367,23 +358,16 @@ class AyonShotgridHub:
                     f"| {sg_event_meta['entity_type']} "
                     f"| {sg_event_meta['entity_id']}"
                 )
-                if sg_event_meta["entity_type"] == "Playlist":
-                    sync_ay_entity_list_from_sg_event(
-                        sg_event_meta,
-                        self._sg_project,
-                        self._sg,
-                    )
-                else:
-                    update_ayon_entity_from_sg_event(
-                        sg_event_meta,
-                        self._sg_project,
-                        self._sg,
-                        self._ay_project,
-                        self.sg_enabled_entities,
-                        self.sg_project_code_field,
-                        self.settings,
-                        self.custom_attribs_map,
-                    )
+                update_ayon_entity_from_sg_event(
+                    sg_event_meta,
+                    self._sg_project,
+                    self._sg,
+                    self._ay_project,
+                    self.sg_enabled_entities,
+                    self.sg_project_code_field,
+                    self.settings,
+                    self.custom_attribs_map,
+                )
 
             case "entity_retirement":
                 self.log.info(
@@ -391,20 +375,13 @@ class AyonShotgridHub:
                     f"| {sg_event_meta['entity_type']} "
                     f"| {sg_event_meta['entity_id']}"
                 )
-                if sg_event_meta["entity_type"] == "Playlist":
-                    sync_ay_entity_list_from_sg_event(
-                        sg_event_meta,
-                        self._sg_project,
-                        self._sg,
-                    )
-                else:
-                    remove_ayon_entity_from_sg_event(
-                        sg_event_meta,
-                        self._sg,
-                        self._ay_project,
-                        self.sg_project_code_field,
-                        self.settings,
-                    )
+                remove_ayon_entity_from_sg_event(
+                    sg_event_meta,
+                    self._sg,
+                    self._ay_project,
+                    self.sg_project_code_field,
+                    self.settings,
+                )
 
             case _:
                 raise ValueError(
@@ -523,17 +500,6 @@ class AyonShotgridHub:
                     self._sg,
                     self._ay_project,  # EntityHub
                     payload
-                )
-            case (
-                "entity_list.created" |
-                "entity_list.changed" |
-                "entity_list.deleted"
-            ):
-                sync_sg_playlist_from_ayon_event(
-                    ayon_event,
-                    self._sg,
-                    self._ay_project,
-                    self._sg_project,
                 )
             case _:
                 raise ValueError(
@@ -731,6 +697,7 @@ class AyonShotgridHub:
             self._sg.upload("Note", note_id, tmp_file)
             self.log.info(f"Uploaded AYON attachment {atchmt['filename']} to SG.")
             os.remove(tmp_file)
+
 
     def _get_addressings_to(self, content, sg_user_id_by_user_name):
         """ Extract and generate the list of ShotGrid (SG) `addressings_to`
