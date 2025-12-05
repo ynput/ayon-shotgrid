@@ -1834,20 +1834,15 @@ def _update_comment(
     return ay_activity_id
 
 
-def _get_sg_note(sg_note_id, sg_session):
-    """Gets detail information about SG note wih SG id."""
+def _get_sg_chat_msg(sg_note_id, sg_session, sg_msg_type):
+    """Gets detail information about SG note/reply wih SG id."""
+    schema = sg_session.schema_field_read(sg_msg_type)
+    all_fields = list(schema.keys())
+    log.debug(f"{all_fields = }")
     sg_note = sg_session.find_one(
-        "Note",
+        sg_msg_type,
         [["id", "is", int(sg_note_id)]],
-        fields=[
-            "id",
-            "content",
-            "sg_ayon_id",
-            "user",
-            "note_links",
-            "addressings_to",
-            "attachments"
-        ]
+        fields=all_fields
     )
     return sg_note, sg_note_id
 
