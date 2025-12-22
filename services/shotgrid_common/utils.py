@@ -1214,7 +1214,7 @@ def get_sg_statuses(
         else:
             status_field = "sg_status_list"
         entity_status = sg_session.schema_field_read(sg_entity_type, status_field)
-        sg_statuses = entity_status["sg_status_list"]["properties"]["display_values"]["value"]
+        sg_statuses = entity_status[status_field]["properties"]["display_values"]["value"]
         return sg_statuses
 
     sg_statuses = {
