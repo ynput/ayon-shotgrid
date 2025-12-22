@@ -1209,6 +1209,8 @@ def get_sg_statuses(
     if sg_entity_type:
         if sg_entity_type == "Project":
             status_field = "sg_status"
+        elif sg_entity_type == "Playlist":
+            status_field = "sg_playlist_status"
         else:
             status_field = "sg_status_list"
         entity_status = sg_session.schema_field_read(sg_entity_type, status_field)
