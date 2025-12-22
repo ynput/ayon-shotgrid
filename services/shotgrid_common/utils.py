@@ -1219,8 +1219,8 @@ def get_sg_statuses(
             sg_statuses = entity_status[status_field]["properties"]["display_values"]["value"]
         except shotgun_api3.shotgun.Fault:
             log.warning(
-                f"Unable to get statuses for {sg_entity_type} in ShotGrid.",
-                exc_info=True
+                f"Unable to get status field '{status_field}' for {sg_entity_type} "
+                "in Flow."
             )
         return sg_statuses
 
