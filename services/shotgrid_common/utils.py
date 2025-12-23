@@ -811,6 +811,9 @@ def get_sg_entities(
     for enabled_entity in project_enabled_entities:
         entity_name, parent_field = enabled_entity
 
+        if entity_name == "Reply":  # Reply doesn't have link to project
+            continue
+
         sg_entities = sg_session.find(
             entity_name,
             filters=[["project", "is", sg_project]],
@@ -1206,13 +1209,22 @@ def get_sg_statuses(
     # supported by that entity
     # NOTE: this is a limitation in AYON as the statuses are global and not
     # per entity
+    sg_statuses = {}
     if sg_entity_type:
         if sg_entity_type == "Project":
             status_field = "sg_status"
+        elif sg_entity_type == "Playlist":
+            status_field = "sg_playlist_status"
         else:
             status_field = "sg_status_list"
-        entity_status = sg_session.schema_field_read(sg_entity_type, status_field)
-        sg_statuses = entity_status["sg_status_list"]["properties"]["display_values"]["value"]
+        try:
+            entity_status = sg_session.schema_field_read(sg_entity_type, status_field)
+            sg_statuses = entity_status[status_field]["properties"]["display_values"]["value"]
+        except shotgun_api3.shotgun.Fault:
+            log.warning(
+                f"Unable to get status field '{status_field}' for {sg_entity_type} "
+                "in Flow."
+            )
         return sg_statuses
 
     sg_statuses = {
