@@ -406,5 +406,7 @@ class ShotgridTransmitter:
 
 def service_main():
     ayon_api.init_service()
+    ayon_api.set_sender_type("shotgrid")
+
     shotgrid_transmitter = ShotgridTransmitter()
     sys.exit(shotgrid_transmitter.start_processing())
