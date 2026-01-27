@@ -283,9 +283,9 @@ class MoviePathProfile(BaseSettingsModel):
     host_names: list[str] = SettingsField(
         default_factory=list, title="Host names"
     )
-    product_types: list[str] = SettingsField(
+    product_base_types: list[str] = SettingsField(
         default_factory=list,
-        title="Product types"
+        title="Product base types"
     )
     task_types: list[str] = SettingsField(
         default_factory=list,

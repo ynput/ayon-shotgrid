@@ -11,7 +11,7 @@ from ayon_server.addons import BaseServerAddon
 from ayon_server.lib.postgres import Postgres
 from ayon_server.events import dispatch_event
 
-from .settings import ShotgridSettings
+from .settings import ShotgridSettings, convert_settings_overrides
 
 SG_ID_ATTRIB = "shotgridId"
 SG_TYPE_ATTRIB = "shotgridType"
@@ -184,3 +184,13 @@ class ShotgridAddon(BaseServerAddon):
         )
 
         return Response(status_code=200, content=str(response))
+
+    async def convert_settings_overrides(
+        self,
+        source_version: str,
+        overrides: dict[str, Any],
+    ) -> dict[str, Any]:
+        await convert_settings_overrides(source_version, overrides)
+        return await super().convert_settings_overrides(
+            source_version, overrides
+        )
