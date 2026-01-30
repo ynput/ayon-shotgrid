@@ -25,11 +25,14 @@ class IntegrateMoviePath(pyblish.api.InstancePlugin):
     profiles = []
 
     def process(self, instance: pyblish.api.Instance):
-        product_type = instance.data["productType"]
+        product_base_type = instance.data.get("productBaseType")
+        if not product_base_type:
+            product_base_type = instance.data["productType"]
 
         if instance.data.get("farm"):
             self.log.debug(
-                f"`{product_type}` should be processed on farm, skipping."
+                f"`{product_base_type}` should be processed on farm,"
+                f" skipping."
             )
             return
 
@@ -57,7 +60,9 @@ class IntegrateMoviePath(pyblish.api.InstancePlugin):
 
     def _get_representation_profile(self, instance: pyblish.api.Instance):
         host_name = instance.context.data["hostName"]
-        product_type = instance.data["productType"]
+        product_base_type = instance.data.get("productBaseType")
+        if not product_base_type:
+            product_base_type = instance.data["productType"]
         task_name = None
         task_type = None
         task_entity = instance.data.get("taskEntity")
@@ -69,7 +74,7 @@ class IntegrateMoviePath(pyblish.api.InstancePlugin):
             self.profiles,
             {
                 "host_names": host_name,
-                "product_types": product_type,
+                "product_base_types": product_base_type,
                 "task_names": task_name,
                 "task_types": task_type,
             },
