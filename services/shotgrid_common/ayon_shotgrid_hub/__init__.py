@@ -8,6 +8,7 @@ import re
 import tempfile
 
 from shotgun_api3.lib import mockgun
+from shotgun_api3 import  Fault
 
 from constants import (
     AYON_SHOTGRID_ENTITY_TYPE_MAP,
@@ -706,7 +707,17 @@ class AyonShotgridHub:
             data["user"] = {"type": "HumanUser", "id": author_sg_id}
 
         # Create the note
-        result = self._sg.create("Note", data)
+        try:
+            result = self._sg.create("Note", data)
+        except Fault as e:
+            if "[Note.addressings_to]: Value is not legal" in str(e):
+                self.log.error(
+                    f"Failed to create SG Note for AYON activity "
+                    f"{activity['activityId']}: Comment contains link to retired user"
+                    f"in SG in '{addressings_to}"
+                )
+                return
+            raise
 
         note_id = result["id"]
 
