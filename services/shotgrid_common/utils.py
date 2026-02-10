@@ -2321,7 +2321,10 @@ def upload_ay_reviewable_to_sg(
         )
         log.debug(f'Creating temp file at: {temp_file_path}')
         with open(temp_file_path, 'w+b') as temp_file:
-            temp_file.write(response.content)
+            content = response.content
+            chunk_size = 8192
+            for i in range(0, len(content), chunk_size):
+                temp_file.write(content[i:i + chunk_size])
 
         sg_session.upload(
             "Version",
