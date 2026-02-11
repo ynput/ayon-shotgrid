@@ -2326,12 +2326,12 @@ def upload_ay_reviewable_to_sg(
             for i in range(0, len(content), chunk_size):
                 temp_file.write(content[i:i + chunk_size])
 
-        sg_session.upload(
-            "Version",
-            sg_version_id,
-            temp_file_path,
-            field_name="sg_uploaded_movie",
-        )
+            sg_session.upload(
+                "Version",
+                sg_version_id,
+                temp_file_path,
+                field_name="sg_uploaded_movie",
+            )
 
         get_version_thumbnail_url = (f"projects/{ay_project_name}/versions/"
                     f"{ay_version_id}/thumbnail")
