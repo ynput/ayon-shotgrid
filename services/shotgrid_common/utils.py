@@ -2313,19 +2313,20 @@ def upload_ay_reviewable_to_sg(
 
     get_file = f"projects/{ay_project_name}/files/{first_reviewable['fileId']}"
 
-    response = ayon_api.get(get_file)
+    response = ayon_api.get(get_file, stream=True)
     with tempfile.TemporaryDirectory() as temp_dir:
         temp_file_path = os.path.join(
             temp_dir,
             first_reviewable["filename"]
         )
         log.debug(f'Creating temp file at: {temp_file_path}')
-        with open(temp_file_path, 'w+b') as temp_file:
-            content = response.content
-            chunk_size = 8192
-            for i in range(0, len(content), chunk_size):
-                temp_file.write(content[i:i + chunk_size])
 
+        if response.status_code == 200:
+            with open(temp_file_path, 'w+b') as f:
+                for chunk in response._response.iter_content(chunk_size=8192):
+                    f.write(chunk)
+
+            log.info(f"uploading {temp_file_path}")
             sg_session.upload(
                 "Version",
                 sg_version_id,
