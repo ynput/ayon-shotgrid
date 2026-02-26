@@ -2320,7 +2320,6 @@ def upload_ay_reviewable_to_sg(
             first_reviewable["filename"]
         )
         log.debug(f'Creating temp file at: {temp_file_path}')
-        log.debug(f"status:: {response.status_code} text::{response.text}")
         if response.status_code == 200:
             with open(temp_file_path, 'w+b') as f:
                 for chunk in response._response.iter_content(chunk_size=8192):
@@ -2334,6 +2333,8 @@ def upload_ay_reviewable_to_sg(
                 temp_file_path,
                 field_name="sg_uploaded_movie",
             )
+        else:
+            log.debug(f"status:: {response.status_code} text::{response.text}")
 
         get_version_thumbnail_url = (f"projects/{ay_project_name}/versions/"
                     f"{ay_version_id}/thumbnail")
