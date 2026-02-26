@@ -2320,7 +2320,7 @@ def upload_ay_reviewable_to_sg(
             first_reviewable["filename"]
         )
         log.debug(f'Creating temp file at: {temp_file_path}')
-
+        log.debug(f"status:: {response.status_code} text::{response.text}")
         if response.status_code == 200:
             with open(temp_file_path, 'w+b') as f:
                 for chunk in response._response.iter_content(chunk_size=8192):
