@@ -2326,7 +2326,8 @@ def upload_ay_reviewable_to_sg(
                 for chunk in response._response.iter_content(chunk_size=8192):
                     f.write(chunk)
 
-            log.info(f"uploading {temp_file_path}")
+            file_size = os.path.getsize(temp_file_path)
+            log.info(f"uploading {temp_file_path} ({file_size} bytes)")
             sg_session.upload(
                 "Version",
                 sg_version_id,
