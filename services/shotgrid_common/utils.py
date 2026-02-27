@@ -2326,12 +2326,13 @@ def upload_ay_reviewable_to_sg(
 
         file_size = os.path.getsize(temp_file_path)
         log.info(f"Uploading '{temp_file_path}' ({file_size} bytes)")
-        sg_session.upload(
+        sg_file_id = sg_session.upload(
             "Version",
             sg_version_id,
             temp_file_path,
             field_name="sg_uploaded_movie",
         )
+        log.debug(f"Uploaded file to SG with id: {sg_file_id}")
 
         get_version_thumbnail_url = (f"projects/{ay_project_name}/versions/"
                     f"{ay_version_id}/thumbnail")
