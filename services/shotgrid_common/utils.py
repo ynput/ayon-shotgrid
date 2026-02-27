@@ -2311,30 +2311,27 @@ def upload_ay_reviewable_to_sg(
         log.debug("Version %s does not contain any reviewable.", ay_version_id)
         return
 
-    get_file = f"projects/{ay_project_name}/files/{first_reviewable['fileId']}"
-
-    response = ayon_api.get(get_file, stream=True)
     with tempfile.TemporaryDirectory() as temp_dir:
         temp_file_path = os.path.join(
             temp_dir,
             first_reviewable["filename"]
         )
         log.debug(f'Creating temp file at: {temp_file_path}')
-        if response.status_code == 200:
-            with open(temp_file_path, 'w+b') as f:
-                for chunk in response._response.iter_content(chunk_size=8192):
-                    f.write(chunk)
+        ayon_api.download_project_file(
+            project_name=ay_project_name,
+            file_id=first_reviewable["fileId"],
+            filepath=temp_file_path,
+            chunk_size=1024 * 1024,  # 1MB chunks - limits memory usage
+        )
 
-            file_size = os.path.getsize(temp_file_path)
-            log.info(f"uploading {temp_file_path} ({file_size} bytes)")
-            sg_session.upload(
-                "Version",
-                sg_version_id,
-                temp_file_path,
-                field_name="sg_uploaded_movie",
-            )
-        else:
-            log.debug(f"status:: {response.status_code} text::{response.text}")
+        file_size = os.path.getsize(temp_file_path)
+        log.info(f"Uploading '{temp_file_path}' ({file_size} bytes)")
+        sg_session.upload(
+            "Version",
+            sg_version_id,
+            temp_file_path,
+            field_name="sg_uploaded_movie",
+        )
 
         get_version_thumbnail_url = (f"projects/{ay_project_name}/versions/"
                     f"{ay_version_id}/thumbnail")
