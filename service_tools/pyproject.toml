@@ -5,7 +5,7 @@ requires-python = ">=3.10"
 
 dependencies = [
     "arrow",
-    "ayon-python-api>=1.0.0",
+    "ayon-python-api>=1.2.11",
     "shotgun-api3==3.5.1",
 ]
 
