@@ -151,51 +151,59 @@ const populateTable = async () => {
 
 
 const syncUsers = async () => {
-  /* Get all the Users from AYON and Shotgrid, then populate the table with their info
-  and a button to Synchronize if they pass the requirements */
-  ayonUsers = await getAyonUsers();
-  sgUsers = await getShotgridUsers();
+  /* Get all the Users from AYON and Shotgrid, then populate the table with their info */
+  const ayonUsers = await getAyonUsers();
+  const sgUsers = await getShotgridUsers();
+  const call_result_paragraph = document.getElementById("call-result");
 
-  let new_users = []
+  call_result_paragraph.innerHTML = "Processing users...";
+
+  let successful_users = [];
+  let failed_users = [];
 
   for (const sg_user of sgUsers) {
-    const ayonUser = await getAyonUserFromShotgridId(sg_user.id)
+    const ayonUser = await getAyonUserFromShotgridId(sg_user.id);
+
+    // If user is already linked by ID, we skip them entirely
     if (typeof ayonUser === "string" && ayonUser.trim() !== "") {
-      console.log("sg_user already exists.")
+      continue;
     }
-    else {
-        // make sure no @ and validate login string
-        let ay_fixed_login = validateLogin(sg_user.login);
-        let login_already_exists = false;
 
-        ayonUsers.forEach((user) => {
-          if (ay_fixed_login == user.name) {
-              login_already_exists = true
-          }
-        })
+    let ay_fixed_login = validateLogin(sg_user.login);
+    let login_already_exists = ayonUsers.some(user => user.name === ay_fixed_login);
 
-        // User login exists in AYON but no associated sg_user_id.
-        if (login_already_exists){
-          updateUserInAyon(sg_user.id, sg_user.login)
-        }
+    let result;
+    if (login_already_exists) {
+      // Attempt to link existing user
+      result = await updateUserInAyon(sg_user.id, sg_user.login);
+    } else {
+      // Attempt to create new user
+      result = await createNewUserInAyon(sg_user.id, sg_user.login, sg_user.email, sg_user.name);
+    }
 
-        // User login does not exist in AYON.
-        else {
-          createNewUserInAyon(
-            sg_user.id, sg_user.login, sg_user.email, sg_user.name)
-        }
-
-      new_users.push(sg_user.name)
+    if (result.success) {
+      successful_users.push(sg_user.name);
+    } else {
+      failed_users.push(`${sg_user.name} (${result.error})`);
     }
   }
 
-  call_result_paragraph = document.getElementById("call-result");
-  if (new_users.length !== 0) {
-    call_result_paragraph.innerHTML = `Added new users: ` + new_users.join(" ")
+  // Final Output Generation
+  let outputHtml = "";
+
+  if (successful_users.length > 0) {
+    outputHtml += `<div style="color: #4caf50; margin-bottom: 8px;"><b>Added/Updated:</b> ${successful_users.join(", ")}</div>`;
   }
-  else{
-    call_result_paragraph.innerHTML = `All users are already synced.`
+
+  if (failed_users.length > 0) {
+    outputHtml += `<div style="color: #f44336;"><b>Failed:</b><br/>${failed_users.join("<br/>")}</div>`;
   }
+
+  if (successful_users.length === 0 && failed_users.length === 0) {
+    outputHtml = "All users are already synced.";
+  }
+
+  call_result_paragraph.innerHTML = outputHtml;
 }
 
 
@@ -330,55 +338,44 @@ function validateLogin(login) {
 }
 
 const updateUserInAyon = async (id, login) => {
-  /* Update an existing AYON user to set its sg_user_id. */
-  call_result_paragraph = document.getElementById("call-result");
-
-  // make sure no @ and validate login string
+  const call_result_paragraph = document.getElementById("call-result");
   let fixed_login = validateLogin(login);
 
-  response = await ayonAPI
-    .patch("/api/users/" + fixed_login, {
-      "data": {
-        "sg_user_id": id
-      },
-    })
-    .then((result) => result)
-    .catch((error) => {
-      console.log("Unable to update user in AYON!")
-      console.log(error)
-      call_result_paragraph.innerHTML = `Unable to update user in AYON! ${error}`
+  try {
+    await ayonAPI.patch("/api/users/" + fixed_login, {
+      "data": { "sg_user_id": id },
     });
+    return { success: true };
+  } catch (error) {
+    let message = error.message;
+    if (error.response && error.response.data) {
+      message = error.response.data.detail || JSON.stringify(error.response.data);
+    }
+    console.log("Error updating user in AYON:", message);
+    return { success: false, error: message };
+  }
 }
 
 const createNewUserInAyon = async (id, login, email, name) => {
-  /* Create a new AYON user.*/
-  call_result_paragraph = document.getElementById("call-result");
-
-  // make sure no @ and validate login string
+  const call_result_paragraph = document.getElementById("call-result");
   let fixed_login = validateLogin(login);
 
-  response = await ayonAPI
-    .put("/api/users/" + fixed_login, {
+  try {
+    await ayonAPI.put("/api/users/" + fixed_login, {
       "active": true,
-      "attrib": {
-        "fullName": name,
-        "email": email,
-      },
-      "data": {
-        "sg_user_id": id
-      },
+      "attrib": { "fullName": name, "email": email },
+      "data": { "sg_user_id": id },
       "password": login,
-    })
-    .then((result) => result)
-    .catch((error) => {
-      console.log("Unable to create user in AYON!")
-      message = error
-      if (error.response && error.response.data) {
-            message = error.response.data.detail || JSON.stringify(error.response.data);
-            console.log(message)
-       }
-      call_result_paragraph.innerHTML = `Unable to create user in AYON! ${message}`
     });
+   return { success: true };
+  } catch (error) {
+    let message = error.message;
+    if (error.response && error.response.data) {
+      message = error.response.data.detail || JSON.stringify(error.response.data);
+    }
+    console.log("Error creating user in AYON:", message);
+    return { success: false, error: message };
+  }
 }
 
 
