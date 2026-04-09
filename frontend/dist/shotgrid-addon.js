@@ -372,8 +372,12 @@ const createNewUserInAyon = async (id, login, email, name) => {
     .then((result) => result)
     .catch((error) => {
       console.log("Unable to create user in AYON!")
-      console.log(error)
-      call_result_paragraph.innerHTML = `Unable to create user in AYON! ${error}`
+      message = error
+      if (error.response && error.response.data) {
+            message = error.response.data.detail || JSON.stringify(error.response.data);
+            console.log(message)
+       }
+      call_result_paragraph.innerHTML = `Unable to create user in AYON! ${message}`
     });
 }
 
