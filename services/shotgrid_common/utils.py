@@ -190,10 +190,10 @@ def _sg_to_ay_dict(
 
     if custom_attribs_map:
         for ay_attrib, sg_attrib in custom_attribs_map.items():
-            sg_value = (sg_entity.get(f"sg_{sg_attrib}")
-                        or sg_entity.get(sg_attrib))
 
             # If no value in SG entity skip
+            sg_value = sg_entity.get(f"sg_{sg_attrib}", sg_entity.get(sg_attrib, None))
+
             if sg_value is None:
                 continue
 
@@ -1374,7 +1374,8 @@ def update_ay_entity_custom_attributes(
         if values_to_update and ay_attrib not in values_to_update:
             continue
 
-        attrib_value = sg_ay_dict["attribs"].get(ay_attrib) or sg_ay_dict.get(ay_attrib)
+        attrib_value = sg_ay_dict["attribs"].get(ay_attrib, sg_ay_dict.get(ay_attrib, None))
+
         if attrib_value is None:
             continue
 
