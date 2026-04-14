@@ -411,6 +411,57 @@ class AyonShotgridHub:
                 raise ValueError(
                     f"Unable to process event {sg_event_meta['type']}.")
 
+    def _should_skip_version_sg_upload(self, ayon_event):
+        """Return True if this version should NOT be uploaded to ShotGrid.
+
+        When the 'require_reviewable_for_sg_upload' setting is enabled, a
+        version is only uploaded to ShotGrid if it already has at least one
+        reviewable media file in AYON.  Versions whose product name appears in
+        'bypass_product_names' are always uploaded regardless. Entries are
+        matched as a prefix, so "pointcache" matches "pointcacheMain" etc.
+
+        Args:
+            ayon_event (dict): The ``entity.version.created`` AYON event.
+
+        Returns:
+            bool: True when the version should be skipped, False otherwise.
+        """
+        version_sync = self.settings.get("version_sync", {})
+        if not version_sync.get("require_reviewable_for_sg_upload", False):
+            return False
+
+        bypass_names = set(version_sync.get("bypass_product_names", []))
+        version_id = ayon_event["summary"]["entityId"]
+
+        if bypass_names:
+            ay_version = self._ay_project.get_or_query_entity_by_id(
+                version_id, ["version"]
+            )
+            product_name = (
+                ay_version.parent.name if ay_version and ay_version.parent else ""
+            )
+            if any(product_name.startswith(prefix) for prefix in bypass_names):
+                return False
+
+        project_name = self._ay_project.project_name
+        response = ayon_api.get(
+            f"projects/{project_name}/versions/{version_id}/reviewables"
+        )
+        try:
+            has_reviewable = bool(response.data["reviewables"])
+        except (AttributeError, KeyError, TypeError):
+            has_reviewable = False
+
+        if not has_reviewable:
+            self.log.info(
+                f"Skipping ShotGrid upload for version '{version_id}': "
+                "no reviewable media found and "
+                "'require_reviewable_for_sg_upload' is enabled."
+            )
+            return True
+
+        return False
+
     def react_to_ayon_event(self, ayon_event):
         """React to events incoming from AYON
 
@@ -431,11 +482,21 @@ class AyonShotgridHub:
             return
 
         match ayon_event["topic"]:
-            case (
-                "entity.task.created" |
-                "entity.folder.created" |
-                "entity.version.created"
-            ):
+            case "entity.task.created" | "entity.folder.created":
+                create_sg_entity_from_ayon_event(
+                    ayon_event,
+                    self._sg,
+                    self._ay_project,
+                    self._sg_project,
+                    self.sg_enabled_entities,
+                    self.sg_project_code_field,
+                    self.custom_attribs_map,
+                    self.settings
+                )
+
+            case "entity.version.created":
+                if self._should_skip_version_sg_upload(ayon_event):
+                    return
                 create_sg_entity_from_ayon_event(
                     ayon_event,
                     self._sg,

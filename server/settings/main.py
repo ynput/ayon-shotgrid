@@ -317,6 +317,29 @@ class ShotgridPublishPlugins(BaseSettingsModel):
     )
 
 
+class VersionSyncSettings(BaseSettingsModel):
+    """Settings to control which AYON versions are synced to ShotGrid."""
+
+    require_reviewable_for_sg_upload: bool = SettingsField(
+        False,
+        title="Only Upload Versions with Reviewable to ShotGrid",
+        description=(
+            "When enabled, a version will only be uploaded to ShotGrid if "
+            "it has reviewable media (e.g. video, image) attached in AYON. "
+            "Versions without a reviewable are skipped entirely."
+        ),
+    )
+    bypass_product_names: list[str] = SettingsField(
+        default_factory=list,
+        title="Bypass Product Names",
+        description=(
+            "Versions whose product name matches an entry in this list will "
+            "always be uploaded to ShotGrid, even when the reviewable "
+            "requirement above is enabled."
+        ),
+    )
+
+
 class ShotgridSettings(BaseSettingsModel):
     """ShotGrid integration settings.
 
@@ -388,6 +411,13 @@ class ShotgridSettings(BaseSettingsModel):
         default_factory=ShotgridServiceSettings,
         title="Service settings",
         scope=["studio"],
+    )
+    version_sync: VersionSyncSettings = SettingsField(
+        default_factory=VersionSyncSettings,
+        title="Version Sync Settings",
+        description=(
+            "Controls which AYON versions are synced to ShotGrid."
+        ),
     )
     publish: ShotgridPublishPlugins = SettingsField(
         default_factory=ShotgridPublishPlugins, title="Publish plugins"
