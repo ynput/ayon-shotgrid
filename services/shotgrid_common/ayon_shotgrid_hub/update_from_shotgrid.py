@@ -316,8 +316,13 @@ def sync_ay_entity_list_from_sg_event(
             ay_list_id_to_delete = None
             for ay_entity_list in ay_entity_lists:
                 log.debug(f"{ay_entity_list = }")
-                allAttrib = json.loads(ay_entity_list.get("allAttrib", {}))
-                if int(allAttrib.get("sg_id", -1)) == int(sg_playlist_id):
+                all_attrib = ay_entity_list.get("allAttrib")
+                if isinstance(all_attrib, str):
+                    all_attrib = json.loads(all_attrib)
+                if all_attrib is None:
+                    all_attrib = {}
+
+                if int(all_attrib.get("sg_id", -1)) == int(sg_playlist_id):
                     ay_list_id_to_delete = ay_entity_list["id"]
 
             if ay_list_id_to_delete:
