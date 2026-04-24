@@ -570,6 +570,35 @@ class AyonShotgridHub:
                 )
             case ("reviewable.created"):
                 ay_version_id = ayon_event["summary"]["versionId"]
+                # If version was deferred (e.g. require_reviewable_for_sg_upload
+                # skipped creation at entity.version.created time), create it
+                # now that a reviewable exists.
+                ay_version_entity = self._ay_project.get_version_by_id(
+                    ay_version_id
+                )
+                if (
+                    ay_version_entity
+                    and not ay_version_entity.attribs.get(SHOTGRID_ID_ATTRIB)
+                ):
+                    self.log.info(
+                        f"Version '{ay_version_id}' not yet in SG, "
+                        "creating before uploading reviewable."
+                    )
+                    synthetic_event = {
+                        "topic": "entity.version.created",
+                        "summary": {"entityId": ay_version_id},
+                        "project": self._ay_project.project_name,
+                    }
+                    create_sg_entity_from_ayon_event(
+                        synthetic_event,
+                        self._sg,
+                        self._ay_project,
+                        self._sg_project,
+                        self.sg_enabled_entities,
+                        self.sg_project_code_field,
+                        self.custom_attribs_map,
+                        self.settings,
+                    )
                 upload_ay_reviewable_to_sg(
                     self._sg,
                     self._ay_project,  # EntityHub

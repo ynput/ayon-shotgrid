@@ -2269,7 +2269,11 @@ def update_movie_paths(
     sg_version_type = ay_version_entity.attribs.get(SHOTGRID_TYPE_ATTRIB)
 
     if not sg_version_id:
-        raise ValueError(f"Version '{ay_version_id} not yet synched to SG.")
+        log.warning(
+            f"Version '{ay_version_id}' has no ShotGrid ID; "
+            "skipping media path update (version not yet synced to SG)."
+        )
+        return
 
     sg_session.update(
         sg_version_type,
