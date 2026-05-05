@@ -147,8 +147,8 @@ def _sg_to_ay_dict(
             name = slugify_string(task_type)
 
     elif sg_entity["type"] == "Project":
-        name = slugify_string(sg_entity[project_code_field], min_length=0)
-        label = sg_entity[project_code_field]
+        label = sg_entity[project_code_field] or "missing_project_name"
+        name = slugify_string(label, min_length=0)
     elif sg_entity["type"] == "Version":
         ay_entity_type = "version"
         name = slugify_string(sg_entity["code"], min_length=0)
@@ -1825,7 +1825,9 @@ def _update_comment(
             ay_atchmt_name = ay_atchmt["filename"]
             if ay_atchmt_name in sg_atchmt_names:
                 file_ids.append(ay_atchmt["id"])
-                del sg_atchmts[sg_atchmt_names.index(ay_atchmt_name)]
+                idx = sg_atchmt_names.index(ay_atchmt_name)
+                del sg_atchmts[idx]
+                del sg_atchmt_names[idx]
             else: # delete ayon attachment? or should i just keep it on the ayon server?
                 # ayon_api.delete_file( # that's not available :`(
                 #     endpoint=f"projects/{project_name}/files/{ay_atchmt['id']}"
