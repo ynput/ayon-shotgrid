@@ -297,37 +297,26 @@ class ShotgridTransmitter:
         if activities_after_date is None:
             activities_after_date = now - timedelta(days=5)
 
-        response = ayon_api.dispatch_event(
-            SHOTGRID_COMMENTS_TOPIC,
-            description=(
-                "Synchronizing comments from AYON to SG."
-            ),
-            summary=None,
-            payload={},
-            finished=True,
-            store=True,
-        )
-        if isinstance(response, str):
-            event_id = response
-        else:
-            event_id = response["id"]
-
+        synced_comments = 0
+        success = True
         try:
-            synced_comments = 0
             for hub in hubs_for_comment_syncing:
                 synced_comments += hub.sync_comments(activities_after_date)
-            success = True
         except Exception:
             success = False
             self.log.warning("Failed to sync comments.", exc_info=True)
 
-        finally:
-            ayon_api.update_event(
-                event_id,
-                description="Synchronized comments from AYON to SG.",
-                status="finished" if success else "failed",
-                payload={"synced_comments": synced_comments},
-            )
+        if synced_comments == 0 and success:
+            return
+
+        ayon_api.dispatch_event(
+            SHOTGRID_COMMENTS_TOPIC,
+            description="Synchronized comments from AYON to SG.",
+            summary=None,
+            payload={"synced_comments": synced_comments},
+            finished=True,
+            store=True,
+        )
 
     def _hubs_for_comment_syncing(self) -> list[AyonShotgridHub]:
         """Checks which projects has Notes sync enabled"""
