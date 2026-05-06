@@ -95,14 +95,16 @@ def match_shotgrid_hierarchy_in_ayon(
             continue
 
         if sg_ay_dict["type"].lower() == "entity_list":
-            event_type = (
-                "attribute_change"
-                if sg_ay_dict["data"].get("sg_ayon_id")
-                else "new_entity"
+            ayon_list_id = sg_ay_dict["data"].get(CUST_FIELD_CODE_ID)
+            ay_list_exists = ayon_list_id and any(
+                lst["id"] == ayon_list_id
+                for lst in ayon_api.get_entity_lists(
+                    entity_hub.project_name, fields=["id"]
+                )
             )
             sync_ay_entity_list_from_sg_event(
                 {
-                    "type": event_type,
+                    "type": "attribute_change" if ay_list_exists else "new_entity",
                     "entity_id": sg_entity_id,
                     "attribute_name": "versions",
                 },
