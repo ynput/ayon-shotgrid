@@ -185,6 +185,7 @@ def sync_sg_playlist_from_ayon_event(
     except Exception:
         log.info("EntityList couldn't be fetched. We're probably deleting the list.")
 
+    sg_versions = []
     if entity_list:
         version_ids = [entity["entityId"] for entity in entity_list["items"]]
         ay_versions = ayon_api.get_versions(
@@ -200,6 +201,9 @@ def sync_sg_playlist_from_ayon_event(
 
     match ayon_event["topic"]:
         case "entity_list.created":
+            if not entity_list:
+                log.error("EntityList not found, cannot create SG Playlist.")
+                return
             log.info(f"Creating new SG Playlist from AYON EntityList {entity_list['label']}")
             playlist = sg_session.create(
                 "Playlist",
@@ -224,6 +228,9 @@ def sync_sg_playlist_from_ayon_event(
                 }
             )
         case "entity_list.changed":
+            if not entity_list:
+                log.error("EntityList not found, cannot update SG Playlist.")
+                return
             if not entity_list["attrib"].get("sg_id"):
                 log.error("SG Playlist ID not found on AYON EntityList")
 

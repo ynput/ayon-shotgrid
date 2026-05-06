@@ -229,18 +229,18 @@ def sync_ay_entity_list_from_sg_event(
         ["id", "code", "versions", "sg_ayon_id", "locked"]
     )
 
+    ay_version_items = []
     if playlist:
-        # get ayon_id for all sg versions
-        ay_version_items = []
-        for idx, version in enumerate(playlist.get("versions", [])):
-            sg_version = sg_session.find_one(
+        # get ayon_id for all sg versions in a single batched query
+        version_ids = [v["id"] for v in playlist.get("versions", [])]
+        if version_ids:
+            for sg_version in sg_session.find(
                 "Version",
-                [["id", "is", version["id"]]],
+                [["id", "in", version_ids]],
                 ["sg_ayon_id"]
-            )
-            if sg_version.get("sg_ayon_id"):
-                item = {"entityId": sg_version["sg_ayon_id"]}
-                ay_version_items.append(item)
+            ):
+                if sg_version.get("sg_ayon_id"):
+                    ay_version_items.append({"entityId": sg_version["sg_ayon_id"]})
 
     match sg_event_meta["type"]:
         case "new_entity":

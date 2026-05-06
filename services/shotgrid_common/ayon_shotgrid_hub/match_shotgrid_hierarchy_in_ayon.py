@@ -22,6 +22,8 @@ from utils import (
     update_ay_entity_custom_attributes, handle_comment,
 )
 
+from .update_from_shotgrid import sync_ay_entity_list_from_sg_event
+
 from utils import get_logger
 
 
@@ -90,6 +92,23 @@ def match_shotgrid_hierarchy_in_ayon(
 
         if sg_ay_dict["type"].lower() == "comment":
             handle_comment(sg_ay_dict, sg_session, entity_hub)
+            continue
+
+        if sg_ay_dict["type"].lower() == "entity_list":
+            event_type = (
+                "attribute_change"
+                if sg_ay_dict["data"].get("sg_ayon_id")
+                else "new_entity"
+            )
+            sync_ay_entity_list_from_sg_event(
+                {
+                    "type": event_type,
+                    "entity_id": sg_entity_id,
+                    "attribute_name": "versions",
+                },
+                sg_project,
+                sg_session,
+            )
             continue
 
         shotgrid_type = sg_ay_dict["attribs"].get(SHOTGRID_TYPE_ATTRIB)
@@ -247,7 +266,13 @@ def _update_ay_entity(
             custom_attribs_map,
             ay_project=entity_hub.project_entity
         )
-        return True
+
+    # If playlist update version content here
+    if sg_ay_dict["type"].lower() == "playlist":
+        # TODO: update playlist content here
+        pass
+
+    return True
 
 
 def _update_sg_entity(

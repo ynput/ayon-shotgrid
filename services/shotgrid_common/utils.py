@@ -1503,6 +1503,11 @@ def create_new_ayon_entity(
             attribs=sg_ay_dict["attribs"],
             data=sg_ay_dict["data"]
         )
+
+    elif sg_ay_dict["type"].lower() == "playlist":
+        # TODO: create playlist + add connected versions
+        ay_entity = None
+
     elif sg_ay_dict["type"].lower() == "version":
         # SG doesn't have values for product_name and version (int)
         # we might create some assumption how to parsem out in the future
