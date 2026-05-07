@@ -269,11 +269,6 @@ def _update_ay_entity(
             ay_project=entity_hub.project_entity
         )
 
-    # If playlist update version content here
-    if sg_ay_dict["type"].lower() == "playlist":
-        # TODO: update playlist content here
-        pass
-
     return True
 
 
