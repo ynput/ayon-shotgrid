@@ -268,8 +268,7 @@ def _update_ay_entity(
             custom_attribs_map,
             ay_project=entity_hub.project_entity
         )
-
-    return True
+        return True
 
 
 def _update_sg_entity(
