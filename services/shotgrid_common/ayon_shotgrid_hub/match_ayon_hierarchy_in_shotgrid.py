@@ -1,3 +1,4 @@
+import json
 import collections
 import shotgun_api3
 from typing import Dict, List, Union, Any
@@ -25,6 +26,8 @@ from utils import (
 )
 
 from utils import get_logger
+
+from .update_from_ayon import sync_sg_playlist_from_ayon_event
 
 
 log = get_logger(__file__)
@@ -332,6 +335,36 @@ def match_ayon_hierarchy_in_shotgrid(
 
     # committing changes on project entity
     entity_hub.commit_changes()
+
+    # Sync AYON playlists
+    entity_lists = ayon_api.get_entity_lists(
+        entity_hub.project_name,
+        fields=["id", "label", "entityType", "allAttrib"],
+    )
+    for entity_list in entity_lists:
+        if entity_list.get("entityType") != "version":
+            log.debug(f"Entity list {entity_list['id']} is not a version entity.")
+            continue
+
+        all_attrib = entity_list.get("allAttrib")
+        if isinstance(all_attrib, str):
+            all_attrib = json.loads(all_attrib)
+        sg_id = (all_attrib or {}).get("sg_id")
+        topic = "entity_list.changed" if sg_id else "entity_list.created"
+
+        sync_sg_playlist_from_ayon_event(
+            {
+                "topic": topic,
+                "summary": {
+                    "id": entity_list["id"],
+                    "entity_type": "version",
+                    "label": entity_list["label"],
+                },
+            },
+            sg_session,
+            entity_hub,
+            sg_project,
+        )
 
 
 def _add_items_to_queue(
