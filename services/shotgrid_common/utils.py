@@ -2096,7 +2096,7 @@ def create_new_sg_entity(
             )
 
         sg_type = "Task"
-        data["content"] = ay_entity.name
+        data["content"] = ay_entity.label or ay_entity.name
         data["entity"] = sg_parent_entity
         data["step"] = task_step
 
@@ -2151,9 +2151,19 @@ def create_new_sg_entity(
                 ay_project_name,
                 ay_entity.task_id
             )
-            sg_task = task_data["attrib"].get(SHOTGRID_ID_ATTRIB)
+            sg_task = task_data["attrib"].get(SHOTGRID_ID_ATTRIB) if task_data else None
             if sg_task:
-                data["sg_task"] = {"type": "Task", "id": int(sg_task)}
+                sg_task_id = int(sg_task)
+                sg_task_exists = sg_session.find_one(
+                    "Task", [["id", "is", sg_task_id]], ["id"]
+                )
+                if sg_task_exists:
+                    data["sg_task"] = {"type": "Task", "id": sg_task_id}
+                else:
+                    log.warning(
+                        f"SG Task {sg_task_id} referenced by AYON task "
+                        f"{ay_entity.task_id} not found in SG, skipping."
+                    )
 
         # sync comment for description
         data["description"] = ay_entity.attribs.get("comment")
