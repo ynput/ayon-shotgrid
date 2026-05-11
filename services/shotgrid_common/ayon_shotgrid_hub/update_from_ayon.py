@@ -419,6 +419,8 @@ def update_sg_entity_from_ayon_event(
         # Label changed
         elif ayon_event["topic"].endswith("label_changed"):
             new_value = ayon_event["payload"].get("newValue")
+            if not new_value:
+                return
             data_to_update[sg_field_name] = new_value
             new_attribs = None
 
