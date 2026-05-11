@@ -158,6 +158,10 @@ def _sg_to_ay_dict(
         content = sg_entity["content"] or ""
         name = slugify_string(content, min_length=0)
         label = content
+    elif sg_entity["type"] == "Playlist":
+        ay_entity_type = "entity_list"
+        name = slugify_string(sg_entity["code"], min_length=0)
+        label = sg_entity["code"]
     else:
         name = slugify_string(sg_entity["code"], min_length=0)
         label = sg_entity["code"]
@@ -1503,6 +1507,7 @@ def create_new_ayon_entity(
             attribs=sg_ay_dict["attribs"],
             data=sg_ay_dict["data"]
         )
+
     elif sg_ay_dict["type"].lower() == "version":
         # SG doesn't have values for product_name and version (int)
         # we might create some assumption how to parsem out in the future

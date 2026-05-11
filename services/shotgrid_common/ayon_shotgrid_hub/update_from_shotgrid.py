@@ -229,18 +229,18 @@ def sync_ay_entity_list_from_sg_event(
         ["id", "code", "versions", "sg_ayon_id", "locked"]
     )
 
+    ay_version_items = []
     if playlist:
-        # get ayon_id for all sg versions
-        ay_version_items = []
-        for idx, version in enumerate(playlist.get("versions", [])):
-            sg_version = sg_session.find_one(
+        # get ayon_id for all sg versions in a single batched query
+        version_ids = [v["id"] for v in playlist.get("versions", [])]
+        if version_ids:
+            for sg_version in sg_session.find(
                 "Version",
-                [["id", "is", version["id"]]],
+                [["id", "in", version_ids]],
                 ["sg_ayon_id"]
-            )
-            if sg_version.get("sg_ayon_id"):
-                item = {"entityId": sg_version["sg_ayon_id"]}
-                ay_version_items.append(item)
+            ):
+                if sg_version.get("sg_ayon_id"):
+                    ay_version_items.append({"entityId": sg_version["sg_ayon_id"]})
 
     match sg_event_meta["type"]:
         case "new_entity":
@@ -287,7 +287,7 @@ def sync_ay_entity_list_from_sg_event(
             log.info(f"\t- label = {playlist['code']}")
             log.info(f"\t- active = {not playlist.get('locked', False)}")
             ayon_api.raw_patch(    # doesn't respect 'active' attribute or support adding versions
-                f"/projects/{sg_project['name']}/lists",
+                f"/projects/{sg_project['name']}/lists/{playlist['sg_ayon_id']}",
                 json={
                     "project_name": sg_project["name"],
                     "entity_type": "version",
@@ -295,13 +295,19 @@ def sync_ay_entity_list_from_sg_event(
                     "attrib": {"sg_id": playlist["id"]},
                 }
             )
-            ayon_api.raw_patch(    # so i add version here
-                f"/projects/{sg_project['name']}/lists/{playlist['sg_ayon_id']}/items",
-                json={
-                    "items": ay_version_items,
-                    "mode": "replace",
-                }
-            )
+            if ay_version_items:
+                ayon_api.raw_patch(
+                    f"/projects/{sg_project['name']}/lists/{playlist['sg_ayon_id']}/items",
+                    json={"items": ay_version_items, "mode": "replace"},
+                )
+
+            # Empty list, delete all items.
+            # raw_patch or items=[] and mode="replace" does not clean the list.
+            else:
+                current = ayon_api.get_entity_list_rest(sg_project["name"], playlist["sg_ayon_id"])
+                for item in current.get("items", []):
+                    ayon_api.delete_entity_list_item(sg_project["name"], playlist["sg_ayon_id"], item["id"])
+
             ayon_api.update_entity_list(    # and update active attrib here
                 project_name=sg_project["name"],
                 list_id=playlist["sg_ayon_id"],
