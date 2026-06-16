@@ -416,6 +416,19 @@ def update_sg_entity_from_ayon_event(
             if "attribs" in new_attribs:
                 new_attribs = new_attribs["attribs"]
 
+            # If attribute value is None, it could be because attribute
+            # got reset to inherit from parent. Gather new values explicitly
+            # from the folder entity.
+            if None in new_attribs.values():
+                folder_entity = ayon_api.get_folder_by_id(
+                    ayon_event["project"],
+                    ayon_event["summary"]["entityId"],
+                )
+                new_attribs = {
+                    key: folder_entity["attrib"].get(key)
+                    for key in new_attribs
+                }
+
         # Label changed
         elif ayon_event["topic"].endswith("label_changed"):
             new_value = ayon_event["payload"].get("newValue")
@@ -476,13 +489,14 @@ def update_sg_entity_from_ayon_event(
             new_attribs = None
 
         if new_attribs:
-            data_to_update.update(get_sg_custom_attributes_data(
-                sg_session,
-                new_attribs,
-                sg_entity_type,
-                custom_attribs_map
-            ))
-
+            data_to_update.update(
+                get_sg_custom_attributes_data(
+                    sg_session,
+                    new_attribs,
+                    sg_entity_type,
+                    custom_attribs_map
+                )
+            )
 
         sg_entity = sg_session.update(
             sg_entity_type,
