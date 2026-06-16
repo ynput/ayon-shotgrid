@@ -2232,7 +2232,7 @@ def create_new_sg_entity(
     # Fill up data with any extra attributes from AYON we want to sync to SG
     # If some values are None, that could mean the attribute is inherited from the parent.
     # Use folder entity to get inherited attribute values then.
-    if None in attr_values:
+    if None in attr_values.values():
         folder_entity = ayon_api.get_folder_by_id(
             ay_entity.project_name,
             ay_entity.id,
