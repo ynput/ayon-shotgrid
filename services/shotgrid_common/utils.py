@@ -2228,15 +2228,20 @@ def create_new_sg_entity(
             if ay_status and ay_status in get_sg_statuses(sg_session, sg_type):
                 data["sg_status_list"] = ay_status
 
+    attr_values = ay_entity.attribs.to_dict()
     # Fill up data with any extra attributes from AYON we want to sync to SG
-    # Use folder entity to get inherited attribute values.
-    folder_entity = ayon_api.get_folder_by_id(
-        ay_entity.project_name,
-        ay_entity.id,
-    )
+    # If some values are None, that could mean the attribute is inherited from the parent.
+    # Use folder entity to get inherited attribute values then.
+    if None in attr_values:
+        folder_entity = ayon_api.get_folder_by_id(
+            ay_entity.project_name,
+            ay_entity.id,
+        )
+        attr_values = folder_entity["attrib"]
+
     data |= get_sg_custom_attributes_data(
         sg_session,
-        folder_entity["attrib"],
+        attr_values,
         sg_type,
         custom_attribs_map
     )
