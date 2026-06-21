@@ -1,1 +1,3 @@
---8<-- "README.md"
+# AYON Shotgrid Addon API Reference
+
+--8<-- "README.md:3"
