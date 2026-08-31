@@ -393,6 +393,12 @@ def _add_items_to_queue(
         product_entity = entity_hub.get_product_by_id(version["productId"])
 
         if product_entity.parent.id == ay_entity.id:
+
+            # only sync non-hero versions
+            if version["version"] < 0:
+                log.info(f"Skip hero version entity processing from AYON '{version['id']}'. ")
+                continue
+
             ay_entity_deck.append(
                 (
                     sg_ay_dict,
