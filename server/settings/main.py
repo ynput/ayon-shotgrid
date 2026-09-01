@@ -68,10 +68,11 @@ def get_default_folder_attributes():
         if attr_name in ["shotgridId", "shotgridType", "tools"]:
             continue
 
+        is_enum = "enum" in attr_dict
         attr_map = {
             "ayon": attr_name,
             "sg": "",
-            "type": attr_dict["type"],
+            "type": "list" if is_enum else attr_dict["type"],
             "scope": default_shotgrid_enabled_entities()
         }
 

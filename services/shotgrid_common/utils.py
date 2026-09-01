@@ -281,6 +281,9 @@ def create_ay_custom_attribs_in_sg_entity(
             attribute containing the type of data and the scope of the
             attribute.
     """
+    attrs_data = ayon_api.get_attributes_schema().get("attributes", [])
+    attrs_data_map = {attr["name"]: attr for attr in attrs_data}
+
     # Add all the custom attributes
     for sg_attrib in custom_attribs_map.values():
 
@@ -306,11 +309,19 @@ def create_ay_custom_attribs_in_sg_entity(
         # If it doesn't exist, we create a custom attribute on the
         # SG entity by prefixing it with "sg_"
         if not exists:
+            field_properties = None
+            if field_type == "list":
+                attr = attrs_data_map.get(sg_attrib, {}).get("data", {})
+                field_properties = {
+                    "valid_values": [value["value"] for value in attr.get("enum", [])]
+                }
+
             get_or_create_sg_field(
                 sg_session,
                 sg_entity_type,
                 sg_attrib,
-                field_type
+                field_type,
+                field_properties=field_properties,
             )
 
 
@@ -692,7 +703,6 @@ def get_or_create_sg_field(
         sg_session, sg_entity_type, field_code)
 
     if not attribute_exists:
-
         try:
             attribute_exists = sg_session.schema_field_create(
                 sg_entity_type,
