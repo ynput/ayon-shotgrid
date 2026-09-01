@@ -64,6 +64,13 @@ def create_sg_entity_from_ayon_event(
             f"{ayon_event['summary']['entityId']}"
         )
 
+    # Ignore hero versions sync.
+    if ay_entity.entity_type == "version" and ay_entity.version < 0:
+        log.info(
+            f"Skip hero version entity processing from AYON '{ay_entity}'. "
+        )
+        return ay_entity
+
     sg_id = ay_entity.attribs.get("shotgridId")
     sg_type = ay_entity.attribs.get("shotgridType")
 
@@ -389,7 +396,10 @@ def update_sg_entity_from_ayon_event(
         sg_entity_type = ay_entity.attribs.get("shotgridType")
 
         if sg_id is None:
-            log.warning(f"Could not create SG entity from {ay_entity}.")
+            if ay_entity.entity_type == "version" and ay_entity.version < 0:
+                log.info(f"Skip hero version entity processing from AYON '{ay_entity}'. ")
+            else:
+                log.warning(f"Could not create SG entity from {ay_entity}.")
             return
 
     try:
