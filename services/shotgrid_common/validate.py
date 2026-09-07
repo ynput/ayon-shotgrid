@@ -245,11 +245,8 @@ def validate_custom_attribs_map(
     sg_schemas = {}
 
     AY_SG_TYPE_MAPPING = {
-        "number": "integer",
-        "float": "float",
-        "text": "string",
-        "date_time": "datetime",
-        "date": "datetime",
+        value["name"]: key
+        for key, value in constants.AYON_SHOTGRID_ATTRIBUTES_MAP.items()
     }
 
     reversed_type_mapping = collections.defaultdict(list)
@@ -281,6 +278,9 @@ def validate_custom_attribs_map(
             "Cannot sync 2 different AYON attribute to the same Flow field.\n"
             "Adjust your custom attribute mapping."
         )
+
+    attrs_data = ayon_api.get_attributes_schema().get("attributes", [])
+    attrs_data_map = {attr["name"]: attr for attr in attrs_data}
 
     for entry in custom_attribs_map:
 
@@ -353,6 +353,22 @@ def validate_custom_attribs_map(
                             f'Expected Flow data type "{entry["type"]}" got "{conformed_field_type}".\n'
                             "Adjust either Flow field configuration or the AYON mapping settings."
                         )
+
+                    # List/Enum attribute: check available values match between AYON and Flow
+                    elif entry["type"] == "list":
+                        field_props = field_schema.get("properties", {})
+                        available_flow_values = field_props.get("valid_values", {}).get("value")
+
+                        attr = attrs_data_map.get(entry["ayon"], {}).get("data", {})
+                        available_ayon_values = [value["value"] for value in attr.get("enum", [])]
+
+                        if set(available_ayon_values) != set(available_flow_values):
+                            errors.append(
+                                f"Cannot sync AYON {scope}.{entry['ayon']} to "
+                                f"Flow field {scope}.{field_attempt} (enum values do not match).\n"
+                                f"Available AYON values: {available_ayon_values}\n"
+                                f"Available Flow values: {available_flow_values}"
+                            )
 
                     break
 
