@@ -102,6 +102,16 @@ AYON_SHOTGRID_ATTRIBUTES_MAP = {
             "custom_metadata"
         ],
     },
+    "date": {
+        "name": "date_time",
+        "properties": [
+            "name",
+            "visible",
+            "description",
+            "summary_default",
+            "custom_metadata"
+        ],
+    },
     "list": {
         "name": "list",
         "properties": [
