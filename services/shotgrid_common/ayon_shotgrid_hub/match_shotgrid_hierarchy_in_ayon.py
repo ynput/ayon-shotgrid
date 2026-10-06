@@ -93,7 +93,7 @@ def match_shotgrid_hierarchy_in_ayon(
         if sg_ay_dict["type"].lower() == "comment":
             try:
                 handle_comment(sg_ay_dict, sg_session, entity_hub)
-            except ayon_api.exceptions.HTTPRequestError as exc:
+            except Exception as exc:
                 log.error(
                     "Unable to sync SG note '%s' as AYON comment: %s",
                     sg_entity_id,
