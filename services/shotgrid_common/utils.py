@@ -1714,25 +1714,35 @@ def handle_comment(sg_ay_dict, sg_session, entity_hub):
     if sg_ayon_id:
         ayon_comment = ayon_api.get_activity_by_id(project_name, sg_ayon_id)
 
-    if not ayon_comment:
-        ay_activity_id = _add_comment(
-            sg_session,
-            project_name,
-            ay_parent_entity["id"],
-            ay_parent_entity["entity_type"],
+    try:
+        if not ayon_comment:
+            ay_activity_id = _add_comment(
+                sg_session,
+                project_name,
+                ay_parent_entity["id"],
+                ay_parent_entity["entity_type"],
+                ayon_user_name,
+                content,
+                sg_note,
+            )
+        else:
+            ay_activity_id = _update_comment(
+                sg_session,
+                project_name,
+                ay_parent_entity,
+                ay_parent_entity["entity_type"],
+                ayon_comment,
+                sg_note,
+            )
+    except ayon_api.exceptions.HTTPRequestError as exc:
+        log.error(
+            "Unable to sync SG note '%s' as AYON comment from user '%s': %s",
+            sg_note_id,
             ayon_user_name,
-            content,
-            sg_note,
+            exc,
         )
-    else:
-        ay_activity_id = _update_comment(
-            sg_session,
-            project_name,
-            ay_parent_entity,
-            ay_parent_entity["entity_type"],
-            ayon_comment,
-            sg_note,
-        )
+        return
+
     #updates SG with AYON comment id
     sg_session.update(
         sg_ay_dict["attribs"].get(SHOTGRID_TYPE_ATTRIB, ""),
@@ -1773,22 +1783,30 @@ def handle_reply(sg_ay_dict, sg_session, entity_hub):
             ayon_comment = ay_cmt
             break
 
-    if not ayon_comment:
-        _ = _add_comment(
-            sg_session,
-            project_name,
-            ay_parent_entity["id"],
-            ay_parent_entity["entity_type"],
+    try:
+        if not ayon_comment:
+            _ = _add_comment(
+                sg_session,
+                project_name,
+                ay_parent_entity["id"],
+                ay_parent_entity["entity_type"],
+                ayon_user_name,
+                content,
+                sg_reply,
+            )
+        else:
+            ayon_api.update_activity(
+                project_name,
+                ayon_comment["activityId"],
+                body=content,
+                data=ayon_comment["activityData"],
+            )
+    except ayon_api.exceptions.HTTPRequestError as exc:
+        log.error(
+            "Unable to sync SG reply '%s' as AYON comment from user '%s': %s",
+            sg_reply_id,
             ayon_user_name,
-            content,
-            sg_reply,
-        )
-    else:
-        ayon_api.update_activity(
-            project_name,
-            ayon_comment["activityId"],
-            body=content,
-            data=ayon_comment["activityData"],
+            exc,
         )
 
 
