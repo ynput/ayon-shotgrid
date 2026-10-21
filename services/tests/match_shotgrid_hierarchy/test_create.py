@@ -15,7 +15,7 @@ from .. import helpers
 
 
 @pytest.mark.skipif(helpers.IS_GITHUB_ACTIONS, reason="WIP make it run on GitHub actions.")
-@pytest.mark.parametrize("empty_project", [{"task_types": ("edit")}], indirect=True)
+@pytest.mark.parametrize("empty_project", [{"task_types": ("edit",)}], indirect=True)
 def test_match_hierarchy(empty_project, mockgun_project):    # noqa: F811
 
     ay_project_data = empty_project
@@ -119,31 +119,30 @@ def test_match_hierarchy(empty_project, mockgun_project):    # noqa: F811
     expected = {
         'hierarchy': [
             {
-                'children': None,
+                'children': [],
                 'folderType': 'Asset',
                 'name': 'my_asset',
                 'label': 'my_asset',
             },
             {
-                'children': [
-                    {
-                        'children': [
-                            {
-                                'children': None,
-                                'folderType': 'Shot',
-                                'name': 'my_shot',
-                                'label': 'my_shot',
-                            }
-                        ],
-                        'folderType': 'Sequence',
-                        'name': 'my_sequence',
-                        'label': 'my_sequence',
-                    }
-                ],
+                'children': [],
                 'folderType': 'Episode',
                 'name': 'my_episode',
                 'label': 'my_episode',
-            }
+            },
+            {
+                'children': [
+                    {
+                        'children': [],
+                        'folderType': 'Shot',
+                        'name': 'my_shot',
+                        'label': 'my_shot',
+                    }
+                ],
+                'folderType': 'Sequence',
+                'name': 'my_sequence',
+                'label': 'my_sequence',
+            },
         ],
         'projectName': project_name
     }
