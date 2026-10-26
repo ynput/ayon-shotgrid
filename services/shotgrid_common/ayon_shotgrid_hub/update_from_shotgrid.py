@@ -585,11 +585,19 @@ def update_ayon_entity_from_sg_event(
     else:
         log.debug(f"Updating AYON Entity: {ay_entity}")
 
-    # TODO: Only update the updated fields in the event
+    # Only update the AYON attribute matching the SG field.
+    sg_field = sg_event.get("attribute_name") or ""
+    values_to_update = [
+        ay_attrib
+        for ay_attrib, sg_attrib in (custom_attribs_map or {}).items()
+        if sg_field in (sg_attrib, f"sg_{sg_attrib}")
+    ]
+
     update_ay_entity_custom_attributes(
         ay_entity,
         sg_ay_dict,
         custom_attribs_map,
+        values_to_update=values_to_update,
         ay_project=ayon_entity_hub.project_entity
     )
 
