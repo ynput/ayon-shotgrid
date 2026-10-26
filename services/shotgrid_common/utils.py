@@ -1385,7 +1385,10 @@ def update_ay_entity_custom_attributes(
 
     # Loop over custom attributes and detect changes.
     for ay_attrib, _ in custom_attribs_map.items():
-        if values_to_update and ay_attrib not in values_to_update:
+        if (
+            values_to_update is not None
+            and ay_attrib not in values_to_update
+        ):
             continue
 
         attrib_value = sg_ay_dict["attribs"].get(ay_attrib, sg_ay_dict.get(ay_attrib, None))
