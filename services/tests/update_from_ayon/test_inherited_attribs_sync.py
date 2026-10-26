@@ -25,8 +25,8 @@ from ayon_shotgrid_hub.match_ayon_hierarchy_in_shotgrid import (
 import constants
 import utils
 
-from . import helpers
-from .conftest import MockEntityHub
+from .. import helpers
+from ..conftest import MockEntityHub
 
 
 ADDON_SETTINGS = {"compatibility_settings": {"default_task_type": "Generic"}}
