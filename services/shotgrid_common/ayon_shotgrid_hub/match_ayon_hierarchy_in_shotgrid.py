@@ -1,4 +1,5 @@
 import json
+import itertools
 import collections
 import shotgun_api3
 from typing import Dict, List, Union, Any
@@ -61,6 +62,18 @@ def match_ayon_hierarchy_in_shotgrid(
     """
     log.info("Getting AYON entities.")
     entity_hub.fetch_hierarchy_entities()
+
+    # Force resolve all attrib values.
+    # (entity_hub only holds non-inherited attribute values).
+    resolved_attribs_by_id = {
+        entity["id"]: entity["attrib"]
+        for entity in itertools.chain(
+            ayon_api.get_folders(
+                entity_hub.project_name, fields={"id", "attrib"}),
+            ayon_api.get_tasks(
+                entity_hub.project_name, fields={"id", "attrib"}),
+        )
+    }
 
     log.info("Getting Shotgrid entities.")
     sg_ay_dicts, sg_ay_dicts_parents = get_sg_entities(
@@ -208,6 +221,9 @@ def match_ayon_hierarchy_in_shotgrid(
             if short_name in sg_statuses:
                 attrib_values["status"] = short_name
 
+            attrib_values.update(
+                resolved_attribs_by_id.get(ay_entity.id, {})
+            )
             attrib_values.update(ay_entity.attribs.to_dict())
 
             # Ensure name still matching folder/task label or name
