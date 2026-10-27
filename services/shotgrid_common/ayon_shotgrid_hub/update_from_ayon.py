@@ -573,7 +573,10 @@ def _update_sg_inherited_children(
 
     def get_inherited_attrib_names(ay_entity, parent_names):
         # `ownAttrib` holds all attributes, None when inherited.
-        own_attrib = ay_entity["ownAttrib"]
+        own_attrib = ay_entity.get("own_attributes")
+        if own_attrib is None:
+            own_attrib = ay_entity["ownAttrib"]
+
         return {
             name for name in parent_names
             if own_attrib.get(name) is None
