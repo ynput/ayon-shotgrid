@@ -221,10 +221,12 @@ def match_ayon_hierarchy_in_shotgrid(
             if short_name in sg_statuses:
                 attrib_values["status"] = short_name
 
-            attrib_values.update(
-                resolved_attribs_by_id.get(ay_entity.id, {})
-            )
-            attrib_values.update(ay_entity.attribs.to_dict())
+            # Resolved values for folders and tasks, versions do not
+            # inherit attributes so their own values are complete.
+            if ay_entity.id in resolved_attribs_by_id:
+                attrib_values.update(resolved_attribs_by_id[ay_entity.id])
+            else:
+                attrib_values.update(ay_entity.attribs.to_dict())
 
             # Ensure name still matching folder/task label or name
             data_to_update = {}
