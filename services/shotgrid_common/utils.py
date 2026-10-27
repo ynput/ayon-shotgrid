@@ -2247,16 +2247,32 @@ def create_new_sg_entity(
             if ay_status and ay_status in get_sg_statuses(sg_session, sg_type):
                 data["sg_status_list"] = ay_status
 
-    attr_values = ay_entity.attribs.to_dict()
     # Fill up data with any extra attributes from AYON we want to sync to SG
-    # If some values are None, that could mean the attribute is inherited from the parent.
-    # Use folder entity to get inherited attribute values then.
-    if None in attr_values.values():
-        folder_entity = ayon_api.get_folder_by_id(
-            ay_entity.project_name,
-            ay_entity.id,
-        )
-        attr_values = folder_entity["attrib"]
+    own_values = dict(ay_entity.attribs.items())
+    has_inherited = any(
+        name in own_values and own_values[name] is None
+        for name in custom_attribs_map
+    )
+    attr_values = {}
+
+    # Inherited attributes, read from core attrib values
+    if has_inherited:
+        server_entity = None
+        if ay_entity.entity_type == "folder":
+            server_entity = ayon_api.get_folder_by_id(
+                ay_entity.project_name,
+                ay_entity.id, fields={"attrib"}
+            )
+        elif ay_entity.entity_type == "task":
+            server_entity = ayon_api.get_task_by_id(
+                ay_entity.project_name,
+                ay_entity.id,
+                fields={"attrib"}
+            )
+        if server_entity:
+            attr_values.update(server_entity["attrib"])
+
+    attr_values.update(ay_entity.attribs.to_dict())
 
     data |= get_sg_custom_attributes_data(
         sg_session,

@@ -400,7 +400,7 @@ def update_sg_entity_from_ayon_event(
                 log.info(f"Skip hero version entity processing from AYON '{ay_entity}'. ")
             else:
                 log.warning(f"Could not create SG entity from {ay_entity}.")
-            return
+            return None
 
     try:
         sg_field_name = "code"
@@ -461,7 +461,7 @@ def update_sg_entity_from_ayon_event(
                     f"'{new_attribs}' in Shotgrid as it's not compatible! "
                     f"It should be one of: {sg_statuses}"
                 )
-                return
+                return None
 
         elif ayon_event["topic"].endswith("tags_changed"):
             tags_event_list = new_attribs
@@ -514,12 +514,136 @@ def update_sg_entity_from_ayon_event(
             data_to_update
         )
         log.info(f"Updated ShotGrid entity: {sg_entity}")
-        return sg_entity
 
     except Exception:
         log.error(
             f"Unable to update {sg_entity_type} <{sg_id}> in ShotGrid!",
             exc_info=True
+        )
+        return None
+
+    # SG has no inheritance and AYON only sends an event for the
+    # changed folder, update any children inheriting the attributes.
+    if (
+        ay_entity.entity_type == "folder"
+        and ayon_event["topic"].endswith("attrib_changed")
+        and isinstance(new_attribs, dict)
+    ):
+        try:
+            _update_sg_inherited_children(
+                ayon_event["project"],
+                ay_entity.id,
+                [name for name in new_attribs if name in custom_attribs_map],
+                sg_session,
+                custom_attribs_map,
+            )
+        except Exception:
+            log.error(
+                f"Unable to update children of {sg_entity_type} <{sg_id}> "
+                "inheriting attributes in ShotGrid!",
+                exc_info=True
+            )
+
+    return sg_entity
+
+
+def _update_sg_inherited_children(
+    project_name: str,
+    folder_id: str,
+    attrib_names: List[str],
+    sg_session: shotgun_api3.Shotgun,
+    custom_attribs_map: Dict[str, str],
+):
+    """Update in Shotgrid the children inheriting the changed attributes.
+
+    Args:
+        project_name (str): The AYON project name.
+        folder_id (str): The AYON folder whose attributes changed.
+        attrib_names (list[str]): The changed attributes.
+        sg_session (shotgun_api3.Shotgun): The Shotgrid API session.
+        custom_attribs_map (dict): A mapping of custom attributes to update.
+    """
+    if not attrib_names:
+        return
+
+    batch_data = []
+    # Inheriting children share the same values, compute SG data once
+    # per entity type to avoid reading the SG schema for every child.
+    sg_data_cache = {}
+
+    def get_inherited_attrib_names(ay_entity, parent_names):
+        # `ownAttrib` holds all attributes, None when inherited.
+        own_attrib = ay_entity.get("own_attributes")
+        if own_attrib is None:
+            own_attrib = ay_entity["ownAttrib"]
+
+        return {
+            name for name in parent_names
+            if own_attrib.get(name) is None
+        }
+
+    def add_to_batch(ay_entity, names):
+        attribs = ay_entity["attrib"]
+        sg_id = attribs.get(SHOTGRID_ID_ATTRIB)
+        sg_type = attribs.get(SHOTGRID_TYPE_ATTRIB)
+        if not sg_id or not sg_type:
+            return
+
+        cache_key = (sg_type, frozenset(names))
+        if cache_key not in sg_data_cache:
+            sg_data_cache[cache_key] = get_sg_custom_attributes_data(
+                sg_session,
+                {name: attribs.get(name) for name in names},
+                sg_type,
+                custom_attribs_map,
+            )
+
+        if sg_data_cache[cache_key]:
+            batch_data.append({
+                "request_type": "update",
+                "entity_type": sg_type,
+                "entity_id": int(sg_id),
+                "data": sg_data_cache[cache_key],
+            })
+
+    # folder id -> attributes it inherits from the changed folder
+    inherited_by_folder_id = {folder_id: set(attrib_names)}
+    while inherited_by_folder_id:
+        folder_ids = list(inherited_by_folder_id)
+
+        for task in ayon_api.get_tasks(
+            project_name,
+            folder_ids=folder_ids,
+            own_attributes=True
+        ):
+            inh_attr_names = get_inherited_attrib_names(
+                task,
+                inherited_by_folder_id[task["folderId"]]
+            )
+            if inh_attr_names:
+                add_to_batch(task, inh_attr_names)
+
+        children_inherited = {}
+        for folder in ayon_api.get_folders(
+            project_name,
+            parent_ids=folder_ids,
+            own_attributes=True
+        ):
+            inh_attr_names = get_inherited_attrib_names(
+                folder,
+                inherited_by_folder_id[folder["parentId"]]
+            )
+            if inh_attr_names:
+                children_inherited[folder["id"]] = inh_attr_names
+                add_to_batch(folder, inh_attr_names)
+
+        inherited_by_folder_id = children_inherited
+
+    if batch_data:
+        sg_session.batch(batch_data)
+        log.info(
+            f"Updated {len(batch_data)} ShotGrid entities "
+            f"inheriting {attrib_names}."
         )
 
 
