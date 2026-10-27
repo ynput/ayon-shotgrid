@@ -400,7 +400,7 @@ def update_sg_entity_from_ayon_event(
                 log.info(f"Skip hero version entity processing from AYON '{ay_entity}'. ")
             else:
                 log.warning(f"Could not create SG entity from {ay_entity}.")
-            return
+            return None
 
     try:
         sg_field_name = "code"
@@ -461,7 +461,7 @@ def update_sg_entity_from_ayon_event(
                     f"'{new_attribs}' in Shotgrid as it's not compatible! "
                     f"It should be one of: {sg_statuses}"
                 )
-                return
+                return None
 
         elif ayon_event["topic"].endswith("tags_changed"):
             tags_event_list = new_attribs
@@ -520,7 +520,7 @@ def update_sg_entity_from_ayon_event(
             f"Unable to update {sg_entity_type} <{sg_id}> in ShotGrid!",
             exc_info=True
         )
-        return
+        return None
 
     # SG has no inheritance and AYON only sends an event for the
     # changed folder, update any children inheriting the attributes.
