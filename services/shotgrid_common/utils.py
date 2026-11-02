@@ -1423,11 +1423,14 @@ def update_ay_entity_custom_attributes(
 
             # SG API returns date values as string.
             # Attempt to detect date field values.
+            # SG dates have no timezone: store them as midnight UTC, otherwise
+            # the naive datetime is serialized using the local timezone of
+            # the machine running the service and can shift by a day.
             try:
                 value_as_date = datetime.datetime.strptime(
                     str(attrib_value),
                     "%Y-%m-%d",
-                )
+                ).replace(tzinfo=datetime.timezone.utc)
 
             except (ValueError, TypeError):
                 value_as_date = None
@@ -1448,12 +1451,10 @@ def update_ay_entity_custom_attributes(
 
                 # Check is a different date
                 current_set_date = ay_entity.attribs.get(ay_attrib)
-                value_as_utc = value_as_date.replace(
-                    tzinfo=datetime.timezone.utc).date()
                 if (
                     current_set_date
                     and datetime.datetime.fromisoformat(current_set_date).date()
-                    == value_as_utc
+                    == value_as_date.date()
                 ):
                     continue
 
@@ -1496,11 +1497,16 @@ def create_new_ayon_entity(
         if (
             attrib_schemas
             and attrib_schemas[0]["data"]["type"] == "datetime"
+            and isinstance(attrib_value, str)
         ):
-            value_as_date = datetime.datetime.strptime(
-                attrib_value,
-                "%Y-%m-%d",
-            )
+            # SG dates have no timezone, store them as midnight UTC.
+            try:
+                value_as_date = datetime.datetime.strptime(
+                    attrib_value,
+                    "%Y-%m-%d",
+                ).replace(tzinfo=datetime.timezone.utc)
+            except ValueError:
+                continue
             sg_ay_dict["attribs"][ay_attrib] = value_as_date
 
     if sg_ay_dict["type"].lower() == "task":
