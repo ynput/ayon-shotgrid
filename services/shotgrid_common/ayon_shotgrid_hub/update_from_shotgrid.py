@@ -47,7 +47,6 @@ from constants import (
     SHOTGRID_ID_ATTRIB,  # AYON Entity Attribute.
     SHOTGRID_TYPE_ATTRIB,  # AYON Entity Attribute.
     SHOTGRID_REMOVED_VALUE,  # Value for removed entities.
-    SG_RESTRICTED_ATTR_FIELDS,
 )
 
 from utils import get_logger
@@ -557,13 +556,6 @@ def update_ayon_entity_from_sg_event(
     if not ay_entity:
         raise ValueError("Unable to update a non existing entity.")
 
-    # make sure the entity is not immutable
-    if (
-        ay_entity.immutable_for_hierarchy
-        and sg_event["attribute_name"] in SG_RESTRICTED_ATTR_FIELDS
-    ):
-        raise ValueError("Entity is immutable, aborting...")
-
     # Ensure AYON Entity has the correct ShotGrid ID
     ayon_entity_sg_id = str(
         ay_entity.attribs.get(SHOTGRID_ID_ATTRIB, "")
@@ -585,11 +577,19 @@ def update_ayon_entity_from_sg_event(
     else:
         log.debug(f"Updating AYON Entity: {ay_entity}")
 
-    # TODO: Only update the updated fields in the event
+    # Only update the AYON attribute matching the SG field.
+    sg_field = sg_event.get("attribute_name") or ""
+    values_to_update = [
+        ay_attrib
+        for ay_attrib, sg_attrib in (custom_attribs_map or {}).items()
+        if sg_field in (sg_attrib, f"sg_{sg_attrib}")
+    ]
+
     update_ay_entity_custom_attributes(
         ay_entity,
         sg_ay_dict,
         custom_attribs_map,
+        values_to_update=values_to_update,
         ay_project=ayon_entity_hub.project_entity
     )
 
