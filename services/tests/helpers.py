@@ -25,17 +25,23 @@ def recursive_partial_assert(expected: dict, actual: dict) -> bool:
     """ Partial assert recursive, to compare API result from Mockgun with expected data.
     """
     if isinstance(expected, dict):
-        assert isinstance(actual, dict), f"Expected dict, got {type(actual)}"
-        for key, value in expected.items():
-            assert key in actual
+        if not isinstance(actual, dict):
+            return False
 
-        return all(recursive_partial_assert(value, actual[key]) for key, value in expected.items())
+        return all(
+            key in actual and recursive_partial_assert(value, actual[key])
+            for key, value in expected.items()
+        )
 
     elif isinstance(expected, list):
-        assert isinstance(actual, list)
+        if not isinstance(actual, list):
+            return False
 
-        for exp_item in expected:
-            return any(recursive_partial_assert(exp_item, act_item) for act_item in actual)
+        # every expected item must match at least one actual item
+        return all(
+            any(recursive_partial_assert(exp_item, act_item) for act_item in actual)
+            for exp_item in expected
+        )
 
     return expected == actual
 
