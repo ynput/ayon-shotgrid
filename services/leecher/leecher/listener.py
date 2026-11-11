@@ -283,7 +283,7 @@ class ShotgridListener:
             # latest event registered in AYON does not exist in SG, the
             # instance probably changed.
             if sg_last_event and last_event_id > sg_last_event["id"]:
-                self.log.warning(
+                raise ValueError(
                     f"Last event id {last_event_id} registered in AYON is "
                     f"higher than the latest event {sg_last_event['id']} "
                     "on the Flow instance.\n\n"
