@@ -270,7 +270,28 @@ class ShotgridListener:
             last_event_id (int): The last known Event id.
         """
         last_event_id = self._find_last_event_id()
-        if not last_event_id:
+        if last_event_id:
+            sg_last_event = self.sg_session.find_one(
+                "EventLogEntry",
+                filters=[],
+                fields=["id"],
+                order=[{"column": "id", "direction": "desc"}],
+            )
+
+            # AYON stores the source SG event id in each shotgrid.event,
+            # this way the leecher only queries new events each time. If the
+            # latest event registered in AYON does not exist in SG, the
+            # instance probably changed.
+            if sg_last_event and last_event_id > sg_last_event["id"]:
+                self.log.warning(
+                    f"Last event id {last_event_id} registered in AYON is "
+                    f"higher than the latest event {sg_last_event['id']} "
+                    "on the Flow instance.\n\n"
+                    "If the instance changed, you need to remove the "
+                    "previous 'shotgrid.event' events (and their "
+                    "'shotgrid.proc' children) in AYON to reset it."
+                )
+        else:
             last_event = self.sg_session.find_one(
                 "EventLogEntry",
                 filters=sg_filters,
