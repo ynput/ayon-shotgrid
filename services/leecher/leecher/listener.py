@@ -289,7 +289,8 @@ class ShotgridListener:
                     "on the Flow instance.\n\n"
                     "If the instance changed, you need to remove the "
                     "previous 'shotgrid.event' events (and their "
-                    "'shotgrid.proc' children) in AYON to reset it."
+                    "'shotgrid.proc' children) in AYON, then restart "
+                    "the leecher."
                 )
         else:
             last_event = self.sg_session.find_one(
