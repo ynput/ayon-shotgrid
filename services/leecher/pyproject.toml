@@ -7,7 +7,7 @@ authors = [
 ]
 requires-python = ">=3.11"
 dependencies = [
-    "ayon_python_api>=1.2.7",
+    "ayon_python_api>=1.2.8",
     "shotgun-api3"
 ]
 
