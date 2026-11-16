@@ -217,6 +217,7 @@ class AyonShotgridHub:
 
         self._ay_project.commit_changes()
 
+        self.create_sg_attributes()
         if self._sg_project is None:
             self.log.info(f"Creating Shotgrid project {self.project_name} (self.project_code).")
             self._sg_project = self._sg.create(
@@ -240,7 +241,6 @@ class AyonShotgridHub:
             )
             self._ay_project.commit_changes()
 
-        self.create_sg_attributes()
         self.log.info(f"Project {self.project_name} ({self.project_code}) available in SG and AYON.")
 
     def synchronize_projects(self, source="ayon"):

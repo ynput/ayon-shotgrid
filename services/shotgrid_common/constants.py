@@ -137,11 +137,6 @@ SG_COMMON_ENTITY_FIELDS = [
     CUST_FIELD_CODE_SYNC,
 ]
 
-SG_RESTRICTED_ATTR_FIELDS = [
-    "code",
-    "name"
-]
-
 SG_EVENT_TYPES = [
     "Shotgun_{0}_New",  # a new entity was created.
     "Shotgun_{0}_Change",  # an entity was modified.

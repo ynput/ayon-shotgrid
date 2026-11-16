@@ -1385,7 +1385,10 @@ def update_ay_entity_custom_attributes(
 
     # Loop over custom attributes and detect changes.
     for ay_attrib, _ in custom_attribs_map.items():
-        if values_to_update and ay_attrib not in values_to_update:
+        if (
+            values_to_update is not None
+            and ay_attrib not in values_to_update
+        ):
             continue
 
         attrib_value = sg_ay_dict["attribs"].get(ay_attrib, sg_ay_dict.get(ay_attrib, None))
@@ -1423,11 +1426,14 @@ def update_ay_entity_custom_attributes(
 
             # SG API returns date values as string.
             # Attempt to detect date field values.
+            # SG dates have no timezone: store them as midnight UTC, otherwise
+            # the naive datetime is serialized using the local timezone of
+            # the machine running the service and can shift by a day.
             try:
                 value_as_date = datetime.datetime.strptime(
                     str(attrib_value),
                     "%Y-%m-%d",
-                )
+                ).replace(tzinfo=datetime.timezone.utc)
 
             except (ValueError, TypeError):
                 value_as_date = None
@@ -1448,12 +1454,10 @@ def update_ay_entity_custom_attributes(
 
                 # Check is a different date
                 current_set_date = ay_entity.attribs.get(ay_attrib)
-                value_as_utc = value_as_date.replace(
-                    tzinfo=datetime.timezone.utc).date()
                 if (
                     current_set_date
                     and datetime.datetime.fromisoformat(current_set_date).date()
-                    == value_as_utc
+                    == value_as_date.date()
                 ):
                     continue
 
@@ -1496,11 +1500,16 @@ def create_new_ayon_entity(
         if (
             attrib_schemas
             and attrib_schemas[0]["data"]["type"] == "datetime"
+            and isinstance(attrib_value, str)
         ):
-            value_as_date = datetime.datetime.strptime(
-                attrib_value,
-                "%Y-%m-%d",
-            )
+            # SG dates have no timezone, store them as midnight UTC.
+            try:
+                value_as_date = datetime.datetime.strptime(
+                    attrib_value,
+                    "%Y-%m-%d",
+                ).replace(tzinfo=datetime.timezone.utc)
+            except ValueError:
+                continue
             sg_ay_dict["attribs"][ay_attrib] = value_as_date
 
     if sg_ay_dict["type"].lower() == "task":
@@ -2238,16 +2247,32 @@ def create_new_sg_entity(
             if ay_status and ay_status in get_sg_statuses(sg_session, sg_type):
                 data["sg_status_list"] = ay_status
 
-    attr_values = ay_entity.attribs.to_dict()
     # Fill up data with any extra attributes from AYON we want to sync to SG
-    # If some values are None, that could mean the attribute is inherited from the parent.
-    # Use folder entity to get inherited attribute values then.
-    if None in attr_values.values():
-        folder_entity = ayon_api.get_folder_by_id(
-            ay_entity.project_name,
-            ay_entity.id,
-        )
-        attr_values = folder_entity["attrib"]
+    own_values = dict(ay_entity.attribs.items())
+    has_inherited = any(
+        name in own_values and own_values[name] is None
+        for name in custom_attribs_map
+    )
+    attr_values = {}
+
+    # Inherited attributes, read from core attrib values
+    if has_inherited:
+        server_entity = None
+        if ay_entity.entity_type == "folder":
+            server_entity = ayon_api.get_folder_by_id(
+                ay_entity.project_name,
+                ay_entity.id, fields={"attrib"}
+            )
+        elif ay_entity.entity_type == "task":
+            server_entity = ayon_api.get_task_by_id(
+                ay_entity.project_name,
+                ay_entity.id,
+                fields={"attrib"}
+            )
+        if server_entity:
+            attr_values.update(server_entity["attrib"])
+
+    attr_values.update(ay_entity.attribs.to_dict())
 
     data |= get_sg_custom_attributes_data(
         sg_session,

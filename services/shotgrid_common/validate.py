@@ -249,6 +249,9 @@ def validate_custom_attribs_map(
         for key, value in constants.AYON_SHOTGRID_ATTRIBUTES_MAP.items()
     }
 
+    # SG has 2 different types for date while AYON got only 1
+    AY_SG_TYPE_MAPPING["date"] = AY_SG_TYPE_MAPPING["date_time"]
+
     reversed_type_mapping = collections.defaultdict(list)
     for key, value in AY_SG_TYPE_MAPPING.items():
         reversed_type_mapping[value].append(key)
