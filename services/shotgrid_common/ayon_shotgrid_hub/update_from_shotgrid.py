@@ -112,9 +112,12 @@ def create_ay_entity_from_sg_event(
         return
 
     if sg_ay_dict["type"].lower() == "comment":
-        # SG note as AYON comment creation is
-        # handled by update_ayon_entity_from_sg_event
         if sg_ay_dict["attribs"]["shotgridType"] == "Note":
+            handle_comment(
+                sg_ay_dict,
+                sg_session,
+                ayon_entity_hub,
+            )
             return
         if sg_ay_dict["attribs"]["shotgridType"] == "Reply":
             handle_reply(
