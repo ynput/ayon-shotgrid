@@ -1,6 +1,6 @@
 [project]
 name = "shotgrid-transmitter"
-version = "0.6.21+dev"
+version = "0.6.23-dev"
 description = "Shotgrid Integration for AYON"
 authors = [
     {name = "Ynput s.r.o.", email = "info@ynput.io"}
@@ -8,7 +8,7 @@ authors = [
 requires-python = ">=3.11"
 dependencies = [
     "arrow",
-    "ayon_python_api>=1.2.7",
+    "ayon_python_api>=1.2.8",
     "shotgun-api3"
 ]
 

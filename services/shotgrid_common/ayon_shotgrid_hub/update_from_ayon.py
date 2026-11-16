@@ -31,7 +31,7 @@ def create_sg_entity_from_ayon_event(
     ayon_entity_hub: ayon_api.entity_hub.EntityHub,
     sg_project: Dict,
     sg_enabled_entities: List[str],
-    sg_project_code_field: [str],
+    sg_project_code_field: str,
     custom_attribs_map: Dict[str, str],
     addon_settings: Dict[str, Any],
 ):
