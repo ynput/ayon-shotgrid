@@ -399,18 +399,36 @@ const getShotgridProjects = async () => {
       console.log(error)
     });
 
-  sgProjects = await axios
-    .get(`${sgBaseUrl}/entity/projects?fields=*`, {
-      headers: {
-        'Authorization': `Bearer ${sgAuthToken}`,
-        'Accept': 'application/json'
+  // Fetch all projects using pagination
+  sgProjects = [];
+  let page = 1;
+  const pageSize = 100;
+
+  try {
+    while (true) {
+      const result = await axios.get(
+        `${sgBaseUrl}/entity/projects?fields=*&page[number]=${page}&page[size]=${pageSize}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${sgAuthToken}`,
+            'Accept': 'application/json'
+          }
+        }
+      );
+
+      const projects = result.data.data;
+      sgProjects = sgProjects.concat(projects);
+
+      if (projects.length < pageSize) {
+        break;
       }
-    })
-    .then((result) => result.data.data)
-    .catch((error) => {
-      console.log("Unable to Fetch Shotgrid Projects!")
-      console.log(error)
-    });
+
+      page++;
+    }
+  } catch (error) {
+    console.log("Unable to Fetch Shotgrid Projects!")
+    console.log(error)
+  }
 
   var sgProjectsConformed = []
 
